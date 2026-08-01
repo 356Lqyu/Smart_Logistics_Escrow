@@ -27,7 +27,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             searchInputEl.placeholder = "Search available jobs...";
 
             menuListEl.innerHTML = `
-                <li><a href="dashboard.html?role=carrier" class="active"><i data-lucide="layout-dashboard"></i> Dashboard</a></li>
+                <li><a href="dashboard.html?role=carrier"><i data-lucide="layout-dashboard"></i> Dashboard</a></li>
                 <li><a href="#"><i data-lucide="box"></i> Available Jobs</a></li>
                 <li><a href="#"><i data-lucide="file-text"></i> My Contracts</a></li>
                 <li><a href="#"><i data-lucide="target"></i> Milestones</a></li>
@@ -41,13 +41,29 @@ document.addEventListener("DOMContentLoaded", async () => {
             searchInputEl.placeholder = "Search agreements...";
 
             menuListEl.innerHTML = `
-                <li><a href="dashboard.html?role=shipper" class="active"><i data-lucide="layout-dashboard"></i> Dashboard</a></li>
-                <li><a href="#"><i data-lucide="file-text"></i> Agreements</a></li>
+                <li><a href="dashboard.html?role=shipper"><i data-lucide="layout-dashboard"></i> Dashboard</a></li>
+                <li><a href="agreements.html"><i data-lucide="file-text"></i> Agreements</a></li>
                 <li><a href="#"><i data-lucide="target"></i> Milestones</a></li>
                 <li><a href="#"><i data-lucide="rotate-ccw"></i> Transaction History</a></li>
                 <li><a href="#"><i data-lucide="user-round"></i> Profile</a></li>
             `;
         }
+
+        // Automatically highlight current page
+
+        const currentPage = window.location.pathname.split('/').pop();
+
+        menuListEl.querySelectorAll('a').forEach(link => {
+
+            const linkPage = link
+                .getAttribute('href')
+                ?.split('?')[0];
+
+            if (linkPage === currentPage) {
+                link.classList.add('active');
+            }
+
+        });
 
         // render Lucide icons for sidebar item's icon
         if (typeof lucide !== 'undefined') {

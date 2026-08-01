@@ -308,3 +308,223 @@ body {
     padding: 30px 35px;
     flex: 1;
 }
+
+/* Agreements page styles*/
+.agreements-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.filter-search {
+    width: 280px;
+}
+
+.filter-tabs {
+    display: flex;
+    background: #0b132b;
+    border: 1px solid rgba(58, 80, 107, 0.4);
+    padding: 4px;
+    border-radius: 10px;
+    gap: 4px;
+}
+
+.filter-btn {
+    background: transparent;
+    border: none;
+    color: #8d99ae;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.filter-btn:hover {
+    color: #ffffff;
+}
+
+.filter-btn.active {
+    background-color: #0e51e3;
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(14, 81, 227, 0.4);
+}
+
+.primary-action-btn {
+    background-color: #0e51e3;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(14, 81, 227, 0.3);
+    transition: background 0.3s ease, transform 0.2s ease;
+}
+
+.primary-action-btn:hover {
+    background-color: #2563eb;
+    transform: translateY(-1px);
+}
+
+/* Table Card Layout */
+.table-card {
+    background: #0b132b;
+    border: 1px solid rgba(58, 80, 107, 0.4);
+    border-radius: 12px;
+    overflow-x: auto;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.agreements-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 13px;
+}
+
+.agreements-table th {
+    padding: 16px 20px;
+    color: #8d99ae;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid rgba(58, 80, 107, 0.4);
+}
+
+.agreements-table td {
+    padding: 18px 20px;
+    color: #e0e1dd;
+    border-bottom: 1px solid rgba(58, 80, 107, 0.2);
+    white-space: nowrap;
+}
+
+.agreements-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.agreements-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.ref-col {
+    color: #3b82f6;
+    font-weight: 600;
+    font-family: monospace;
+}
+
+.text-muted {
+    color: #64748b;
+    font-style: italic;
+}
+
+.eth-val {
+    font-family: monospace;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.eth-val i {
+    color: #3b82f6;
+    margin-right: 2px;
+}
+
+/* Priority Badges */
+.priority-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+}
+
+.priority-express {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.priority-urgent {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.priority-normal {
+    background: rgba(141, 153, 174, 0.15);
+    color: #94a3b8;
+    border: 1px solid rgba(141, 153, 174, 0.3);
+}
+
+/* Status Badges */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.status-active {
+    background: rgba(37, 99, 235, 0.15);
+    color: #60a5fa;
+    border: 1px solid rgba(37, 99, 235, 0.3);
+}
+.status-active .status-dot { background-color: #3b82f6; }
+
+.status-funded {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+.status-funded .status-dot { background-color: #f59e0b; }
+
+.status-completed {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+.status-completed .status-dot { background-color: #10b981; }
+
+.status-available {
+    background: rgba(139, 92, 246, 0.15);
+    color: #a78bfa;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+}
+.status-available .status-dot { background-color: #8b5cf6; }
+
+.view-btn {
+    background: #1c2541;
+    border: 1px solid #3a506b;
+    color: #e0e1dd;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.view-btn:hover {
+    background: #0e51e3;
+    border-color: #0e51e3;
+    color: #ffffff;
+}
