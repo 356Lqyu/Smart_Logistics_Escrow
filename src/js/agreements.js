@@ -22,63 +22,78 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    // fetch agreement data from smart contract
-    await loadAgreementsFromBlockchain();
+    // fetch real live agreement data from blockchain
+    await loadAgreements();
 });
 
-async function loadAgreementsFromBlockchain() {
+async function loadAgreements() {
     const tableBody = document.getElementById('agreements-table-body');
     
     try {
-        // integrate ethers.js with compiled contract artifact:
-        // const provider = new ethers.providers.Web3Provider(window.ethereum);
-        // const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
-        // const totalAgreements = await contract.agreementCounter();
-        
-        // Simulating delay and mapping data retrieved from shipper/blockchain storage
-        setTimeout(() => {
-            // Mocking retrieved records from the smart contract mappings
-            const fetchedAgreements = [
-                { id: 1, ref: "LG-2026-0001", shipper: "0x742d...3A4f", carrier: "0x89f2...7B2c", payload: "Electronics & Tech", priority: "EXPRESS", escrow: "2.5", deadline: "Jul 20", status: "Active" },
-                { id: 2, ref: "LG-2026-0002", shipper: "0x742d...3A4f", carrier: "Unassigned", payload: "Automotive Parts", priority: "URGENT", escrow: "4.2", deadline: "Jul 25", status: "Funded" },
-                { id: 3, ref: "LG-2026-0003", shipper: "0x742d...3A4f", carrier: "0x3E7c...8F5a", payload: "Chemical Supplies", priority: "NORMAL", escrow: "1.8", deadline: "Jul 15", status: "Completed" }
-            ];
+        // Check if MetaMask or local Web3 provider is present
+        if (typeof window.ethereum === 'undefined') {
+            tableBody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: #ef4444; padding: 30px;">MetaMask / Web3 Provider not detected! Please connect your wallet.</td></tr>`;
+            return;
+        }
 
-            if (fetchedAgreements.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: #8d99ae; padding: 30px;">No agreements found on-chain.</td></tr>`;
-                return;
-            }
+        // initialize Ethers.js provider and contract instance
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
 
-            tableBody.innerHTML = ""; // Clear loader
-            fetchedAgreements.forEach(agreement => {
-                let statusClass = "status-available";
-                if (agreement.status === "Active") statusClass = "status-active";
-                if (agreement.status === "Funded") statusClass = "status-funded";
-                if (agreement.status === "Completed") statusClass = "status-completed";
+        // Call smart contract public counter function
+        const totalAgreements = await contract.agreementCounter();
+        const count = totalAgreements.toNumber();
 
-                let priorityClass = "priority-normal";
-                if (agreement.priority === "EXPRESS") priorityClass = "priority-express";
-                if (agreement.priority === "URGENT") priorityClass = "priority-urgent";
+        if (count === 0) {
+            tableBody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: #8d99ae; padding: 30px;">No agreements created on-chain yet.</td></tr>`;
+            return;
+        }
 
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td class="ref-col">${agreement.ref}</td>
-                    <td>${agreement.shipper}</td>
-                    <td>${agreement.carrier === 'Unassigned' ? '<span class="text-muted">Unassigned</span>' : agreement.carrier}</td>
-                    <td>${agreement.payload}</td>
-                    <td><span class="priority-badge ${priorityClass}">${agreement.priority}</span></td>
-                    <td class="eth-val"><i class="fa-brands fa-ethereum"></i> ${agreement.escrow}</td>
-                    <td>${agreement.deadline}</td>
-                    <td><span class="status-badge ${statusClass}"><span class="status-dot"></span> ${agreement.status}</span></td>
-                    <td><button class="view-btn" onclick="viewAgreementDetails(${agreement.id})"><i class="fa-regular fa-eye"></i> View</button></td>
-                `;
-                tableBody.appendChild(row);
-            });
-        }, 1000);
+        tableBody.innerHTML = ""; 
+
+        // Loop all on-chain agreements from ID 1 up to agreementCounter
+        for (let i = 1; i <= count; i++) {
+            const rawData = await contract.getAgreementBasic(i);
+            
+            // map Solidity enum status numbers to readable UI text
+            // enum mapping: 0: Created, 1: Funded, 2: InProgress, 3: Completed, 4: Refunded, 5: Cancelled, 6: Expired
+            const statusMap = ["Created", "Funded", "Active", "Completed", "Refunded", "Cancelled", "Expired"];
+            const numericStatus = rawData.status;
+            const statusText = statusMap[numericStatus] || "Unknown";
+
+            // format address strings for clean UI display
+            const shipperAddr = `${rawData.shipper.substring(0, 6)}...${rawData.shipper.substring(38)}`;
+            const carrierRaw = rawData.carrier;
+            const carrierAddr = (carrierRaw === "0x0000000000000000000000000000000000000000") ? "Unassigned" : `${carrierRaw.substring(0, 6)}...${carrierRaw.substring(38)}`;
+
+            // Convert escrow amount from Wei to ETH
+            const ethEscrow = ethers.utils.formatEther(rawData.escrowAmount);
+
+            // Determine CSS classes for badges
+            let statusClass = "status-available";
+            if (statusText === "Active" || statusText === "InProgress") statusClass = "status-active";
+            if (statusText === "Funded") statusClass = "status-funded";
+            if (statusText === "Completed") statusClass = "status-completed";
+
+            // Build table row dynamically from real blockchain data
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td class="ref-col">${rawData.referenceNo}</td>
+                <td>${shipperAddr}</td>
+                <td>${carrierAddr === 'Unassigned' ? '<span class="text-muted">Unassigned</span>' : carrierAddr}</td>
+                <td>Shipment #${rawData.agreementId}</td>
+                <td><span class="priority-badge priority-express">EXPRESS</span></td>
+                <td class="eth-val"><i class="fa-brands fa-ethereum"></i> ${ethEscrow}</td>
+                <td>Live On-Chain</td>
+                <td><span class="status-badge ${statusClass}"><span class="status-dot"></span> ${statusText}</span></td>
+                <td><button class="view-btn" onclick="viewAgreementDetails(${rawData.agreementId})"><i class="fa-regular fa-eye"></i> View</button></td>
+            `;
+            tableBody.appendChild(row);
+        }
 
     } catch (error) {
-        console.error("Failed to fetch agreements from blockchain:", error);
-        tableBody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: #ef4444; padding: 30px;">Error loading data from smart contract.</td></tr>`;
+        console.error("Failed to fetch agreements from smart contract:", error);
+        tableBody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: #ef4444; padding: 30px;">Error syncing with smart contract. Check contract address & network.</td></tr>`;
     }
 }
 
@@ -95,9 +110,9 @@ function filterTableRows(status) {
 }
 
 function viewAgreementDetails(agreementId) {
-    alert(`Viewing agreement ID: ${agreementId} details retrieved from shipper contract.`);
+    alert(`Fetching on-chain details for Agreement ID: ${agreementId}`);
 }
 
 function openCreateAgreementModal() {
-    alert("Redirecting to Create Agreement form...");
+    alert("Redirecting to Create Agreement module...");
 }
