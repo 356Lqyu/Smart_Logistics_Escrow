@@ -21,8 +21,13 @@
             <div class="page-title-block">
                 <h1 id="page-heading">Dashboard</h1>
                 <div class="network-stats">
-                    <span class="dot"></span> Chain ID: xxx &nbsp;&bull;&nbsp; Gas: xxx Gwei &nbsp;&bull;&nbsp; ETH: $xxx
-                </div>
+                <span class="dot"></span>
+                Chain ID: <span id="chain-id">---</span>
+                &nbsp;&bull;&nbsp;
+                Gas: <span id="gas-price">---</span> Gwei
+                &nbsp;&bull;&nbsp;
+                ETH: <span id="eth-price">---</span>
+            </div>
             </div>
             
             <div class="top-nav-right">
@@ -32,8 +37,9 @@
                 </div>
                 <button class="icon-btn"><i class="fa-regular fa-bell"></i><span class="badge-dot"></span></button>
                 <div class="wallet-badge" id="top-wallet-badge">
-                    <span class="wallet-glow-dot"></span> xxxx
-                </div>
+                <span class="wallet-glow-dot"></span>
+                <span id="top-wallet-address">Connecting...</span>
+            </div>
             </div>
         </header>
 
@@ -42,7 +48,9 @@
 
         </div>
     </main>
-
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.10.4/dist/web3.min.js"></script>
+    <script src="js/supabase.js"></script>
     <script src="js/dashboard.js"></script>
 </body>
 </html>

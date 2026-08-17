@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,6 +10,7 @@
     <link rel="stylesheet" href="css/dashboard.css">
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
+
 <body>
 
     <aside id="sidebar-container" class="sidebar"></aside>
@@ -23,7 +25,7 @@
                     <span class="dot"></span> Chain ID: x &nbsp;&bull;&nbsp; Gas: xx Gwei &nbsp;&bull;&nbsp; ETH: $xx
                 </div>
             </div>
-            
+
             <div class="top-nav-right">
                 <div class="search-box">
                     <i class="fa-solid fa-magnifying-glass"></i>
@@ -38,14 +40,14 @@
 
         <!-- Agreements body content section-->
         <div class="dashboard-body-placeholder">
-            
+
             <!-- Bar: Search Input, Filter Tabs, and New Agreement Button -->
             <div class="agreements-controls">
                 <div class="search-box filter-search">
                     <i class="fa-solid fa-magnifying-glass"></i>
                     <input type="text" id="table-search-input" placeholder="Search by ID or payload">
                 </div>
-                
+
                 <div class="filter-tabs">
                     <button class="filter-btn active" data-filter="all">All</button>
                     <button class="filter-btn" data-filter="active">Active</button>
@@ -55,7 +57,7 @@
                     <button class="filter-btn" data-filter="available">Available</button>
                 </div>
 
-                <button class="primary-action-btn" onclick="openCreateAgreementModal()">
+                <button class="primary-action-btn" onclick="window.location.href='createAgreement.html'">
                     <i class="fa-solid fa-circle-plus"></i> New Agreement
                 </button>
             </div>
@@ -80,7 +82,8 @@
                         <!-- Dynamic data rows will be injected here from blockchain -->
                         <tr>
                             <td colspan="9" style="text-align: center; color: #8d99ae; padding: 30px;">
-                                <i class="fa-solid fa-spinner fa-spin"></i> Connecting to Ethereum smart contract & loading agreements...
+                                <i class="fa-solid fa-spinner fa-spin"></i> Connecting to Ethereum smart contract &
+                                loading agreements...
                             </td>
                         </tr>
                     </tbody>
@@ -92,7 +95,11 @@
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.10.4/dist/web3.min.js"></script>
     <script src="js/dashboard.js"></script>
+    <script src="js/supabase.js"></script>
     <script src="js/agreements.js"></script>
 </body>
+
 </html>

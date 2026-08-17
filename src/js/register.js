@@ -222,6 +222,32 @@ async function registerUser() {
             .send({
                 from: currentAccount
             });
+        
+
+        // ===============================
+        // SAVE TO SUPABASE CACHE
+        // ===============================
+
+        message.innerText =
+            "Saving user profile to database...";
+
+        const roleNameStr = (selectedRole === 1) ? 'Shipper' : 'Carrier';
+
+        const { error: supabaseError } = await supabaseClient
+            .from('users')
+            .insert([
+                { 
+                    wallet_address: currentAccount.toLowerCase(), 
+                    name: name, 
+                    role: roleNameStr 
+                }
+            ]);
+
+        if (supabaseError) {
+            console.error("Error saving user to Supabase:", supabaseError.message);
+        } else {
+            console.log("User successfully saved to Supabase cache.");
+        }
 
 
         // ===============================
