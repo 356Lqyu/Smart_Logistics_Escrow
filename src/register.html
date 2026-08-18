@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Register - LogisticsEscrow</title>
+
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="stylesheet" href="css/register.css">
+</head>
+
+<body>
+
+<div class="register-container">
+
+    <div class="register-card">
+
+        <div class="logo">
+            <i class="fa-solid fa-truck"></i>
+            LogisticsEscrow
+        </div>
+
+        <h1>Create Your Account</h1>
+
+        <p class="subtitle">
+            Register as a Shipper or Carrier to start using LogisticsEscrow.
+        </p>
+
+        <!-- Name -->
+        <div class="form-group">
+
+            <label for="name">
+                Full Name
+            </label>
+
+            <input
+                type="text"
+                id="name"
+                placeholder="Enter your name"
+            >
+
+        </div>
+
+
+        <!-- Role -->
+        <div class="form-group">
+
+            <label>
+                Select Role
+            </label>
+
+            <div class="role-container">
+
+                <button
+                    type="button"
+                    class="role-btn"
+                    id="shipperBtn"
+                    onclick="selectRole(1)"
+                >
+                    <i class="fa-solid fa-box"></i>
+
+                    <strong>Shipper</strong>
+
+                    <span>
+                        Create and fund logistics agreements
+                    </span>
+                </button>
+
+
+                <button
+                    type="button"
+                    class="role-btn"
+                    id="carrierBtn"
+                    onclick="selectRole(2)"
+                >
+                    <i class="fa-solid fa-truck-fast"></i>
+
+                    <strong>Carrier</strong>
+
+                    <span>
+                        Accept agreements and complete deliveries
+                    </span>
+                </button>
+
+            </div>
+
+        </div>
+
+
+        <!-- Wallet -->
+        <div class="wallet-section">
+
+            <p id="walletStatus">
+                MetaMask is required to complete registration.
+            </p>
+
+            <button
+                id="connectWalletBtn"
+                class="connect-btn"
+                onclick="registerUser()"
+            >
+                <i class="fa-solid fa-wallet"></i>
+
+                Connect MetaMask & Register
+            </button>
+
+        </div>
+
+
+        <p id="message"></p>
+
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/web3@1.10.4/dist/web3.min.js"></script>
+
+<script src="js/contract.js"></script>
+<script src="js/supabase.js"></script>
+<script src="js/register.js"></script>
+
+</body>
+
+</html>
