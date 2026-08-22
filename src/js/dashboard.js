@@ -309,14 +309,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 </li>
 
                 <li>
-                    <a href="#">
-                        <i data-lucide="target"></i>
-                        Milestones
-                    </a>
-                </li>
-
-                <li>
-                    <a href="#">
+                    <a href="transactionHistory.html">
                         <i data-lucide="rotate-ccw"></i>
                         Transaction History
                     </a>

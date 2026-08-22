@@ -4,28 +4,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Create Agreement - LogisticsEscrow</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="css/dashboard.css">
-    <script src="https://unpkg.com/lucide@latest"></script>
 
+    <title>Create Agreement - LogisticsEscrow</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="stylesheet" href="css/dashboard.css">
+
+    <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 
 <body>
 
-    <!-- Sidebar Container -->
+    <!-- =========================
+         SIDEBAR
+    ========================== -->
+
     <aside id="sidebar-container" class="sidebar"></aside>
 
-    <!-- Main Content -->
+
+    <!-- =========================
+         MAIN CONTENT
+    ========================== -->
+
     <main class="main-content">
+
+        <!-- Top Bar -->
         <header class="top-navbar">
             <div class="page-title-block">
-                <h1>Create Agreement</h1>
-                <div class="network-stats">
-                    <span class="dot"></span> Chain ID: <span id="chain-id">---</span> &nbsp;&bull;&nbsp; Gas: 18 Gwei
-                    &nbsp;&bull;&nbsp; ETH: $3,260
-                </div>
+                <h1 id="page-heading">Dashboard</h1>
             </div>
 
             <div class="top-nav-right">
@@ -33,183 +42,423 @@
                     <i class="fa-solid fa-magnifying-glass"></i>
                     <input type="text" id="search-input" placeholder="Search agreements...">
                 </div>
-                <button class="icon-btn"><i class="fa-regular fa-bell"></i><span class="badge-dot"></span></button>
-                <div class="wallet-badge" id="top-wallet-badge">
-                    <span class="wallet-glow-dot"></span>
-                    <span id="top-wallet-address">Connecting...</span>
-                </div>
             </div>
         </header>
 
+        <!-- =========================
+             FORM
+        ========================== -->
+
         <div class="dashboard-body-placeholder">
-            <form id="createAgreementForm" onsubmit="handleCreateAgreement(event)">
+
+            <form id="createAgreementForm">
+
                 <div class="ca-inline-ca91ed77">
 
-                    <!-- Left Card: Shipment Details -->
+
+                    <!-- =========================
+                         LEFT CARD
+                    ========================== -->
+
                     <div class="table-card ca-inline-ca6149cd">
+
                         <h3 class="ca-inline-142f6346">
-                            <i class="fa-solid fa-box ca-inline-b2d2033a"></i> Shipment Details
+
+                            <i class="fa-solid fa-box ca-inline-b2d2033a"></i>
+
+                            Shipment Details
+
                         </h3>
 
-                        <div class="ca-inline-d3277930">
-                            <label class="ca-inline-6f708828">Agreement Reference Number</label>
-                            <input type="text" id="referenceNo" value="LG-2026-0006" readonly
-                                class="ca-inline-3d659b94">
-                        </div>
+
+                        <!-- Priority -->
 
                         <div class="ca-inline-d3277930">
-                            <label class="ca-inline-6f708828">Delivery Priority</label>
-                            <select id="priority"
-                                class="ca-inline-6637f260">
-                                <option value="0">Normal</option>
-                                <option value="1" selected>Express</option>
-                                <option value="2">Urgent</option>
+
+                            <label class="ca-inline-6f708828">
+                                Delivery Priority
+                            </label>
+
+                            <select id="priority" class="ca-inline-6637f260">
+
+                                <option value="0">
+                                    Normal
+                                </option>
+
+                                <option value="1" selected>
+                                    Express
+                                </option>
+
+                                <option value="2">
+                                    Urgent
+                                </option>
+
                             </select>
+
                         </div>
 
-                        <div class="ca-inline-d3277930">
-                            <label class="ca-inline-6f708828">Shipment Notes</label>
-                            <textarea id="notes" rows="3"
-                                placeholder="e.g. Fragile — handle with care. Temperature-controlled packaging required."
-                                class="ca-inline-1e1541ba"></textarea>
-                        </div>
+
+                        <!-- Shipment Details -->
 
                         <div class="ca-inline-d3277930">
-                            <label class="ca-inline-6f708828">Payload Value (USD)</label>
+
+                            <label class="ca-inline-6f708828">
+                                Shipment Details
+                            </label>
+
+                            <textarea id="shipmentDetails" rows="4"
+                                placeholder="e.g. 20 cartons of electronic components. Fragile — handle with care."
+                                class="ca-inline-1e1541ba" required></textarea>
+
+                        </div>
+
+
+                        <!-- Origin -->
+
+                        <div class="ca-inline-d3277930">
+
+                            <label class="ca-inline-6f708828">
+                                Origin
+                            </label>
+
+                            <input type="text" id="origin" placeholder="e.g. Kuala Lumpur, Malaysia" required
+                                class="ca-inline-6637f260">
+
+                        </div>
+
+
+                        <!-- Destination -->
+
+                        <div class="ca-inline-d3277930">
+
+                            <label class="ca-inline-6f708828">
+                                Destination
+                            </label>
+
+                            <input type="text" id="destination" placeholder="e.g. Singapore" required
+                                class="ca-inline-6637f260">
+
+                        </div>
+
+
+                        <!-- Payload Value -->
+
+                        <div class="ca-inline-d3277930">
+
+                            <label class="ca-inline-6f708828">
+                                Payload Value (USD)
+                            </label>
+
                             <input type="number" id="payloadValue" placeholder="e.g. 12500" required
                                 class="ca-inline-6637f260">
+
                         </div>
 
-                        <div class="ca-inline-d3277930">
-                            <label class="ca-inline-6f708828">Total Escrow Amount (ETH)</label>
-                            <input type="number" step="0.001" id="escrowAmount" placeholder="0.01 ETH min" required oninput="updateMilestones()"
-                                class="ca-inline-6637f260">
-                        </div>
+
+                        <!-- Escrow -->
 
                         <div class="ca-inline-d3277930">
-                            <label class="ca-inline-6f708828">Delivery Deadline</label>
-                            <input type="datetime-local" id="deadline" required
-                                class="ca-inline-6637f260">
+
+                            <label class="ca-inline-6f708828">
+                                Total Escrow Amount (ETH)
+                            </label>
+
+                            <input type="number" step="0.001" id="escrowAmount" placeholder="0.01 ETH min" required
+                                oninput="updateMilestones()" class="ca-inline-6637f260">
+
                         </div>
+
+
+                        <!-- Deadline -->
+
+                        <div class="ca-inline-d3277930">
+
+                            <label class="ca-inline-6f708828">
+                                Delivery Deadline
+                            </label>
+
+                            <input type="datetime-local" id="deadline" required class="ca-inline-6637f260">
+
+                        </div>
+
                     </div>
 
-                    <!-- Right Card: Milestone Builder & Preview -->
+
+                    <!-- =========================
+                         RIGHT CARD
+                    ========================== -->
+
                     <div class="ca-inline-6a4f6b63">
+
+
+                        <!-- Milestone Builder -->
+
                         <div class="table-card ca-inline-ca6149cd">
+
                             <div class="ca-inline-edad9107">
+
                                 <h3 class="ca-inline-5c31e7f9">
-                                    <i class="fa-solid fa-bullseye ca-inline-20bb5960"></i> Milestone Builder
+
+                                    <i class="fa-solid fa-bullseye ca-inline-20bb5960"></i>
+
+                                    Milestone Builder
+
                                 </h3>
-                                <span id="totalBadge"
-                                    class="ca-inline-925999f1">
+
+                                <span id="totalBadge" class="ca-inline-925999f1">
                                     100% / 100%
                                 </span>
+
                             </div>
 
-                            <div id="validationWarning"
-                                class="ca-inline-136a3bb7">
-                                <i class="fa-solid fa-triangle-exclamation"></i> Milestone percentages must sum to exactly 100%.
+
+                            <!-- Validation -->
+
+                            <div id="validationWarning" class="ca-inline-136a3bb7">
+
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+
+                                Milestone percentages must sum to
+                                exactly 100%.
+
                             </div>
 
-                            <!-- Milestone Items with Percentage Bars -->
+
+                            <!-- Milestone List -->
+
                             <div id="milestoneList" class="ca-inline-578b24de">
-                                
+
+
                                 <!-- Milestone 1 -->
+
                                 <div class="ca-inline-6b47869d">
+
                                     <span class="ca-inline-895b4af4">
-                                        <span class="ca-inline-ce0f0e44">1</span> 
+
+                                        <span class="ca-inline-ce0f0e44">
+                                            1
+                                        </span>
+
                                         Goods Pickup
+
                                     </span>
+
+
                                     <div class="ca-inline-b512c985">
-                                        <input type="number" id="m1_pct" class="milestone-pct ca-inline-c8a3e897" value="30" min="0" max="100"
-                                            onchange="updateMilestones()" oninput="updateMilestones()"
-                                           >
-                                        <span class="ca-inline-b2b3efa2">%</span>
+
+                                        <input type="number" id="m1_pct" class="milestone-pct ca-inline-c8a3e897"
+                                            value="30" min="0" max="100" onchange="updateMilestones()"
+                                            oninput="updateMilestones()">
+
+                                        <span class="ca-inline-b2b3efa2">
+                                            %
+                                        </span>
+
                                         <div class="pct-track">
+
                                             <div id="m1_bar" class="pct-fill ca-inline-fcb9f755"></div>
+
                                         </div>
+
                                     </div>
+
                                 </div>
+
 
                                 <!-- Milestone 2 -->
+
                                 <div class="ca-inline-6b47869d">
+
                                     <span class="ca-inline-895b4af4">
-                                        <span class="ca-inline-ce0f0e44">2</span> 
+
+                                        <span class="ca-inline-ce0f0e44">
+                                            2
+                                        </span>
+
                                         Warehouse Arrival
+
                                     </span>
+
+
                                     <div class="ca-inline-b512c985">
-                                        <input type="number" id="m2_pct" class="milestone-pct ca-inline-c8a3e897" value="30" min="0" max="100"
-                                            onchange="updateMilestones()" oninput="updateMilestones()"
-                                           >
-                                        <span class="ca-inline-b2b3efa2">%</span>
+
+                                        <input type="number" id="m2_pct" class="milestone-pct ca-inline-c8a3e897"
+                                            value="30" min="0" max="100" onchange="updateMilestones()"
+                                            oninput="updateMilestones()">
+
+                                        <span class="ca-inline-b2b3efa2">
+                                            %
+                                        </span>
+
                                         <div class="pct-track">
+
                                             <div id="m2_bar" class="pct-fill ca-inline-fcb9f755"></div>
+
                                         </div>
+
                                     </div>
+
                                 </div>
+
 
                                 <!-- Milestone 3 -->
+
                                 <div class="ca-inline-6b47869d">
+
                                     <span class="ca-inline-895b4af4">
-                                        <span class="ca-inline-ce0f0e44">3</span> 
+
+                                        <span class="ca-inline-ce0f0e44">
+                                            3
+                                        </span>
+
+                                        Final Delivery
+
+                                    </span>
+
+
+                                    <div class="ca-inline-b512c985">
+
+                                        <input type="number" id="m3_pct" class="milestone-pct ca-inline-c8a3e897"
+                                            value="40" min="0" max="100" onchange="updateMilestones()"
+                                            oninput="updateMilestones()">
+
+                                        <span class="ca-inline-b2b3efa2">
+                                            %
+                                        </span>
+
+                                        <div class="pct-track">
+
+                                            <div id="m3_bar" class="pct-fill ca-inline-5172a7c4"></div>
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- =========================
+                             PAYMENT PREVIEW
+                        ========================== -->
+
+                        <div class="table-card ca-inline-ca6149cd">
+
+                            <h4 class="ca-inline-0dde6d1d">
+                                PAYMENT PREVIEW
+                            </h4>
+
+
+                            <div id="paymentPreviewList" class="ca-inline-e943c4d4">
+
+                                <div class="ca-inline-58e548bd">
+
+                                    <span>
+                                        Goods Pickup
+                                    </span>
+
+                                    <span id="prev_m1" class="ca-inline-84b4ba77">
+                                        --- ETH (30%)
+                                    </span>
+
+                                </div>
+
+
+                                <div class="ca-inline-58e548bd">
+
+                                    <span>
+                                        Warehouse Arrival
+                                    </span>
+
+                                    <span id="prev_m2" class="ca-inline-84b4ba77">
+                                        --- ETH (30%)
+                                    </span>
+
+                                </div>
+
+
+                                <div class="ca-inline-58e548bd">
+
+                                    <span>
                                         Final Delivery
                                     </span>
-                                    <div class="ca-inline-b512c985">
-                                        <input type="number" id="m3_pct" class="milestone-pct ca-inline-c8a3e897" value="40" min="0" max="100"
-                                            onchange="updateMilestones()" oninput="updateMilestones()"
-                                           >
-                                        <span class="ca-inline-b2b3efa2">%</span>
-                                        <div class="pct-track">
-                                            <div id="m3_bar" class="pct-fill ca-inline-5172a7c4"></div>
-                                        </div>
-                                    </div>
+
+                                    <span id="prev_m3" class="ca-inline-84b4ba77">
+                                        --- ETH (40%)
+                                    </span>
+
                                 </div>
 
                             </div>
+
                         </div>
 
-                        <!-- Payment Preview Card -->
-                        <div class="table-card ca-inline-ca6149cd">
-                            <h4 class="ca-inline-0dde6d1d">PAYMENT PREVIEW</h4>
-                            <div id="paymentPreviewList" class="ca-inline-e943c4d4">
-                                <div class="ca-inline-58e548bd">
-                                    <span>Goods Pickup</span>
-                                    <span id="prev_m1" class="ca-inline-84b4ba77">--- ETH (30%)</span>
-                                </div>
-                                <div class="ca-inline-58e548bd">
-                                    <span>Warehouse Arrival</span>
-                                    <span id="prev_m2" class="ca-inline-84b4ba77">--- ETH (30%)</span>
-                                </div>
-                                <div class="ca-inline-58e548bd">
-                                    <span>Final Delivery</span>
-                                    <span id="prev_m3" class="ca-inline-84b4ba77">--- ETH (40%)</span>
-                                </div>
-                            </div>
-                        </div>
                     </div>
 
                 </div>
 
-                <!-- Footer Action Buttons -->
+
+                <!-- =========================
+                     FOOTER ACTIONS
+                ========================== -->
+
                 <div class="ca-inline-11fee8af">
-                    <span class="ca-inline-9b1a858b">Gas estimate: ~0.002 ETH &bull; Contract deploys on Ethereum Network</span>
+
+                    <span class="ca-inline-9b1a858b">
+
+                        Gas estimate: ~0.002 ETH
+                        &bull;
+                        Contract deploys on Ethereum Network
+
+                    </span>
+
+
                     <div class="ca-inline-800a82fa">
+
                         <button type="button" onclick="window.location.href='agreements.html'"
-                            class="ca-inline-0facb6db">Cancel</button>
-                        <button type="submit" id="submitBtn" class="primary-action-btn"><i class="fa-solid fa-circle-plus"></i> Create & Fund Agreement</button>
+                            class="ca-inline-0facb6db">
+                            Cancel
+                        </button>
+
+
+                        <button type="submit" id="submitBtn" class="primary-action-btn">
+
+                            <i class="fa-solid fa-circle-plus"></i>
+
+                            Create Agreement
+
+                        </button>
+
                     </div>
+
                 </div>
+
             </form>
+
         </div>
+
     </main>
 
-    <!-- Scripts -->
+
+    <!-- =========================
+         SCRIPTS
+    ========================== -->
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <script src="https://cdn.jsdelivr.net/npm/web3@1.10.4/dist/web3.min.js"></script>
+
     <script src="js/contract.js"></script>
+
     <script src="js/supabase.js"></script>
+
     <script src="js/dashboard.js"></script>
+
     <script src="js/createAgreement.js"></script>
+
 </body>
 
 </html>

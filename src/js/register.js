@@ -222,7 +222,7 @@ async function registerUser() {
             .send({
                 from: currentAccount
             });
-        
+
 
         // ===============================
         // SAVE TO SUPABASE CACHE
@@ -236,15 +236,25 @@ async function registerUser() {
         const { error: supabaseError } = await supabaseClient
             .from('users')
             .insert([
-                { 
-                    wallet_address: currentAccount.toLowerCase(), 
-                    name: name, 
-                    role: roleNameStr 
+                {
+                    wallet_address: currentAccount.toLowerCase(),
+                    name: name,
+                    role: roleNameStr
                 }
             ]);
 
         if (supabaseError) {
-            console.error("Error saving user to Supabase:", supabaseError.message);
+
+            console.error(
+                "Error saving user to Supabase:",
+                supabaseError
+            );
+
+            message.innerText =
+                "Blockchain registration succeeded, but saving your profile failed: " +
+                supabaseError.message;
+
+            return;
         } else {
             console.log("User successfully saved to Supabase cache.");
         }

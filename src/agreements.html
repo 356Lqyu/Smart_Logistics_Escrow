@@ -17,23 +17,16 @@
 
     <!-- Main container -->
     <main class="main-content">
-        <!-- Top Bar for search, notification etc -->
+        <!-- Top Bar -->
         <header class="top-navbar">
             <div class="page-title-block">
-                <h1 id="page-heading">Agreements</h1>
-                <div class="network-stats">
-                    <span class="dot"></span> Chain ID: x &nbsp;&bull;&nbsp; Gas: xx Gwei &nbsp;&bull;&nbsp; ETH: $xx
-                </div>
+                <h1 id="page-heading">Dashboard</h1>
             </div>
-
+            
             <div class="top-nav-right">
                 <div class="search-box">
                     <i class="fa-solid fa-magnifying-glass"></i>
                     <input type="text" id="search-input" placeholder="Search agreements...">
-                </div>
-                <button class="icon-btn"><i class="fa-regular fa-bell"></i><span class="badge-dot"></span></button>
-                <div class="wallet-badge" id="top-wallet-badge">
-                    <span class="wallet-glow-dot"></span> xxxx
                 </div>
             </div>
         </header>
@@ -49,12 +42,31 @@
                 </div>
 
                 <div class="filter-tabs">
-                    <button class="filter-btn active" data-filter="all">All</button>
-                    <button class="filter-btn" data-filter="active">Active</button>
-                    <button class="filter-btn" data-filter="funded">Funded</button>
-                    <button class="filter-btn" data-filter="completed">Completed</button>
-                    <button class="filter-btn" data-filter="refunded">Refunded</button>
-                    <button class="filter-btn" data-filter="available">Available</button>
+
+                    <button class="filter-btn active" data-filter="all">
+                        All
+                    </button>
+
+                    <button class="filter-btn" data-filter="created">
+                        Created
+                    </button>
+
+                    <button class="filter-btn" data-filter="in progress">
+                        In Progress
+                    </button>
+
+                    <button class="filter-btn" data-filter="completed">
+                        Completed
+                    </button>
+
+                    <button class="filter-btn" data-filter="cancelled">
+                        Cancelled
+                    </button>
+
+                    <button class="filter-btn" data-filter="expired">
+                        Expired
+                    </button>
+
                 </div>
 
                 <button class="primary-action-btn" onclick="window.location.href='createAgreement.html'">
@@ -79,7 +91,6 @@
                         </tr>
                     </thead>
                     <tbody id="agreements-table-body">
-                        <!-- Dynamic data rows will be injected here from blockchain -->
                         <tr>
                             <td colspan="9" style="text-align: center; color: #8d99ae; padding: 30px;">
                                 <i class="fa-solid fa-spinner fa-spin"></i> Connecting to Ethereum smart contract &
@@ -97,8 +108,9 @@
     <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/web3@1.10.4/dist/web3.min.js"></script>
-    <script src="js/dashboard.js"></script>
     <script src="js/supabase.js"></script>
+    <script src="js/contract.js"></script>
+    <script src="js/dashboard.js"></script>
     <script src="js/agreements.js"></script>
 </body>
 
