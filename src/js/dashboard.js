@@ -224,26 +224,27 @@ document.addEventListener("DOMContentLoaded", async () => {
                 </li>
 
                 <li>
-                    <a href="#">
+                    <a href="agreements.html?role=carrier">
                         <i data-lucide="box"></i>
                         Available Jobs
                     </a>
                 </li>
 
                 <li>
-                    <a href="#">
-                        <i data-lucide="file-text"></i>
-                        My Contracts
-                    </a>
-                </li>
-
-                <li>
-                    <a href="#">
+                    <a href="milestones.html">
                         <i data-lucide="target"></i>
                         Milestones
                     </a>
                 </li>
 
+                <li>
+                    <a href="transactionHistory.html?role=carrier">
+                        <i data-lucide="rotate-ccw"></i>
+                        Transaction History
+                    </a>
+                </li>
+
+                
                 <li>
                     <a href="#">
                         <i data-lucide="coins"></i>
@@ -295,7 +296,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 </li>
 
                 <li>
-                    <a href="agreements.html">
+                    <a href="agreements.html?role=shipper">
                         <i data-lucide="file-text"></i>
                         Agreements
                     </a>
@@ -309,14 +310,14 @@ document.addEventListener("DOMContentLoaded", async () => {
                 </li>
 
                 <li>
-                    <a href="#">
+                    <a href="milestones.html">
                         <i data-lucide="target"></i>
                         Milestones
                     </a>
                 </li>
 
                 <li>
-                    <a href="#">
+                    <a href="transactionHistory.html?role=shipper">
                         <i data-lucide="rotate-ccw"></i>
                         Transaction History
                     </a>

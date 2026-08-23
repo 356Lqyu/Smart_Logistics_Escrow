@@ -9,7 +9,7 @@ let selectedRole = 0;
 
 function selectRole(role) {
 
-    selectedRole = role;
+    selectedRole = Number(role);
 
     const shipperBtn =
         document.getElementById("shipperBtn");
@@ -18,23 +18,37 @@ function selectRole(role) {
         document.getElementById("carrierBtn");
 
 
-    shipperBtn.classList.remove("selected");
-    carrierBtn.classList.remove("selected");
+    if (shipperBtn) {
+        shipperBtn.classList.remove("selected");
+    }
+
+    if (carrierBtn) {
+        carrierBtn.classList.remove("selected");
+    }
 
 
-    if (role === 1) {
+    if (selectedRole === 1) {
 
-        shipperBtn.classList.add("selected");
+        if (shipperBtn) {
+            shipperBtn.classList.add("selected");
+        }
 
     }
 
-    if (role === 2) {
 
-        carrierBtn.classList.add("selected");
+    if (selectedRole === 2) {
+
+        if (carrierBtn) {
+            carrierBtn.classList.add("selected");
+        }
 
     }
 
-    console.log("Selected role:", role);
+
+    console.log(
+        "Selected role:",
+        selectedRole
+    );
 }
 
 
@@ -47,11 +61,27 @@ async function registerUser() {
     const message =
         document.getElementById("message");
 
+    const nameElement =
+        document.getElementById("name");
+
+
+    if (!message || !nameElement) {
+
+        console.error(
+            "Registration form elements not found."
+        );
+
+        return;
+    }
+
+
     const name =
-        document.getElementById("name").value.trim();
+        nameElement.value.trim();
 
 
-    // Check name
+    // ===============================
+    // CHECK NAME
+    // ===============================
 
     if (name === "") {
 
@@ -62,9 +92,14 @@ async function registerUser() {
     }
 
 
-    // Check role
+    // ===============================
+    // CHECK ROLE
+    // ===============================
 
-    if (selectedRole === 0) {
+    if (
+        selectedRole !== 1 &&
+        selectedRole !== 2
+    ) {
 
         message.innerText =
             "Please select Shipper or Carrier.";
@@ -73,9 +108,13 @@ async function registerUser() {
     }
 
 
-    // Check MetaMask
+    // ===============================
+    // CHECK METAMASK
+    // ===============================
 
-    if (typeof window.ethereum === "undefined") {
+    if (
+        typeof window.ethereum === "undefined"
+    ) {
 
         message.innerText =
             "Please install MetaMask.";
@@ -91,19 +130,26 @@ async function registerUser() {
 
 
         // ===============================
-        // CONNECT WALLET
+        // SWITCH TO GANACHE
         // ===============================
 
         try {
 
             await window.ethereum.request({
-                method: "wallet_switchEthereumChain",
-                params: [{ chainId: "0x539" }]
+                method:
+                    "wallet_switchEthereumChain",
+
+                params: [
+                    {
+                        chainId: "0x539"
+                    }
+                ]
             });
 
         } catch (switchError) {
 
             if (switchError.code === 4902) {
+
                 throw new Error(
                     "Ganache network is not added to MetaMask. Add Ganache at chain ID 1337 and try again."
                 );
@@ -112,19 +158,45 @@ async function registerUser() {
             throw switchError;
         }
 
+
+        // ===============================
+        // CONNECT WALLET
+        // ===============================
+
         const accounts =
             await window.ethereum.request({
-                method: "eth_requestAccounts"
+                method:
+                    "eth_requestAccounts"
             });
 
 
-        currentAccount =
+        if (
+            !accounts ||
+            accounts.length === 0
+        ) {
+
+            throw new Error(
+                "No MetaMask account was connected."
+            );
+        }
+
+
+        // IMPORTANT:
+        // Use a LOCAL variable called account.
+        //
+        // Do NOT use:
+        // const currentAccount = ...
+        //
+        // This avoids the currentAccount
+        // initialization conflict.
+
+        const account =
             accounts[0];
 
 
         console.log(
             "Connected wallet:",
-            currentAccount
+            account
         );
 
 
@@ -132,7 +204,7 @@ async function registerUser() {
         // INITIALIZE WEB3
         // ===============================
 
-        web3 =
+        const registrationWeb3 =
             new Web3(window.ethereum);
 
 
@@ -141,14 +213,20 @@ async function registerUser() {
         // ===============================
 
         const chainId =
-            await web3.eth.getChainId();
+            await registrationWeb3.eth.getChainId();
+
 
         console.log(
             "Chain ID:",
             chainId
         );
 
-        if (chainId !== 1337 && chainId !== 5777) {
+
+        if (
+            chainId !== 1337 &&
+            chainId !== 5777
+        ) {
+
             throw new Error(
                 "Unsupported network. Connect MetaMask to Ganache (chain ID 1337)."
             );
@@ -156,11 +234,11 @@ async function registerUser() {
 
 
         // ===============================
-        // CREATE CONTRACT
+        // CREATE CONTRACT INSTANCE
         // ===============================
 
-        contract =
-            new web3.eth.Contract(
+        const registrationContract =
+            new registrationWeb3.eth.Contract(
                 CONTRACT_ABI,
                 CONTRACT_ADDRESS
             );
@@ -171,11 +249,24 @@ async function registerUser() {
             CONTRACT_ADDRESS
         );
 
-        const contractCode = await web3.eth.getCode(CONTRACT_ADDRESS);
 
-        if (contractCode === "0x" || contractCode === "0x0") {
+        // ===============================
+        // CHECK CONTRACT DEPLOYMENT
+        // ===============================
+
+        const contractCode =
+            await registrationWeb3.eth.getCode(
+                CONTRACT_ADDRESS
+            );
+
+
+        if (
+            contractCode === "0x" ||
+            contractCode === "0x0"
+        ) {
+
             throw new Error(
-                "LogisticsEscrow is not deployed at this address on the active Ganache network. Run truffle migrate --reset."
+                "LogisticsEscrow is not deployed at this address on the active Ganache network. Run truffle migrate --reset and update CONTRACT_ADDRESS."
             );
         }
 
@@ -189,8 +280,8 @@ async function registerUser() {
 
 
         const user =
-            await contract.methods
-                .users(currentAccount)
+            await registrationContract.methods
+                .users(account)
                 .call();
 
 
@@ -200,54 +291,247 @@ async function registerUser() {
         );
 
 
+        // ===============================
+        // ALREADY REGISTERED
+        // ===============================
+
         if (user.registered) {
 
+            console.log(
+                "Wallet already registered. Logging in..."
+            );
+
+
+            // =====================================
+            // CONVERT BLOCKCHAIN ROLE
+            // 1 = Shipper
+            // 2 = Carrier
+            // =====================================
+
+            const blockchainRole =
+                Number(user.role);
+
+
+            let existingRoleName;
+
+
+            if (blockchainRole === 1) {
+
+                existingRoleName = "shipper";
+
+            }
+
+            else if (blockchainRole === 2) {
+
+                existingRoleName = "carrier";
+
+            }
+
+            else {
+
+                throw new Error(
+                    "Invalid role returned from blockchain: " +
+                    user.role
+                );
+            }
+
+
+            console.log(
+                "Blockchain role:",
+                blockchainRole
+            );
+
+
+            console.log(
+                "Converted role:",
+                existingRoleName
+            );
+
+
+            // =====================================
+            // SAVE LOGIN INFORMATION
+            // =====================================
+
+            localStorage.setItem(
+                "wallet",
+                account
+            );
+
+
+            localStorage.setItem(
+                "role",
+                existingRoleName
+            );
+
+
+            localStorage.setItem(
+                "userRole",
+                existingRoleName
+            );
+
+
+            localStorage.setItem(
+                "name",
+                user.name
+            );
+
+
+            console.log(
+                "Login role saved:",
+                existingRoleName
+            );
+
+
             message.innerText =
-                "This wallet is already registered.";
+                "Welcome back! Redirecting to dashboard...";
+
+
+            setTimeout(() => {
+
+                window.location.href =
+                    "dashboard.html?role=" +
+                    existingRoleName;
+
+            }, 1500);
+
 
             return;
         }
 
 
         // ===============================
-        // REGISTER ON BLOCKCHAIN
+        // BLOCKCHAIN REGISTRATION
         // ===============================
 
         message.innerText =
             "Please confirm the registration transaction in MetaMask.";
 
 
-        await contract.methods
-            .register(name, selectedRole)
+        console.log(
+            "Registering wallet:",
+            account
+        );
+
+
+        console.log(
+            "Role:",
+            selectedRole
+        );
+
+
+        await registrationContract.methods
+            .register(
+                name,
+                selectedRole
+            )
             .send({
-                from: currentAccount
+                from: account
             });
-        
+
 
         // ===============================
-        // SAVE TO SUPABASE CACHE
+        // SAVE TO SUPABASE
         // ===============================
 
         message.innerText =
             "Saving user profile to database...";
 
-        const roleNameStr = (selectedRole === 1) ? 'Shipper' : 'Carrier';
 
-        const { error: supabaseError } = await supabaseClient
-            .from('users')
+        const roleNameStr =
+            selectedRole === 1
+                ? "Shipper"
+                : "Carrier";
+
+
+        if (
+            typeof supabaseClient ===
+            "undefined"
+        ) {
+
+            throw new Error(
+                "Supabase client is not initialized."
+            );
+        }
+
+
+        const {
+            error: supabaseError
+        } = await supabaseClient
+            .from("users")
             .insert([
-                { 
-                    wallet_address: currentAccount.toLowerCase(), 
-                    name: name, 
-                    role: roleNameStr 
+                {
+                    wallet_address:
+                        account.toLowerCase(),
+
+                    name:
+                        name,
+
+                    role:
+                        roleNameStr
                 }
             ]);
 
+
         if (supabaseError) {
-            console.error("Error saving user to Supabase:", supabaseError.message);
-        } else {
-            console.log("User successfully saved to Supabase cache.");
+
+            console.error(
+                "Error saving user to Supabase:",
+                supabaseError
+            );
+
+
+            message.innerText =
+                "Blockchain registration succeeded, but saving your profile failed: " +
+                supabaseError.message;
+
+
+            return;
         }
+
+
+        console.log(
+            "User successfully saved to Supabase cache."
+        );
+
+
+        // ===============================
+        // SAVE LOGIN INFORMATION
+        // ===============================
+
+        const roleName =
+            selectedRole === 1
+                ? "shipper"
+                : "carrier";
+
+
+        console.log(
+            "Saving role:",
+            roleName
+        );
+
+
+        localStorage.setItem(
+            "wallet",
+            account
+        );
+
+
+        localStorage.setItem(
+            "role",
+            roleName
+        );
+
+
+        localStorage.setItem(
+            "userRole",
+            roleName
+        );
+
+
+        localStorage.setItem(
+            "name",
+            name
+        );
 
 
         // ===============================
@@ -259,24 +543,6 @@ async function registerUser() {
         );
 
 
-        localStorage.setItem(
-            "wallet",
-            currentAccount
-        );
-
-
-        localStorage.setItem(
-            "role",
-            selectedRole
-        );
-
-
-        localStorage.setItem(
-            "name",
-            name
-        );
-
-
         message.innerText =
             "Registration successful! Redirecting...";
 
@@ -284,10 +550,9 @@ async function registerUser() {
         setTimeout(() => {
 
             window.location.href =
-                "dashboard.html";
+                "dashboard.html?role=" + roleName;
 
         }, 1500);
-
 
     } catch (error) {
 
@@ -299,8 +564,9 @@ async function registerUser() {
 
         message.innerText =
             "Registration failed: " +
-            error.message;
-
+            (
+                error.message ||
+                String(error)
+            );
     }
-
 }

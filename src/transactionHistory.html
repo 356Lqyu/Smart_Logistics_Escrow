@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Transaction History - LogisticsEscrow</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="stylesheet" href="css/dashboard.css">
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+
+<body>
+
+    <!-- =========================
+         SIDEBAR
+    ========================== -->
+
+    <aside id="sidebar-container" class="sidebar"></aside>
+
+
+    <!-- =====================================================
+         MAIN CONTENT
+    ====================================================== -->
+
+    <main class="main-content">
+
+        <!-- Top Bar -->
+        <header class="top-navbar">
+            <div class="page-title-block">
+                <h1 id="page-heading">Transaction History</h1>
+            </div>
+            
+            <div class="top-nav-right">
+                <div class="search-box">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="search-input" placeholder="Search agreements...">
+                </div>
+            </div>
+        </header>
+
+
+        <!-- =================================================
+             PAGE CONTENT
+        ================================================== -->
+
+        <div class="dashboard-body-placeholder transaction-history-page">
+
+
+            <!-- =================================================
+                 STATISTICS
+            ================================================== -->
+
+            <section class="transaction-stats-grid">
+
+
+                <!-- ESCROW BALANCE -->
+
+                <div class="transaction-stat-card">
+
+                    <div class="stat-card-content">
+
+                        <span class="stat-label">
+                            ESCROW BALANCE
+                        </span>
+
+                        <div class="stat-value-row">
+
+                            <span class="eth-symbol">
+                                ◆
+                            </span>
+
+                            <strong id="escrow-balance">
+                                
+                            </strong>
+
+                        </div>
+
+                        <span class="stat-change positive">
+                            ↗ +1.2 ETH
+                        </span>
+
+                    </div>
+
+
+                    <div class="stat-icon escrow-icon">
+
+                        <i class="fa-brands fa-ethereum"></i>
+
+                    </div>
+
+                </div>
+
+
+                <!-- ETH EARNED -->
+
+                <div class="transaction-stat-card">
+
+                    <div class="stat-card-content">
+
+                        <span class="stat-label">
+                            ETH RELEASED
+                        </span>
+
+                        <div class="stat-value-row">
+
+                            <span class="eth-symbol">
+                                ◆
+                            </span>
+
+                            <strong id="eth-earned">
+                                12.74
+                            </strong>
+
+                        </div>
+
+                        <span class="stat-change positive">
+                            Released from agreements
+                        </span>
+
+                    </div>
+
+
+                    <div class="stat-icon earned-icon">
+
+                        <i class="fa-solid fa-arrow-trend-up"></i>
+
+                    </div>
+
+                </div>
+
+
+                <!-- COMPLETED -->
+
+                <div class="transaction-stat-card">
+
+                    <div class="stat-card-content">
+
+                        <span class="stat-label">
+                            COMPLETED
+                        </span>
+
+                        <div class="stat-value-row">
+
+                            <strong id="completed-count">
+                                9
+                            </strong>
+
+                        </div>
+
+                        <span class="stat-change positive">
+                            ↗ 56% rate
+                        </span>
+
+                    </div>
+
+
+                    <div class="stat-icon completed-icon">
+
+                        <i class="fa-regular fa-circle-check"></i>
+
+                    </div>
+
+                </div>
+
+
+                <!-- REFUNDS -->
+
+                <div class="transaction-stat-card">
+
+                    <div class="stat-card-content">
+
+                        <span class="stat-label">
+                            REFUNDS
+                        </span>
+
+                        <div class="stat-value-row">
+
+                            <strong id="refund-count">
+                                1
+                            </strong>
+
+                        </div>
+
+                        <span class="stat-change neutral">
+                            0.4% of total
+                        </span>
+
+                    </div>
+
+
+                    <div class="stat-icon refund-icon">
+
+                        <i class="fa-solid fa-arrow-rotate-left"></i>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+
+            <!-- =================================================
+                 TRANSACTION LEDGER
+            ================================================== -->
+
+            <section class="transaction-ledger-card">
+
+
+                <!-- TABS -->
+
+                <div class="transaction-tabs">
+                    <h3>Transaction Ledger</h3>
+                </div>
+
+
+
+                <!-- =================================================
+                     FILTER AREA
+                ================================================== -->
+
+                <div class="transaction-filter-bar">
+
+
+                    <!-- SEARCH -->
+
+                    <div class="transaction-search">
+
+                        <i class="fa-solid fa-magnifying-glass"></i>
+
+                        <input type="text" id="agreement-search" placeholder="Search Agreement ID">
+
+                    </div>
+
+
+                    <!-- FILTER BUTTONS -->
+
+                    <div class="transaction-filter-buttons">
+
+                        <button class="transaction-filter-btn active" data-filter="all">
+
+                            All
+
+                        </button>
+
+
+                        <button class="transaction-filter-btn" data-filter="completed">
+
+                            Completed
+
+                        </button>
+
+
+                        <button class="transaction-filter-btn" data-filter="cancelled">
+
+                            Cancelled
+
+                        </button>
+
+
+                        <button class="transaction-filter-btn" data-filter="funded">
+
+                            Funded
+
+                        </button>
+
+
+                        <button class="transaction-filter-btn" data-filter="refunded">
+
+                            Refunded
+
+                        </button>
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- =================================================
+                     LEDGER TABLE
+                ================================================== -->
+
+                <div id="transaction-ledger-content" class="transaction-table-wrapper">
+
+                    <table class="transaction-history-table">
+
+                        <thead>
+
+                            <tr>
+
+                                <th>DATE</th>
+
+                                <th>AGREEMENT</th>
+
+                                <th>TYPE</th>
+
+                                <th>AMOUNT (ETH)</th>
+
+                                <th>DETAILS</th>
+
+                                <th>TX HASH</th>
+
+                                <th>STATUS</th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody id="transaction-table-body">
+
+                            <!-- Generated by JavaScript -->
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </section>
+
+        </div>
+
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.10.4/dist/web3.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script src="js/contract.js"></script>
+
+    <script src="js/supabase.js"></script>
+
+    <script src="js/dashboard.js"></script>
+
+    <script src="js/transactionHistory.js"></script>
+
+
+</body>
+
+</html>
