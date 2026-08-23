@@ -162,24 +162,19 @@ function updateWalletDisplay(address) {
 
 }
 
-
 // =====================================================
-// LOAD TRANSACTION HISTORY
+// LOAD TRANSACTION HISTORY (STRICTLY ROLE-AWARE)
 // =====================================================
 
 async function loadTransactionHistory() {
 
     showLoading();
 
+    const userRole = String(localStorage.getItem("role") || "").toLowerCase();
+    const isCarrier = (userRole === "2" || userRole === "carrier");
 
-    // =================================================
-    // 1. LOAD USER AGREEMENTS
-    // =================================================
-
-    const {
-        data: agreements,
-        error: agreementError
-    } = await supabaseClient
+    // 1. LOAD AGREEMENTS WHERE THE USER IS INVOLVED
+    let agreementQuery = supabaseClient
         .from("agreements")
         .select(`
             agreement_id,
@@ -197,58 +192,26 @@ async function loadTransactionHistory() {
             cancelled_at,
             expired_at,
             deadline
-        `)
-        .or(
-            `shipper_address.eq.${currentAccount},carrier_address.eq.${currentAccount}`
-        )
-        .order(
-            "agreement_id",
-            {
-                ascending: false
-            }
-        );
+        `);
 
-
-    if (agreementError) {
-
-        throw agreementError;
-
+    if (isCarrier) {
+        agreementQuery = agreementQuery.eq("carrier_address", currentAccount);
+    } else {
+        agreementQuery = agreementQuery.eq("shipper_address", currentAccount);
     }
 
+    const { data: agreements, error: agreementError } = await agreementQuery.order("agreement_id", { ascending: false });
 
-    allAgreements =
-        agreements || [];
+    if (agreementError) {
+        throw agreementError;
+    }
 
+    allAgreements = agreements || [];
+    const agreementIds = allAgreements.map(agreement => agreement.agreement_id);
 
-    console.log(
-        "User agreements:",
-        allAgreements
-    );
-
-
-    // =================================================
-    // 2. GET AGREEMENT IDS
-    // =================================================
-
-    const agreementIds =
-        allAgreements.map(
-            agreement =>
-                agreement.agreement_id
-        );
-
-
-    // =================================================
-    // 3. LOAD TRANSACTIONS
-    // =================================================
-
-    if (
-        agreementIds.length > 0
-    ) {
-
-        const {
-            data: transactions,
-            error: transactionError
-        } = await supabaseClient
+    // 2. LOAD TRANSACTIONS STRICTLY BOUND TO USER ROLE & AGREEMENTS
+    if (agreementIds.length > 0) {
+        let txQuery = supabaseClient
             .from("transactions")
             .select(`
                 id,
@@ -259,48 +222,31 @@ async function loadTransactionHistory() {
                 details,
                 created_at
             `)
-            .in(
-                "agreement_id",
-                agreementIds
-            )
-            .order(
-                "created_at",
-                {
-                    ascending: false
-                }
-            );
+            .in("agreement_id", agreementIds);
 
-
-        if (transactionError) {
-
-            throw transactionError;
-
+        // If user is a carrier, only pull transactions where they performed the action.
+        // If user is a shipper, pull transactions for their agreements where they are the actor or relevant creator.
+        if (isCarrier) {
+            // Carriers see their own performed actions OR payout/release transactions
+            txQuery = txQuery.or(`actor_address.eq.${currentAccount},event_type.eq.MilestonePayout,event_type.eq.MilestoneVerified`);
+        } else {
+            txQuery = txQuery.eq("actor_address", currentAccount);
         }
 
+        const { data: transactions, error: transactionError } = await txQuery.order("created_at", { ascending: false });
 
-        allTransactions =
-            transactions || [];
+        if (transactionError) {
+            throw transactionError;
+        }
 
-    }
-    else {
-
+        allTransactions = transactions || [];
+    } else {
         allTransactions = [];
-
     }
 
-
-    // =================================================
-    // 4. LOAD MILESTONES
-    // =================================================
-
-    if (
-        agreementIds.length > 0
-    ) {
-
-        const {
-            data: milestones,
-            error: milestoneError
-        } = await supabaseClient
+    // 3. LOAD MILESTONES FOR THESE AGREEMENTS
+    if (agreementIds.length > 0) {
+        const { data: milestones, error: milestoneError } = await supabaseClient
             .from("milestones")
             .select(`
                 id,
@@ -313,61 +259,33 @@ async function loadTransactionHistory() {
                 completed_at,
                 verified_at
             `)
-            .in(
-                "agreement_id",
-                agreementIds
-            )
-            .order(
-                "milestone_index",
-                {
-                    ascending: true
-                }
-            );
-
+            .in("agreement_id", agreementIds)
+            .order("milestone_index", { ascending: true });
 
         if (milestoneError) {
-
             throw milestoneError;
-
         }
 
-
-        allMilestones =
-            milestones || [];
-
-    }
-    else {
-
+        allMilestones = milestones || [];
+    } else {
         allMilestones = [];
-
     }
-
-
-    // =================================================
-    // 5. UPDATE STATISTICS
-    // =================================================
 
     updateStatistics();
-
-
-    // =================================================
-    // 6. DISPLAY LEDGER
-    // =================================================
-
     renderLedger();
-
 }
 
 
 // =====================================================
-// UPDATE STATISTICS
+// UPDATE STATISTICS (ROLE-AWARE)
 // =====================================================
 
 function updateStatistics() {
-
+    const userRole = String(localStorage.getItem("role") || "").toLowerCase();
+    const isCarrier = (userRole === "2" || userRole === "carrier");
 
     // =================================================
-    // CURRENT ESCROW BALANCE
+    // CURRENT ESCROW BALANCE / STAKE
     // =================================================
 
     const escrowBalance =
@@ -413,7 +331,7 @@ function updateStatistics() {
 
 
     // =================================================
-    // RELEASED ETH
+    // RELEASED ETH (SPENT VS EARNED)
     // =================================================
 
     const released =
@@ -440,11 +358,20 @@ function updateStatistics() {
             "eth-earned"
         );
 
+    const earnedLabel = 
+        earnedElement 
+            ? earnedElement.closest(".transaction-stat-card")?.querySelector(".stat-label") 
+            : null;
+
 
     if (earnedElement) {
 
         earnedElement.innerText =
             released.toFixed(3);
+
+        if (isCarrier && earnedLabel) {
+            earnedLabel.innerText = "ETH EARNED";
+        }
 
     }
 
@@ -476,14 +403,15 @@ function updateStatistics() {
 
 
     // =================================================
-    // REFUNDED AGREEMENTS
+    // REFUNDED / CANCELLED AGREEMENTS
     // =================================================
 
     const refunded =
         allAgreements.filter(
             agreement =>
-                agreement.status ===
-                "Refunded"
+                agreement.status === "Refunded" || 
+                agreement.status === "Cancelled" || 
+                agreement.status === "Expired"
         ).length;
 
 
@@ -492,11 +420,20 @@ function updateStatistics() {
             "refund-count"
         );
 
+    const refundLabel = 
+        refundElement 
+            ? refundElement.closest(".transaction-stat-card")?.querySelector(".stat-label") 
+            : null;
+
 
     if (refundElement) {
 
         refundElement.innerText =
             refunded;
+
+        if (refundLabel) {
+            refundLabel.innerText = "REFUNDED / CANCELLED";
+        }
 
     }
 
@@ -644,10 +581,6 @@ function buildLedgerEvents() {
                     agreement.status
                 ).toLowerCase() === "cancelled"
             ) {
-
-                // Only create cancellation event
-                // if there is no transaction event
-                // already representing cancellation.
 
                 const hasCancellationTransaction =
                     allTransactions.some(
@@ -869,125 +802,50 @@ function renderLedger() {
 // TRANSACTION ROW
 // =====================================================
 
-function renderTransactionRow(
-    row,
-    event
-) {
+function renderTransactionRow(row, event) {
+    const transaction = event.transaction;
+    const agreement = event.agreement;
 
-    const transaction =
-        event.transaction;
+    const date = formatDateTime(transaction.created_at);
+    const reference = agreement ? agreement.reference_no : `Agreement #${transaction.agreement_id}`;
+    
+    let type = transaction.event_type || "Transaction";
+    const amount = extractTransactionAmount(transaction);
+    const status = getTransactionStatus(type);
 
-    const agreement =
-        event.agreement;
-
-
-    const date =
-        formatDateTime(
-            transaction.created_at
-        );
-
-
-    const reference =
-        agreement
-            ? agreement.reference_no
-            : `Agreement #${transaction.agreement_id}`;
-
-
-    const type =
-        transaction.event_type ||
-        "Transaction";
-
-
-    const amount =
-        extractTransactionAmount(
-            transaction
-        );
-
-
-    const status =
-        getTransactionStatus(
-            type
-        );
-
+    // Extract milestone index / checkpoint info from transaction details if available
+    let detailsText = "—";
+    if (transaction.details) {
+        if (typeof transaction.details === "object") {
+            detailsText = transaction.details.description || transaction.details.status || JSON.stringify(transaction.details);
+            
+            // If a milestone index exists in details, append it cleanly to the type name
+            if (transaction.details.milestone_index !== undefined) {
+                const milestoneNum = Number(transaction.details.milestone_index) + 1;
+                type = `${type} (M${milestoneNum})`;
+            }
+        } else {
+            detailsText = String(transaction.details);
+        }
+    }
 
     row.innerHTML = `
-
-        <td>
-
-            ${escapeHtml(date)}
-
+        <td>${escapeHtml(date)}</td>
+        <td><strong>${escapeHtml(reference)}</strong></td>
+        <td><span class="transaction-type-badge">${escapeHtml(type)}</span></td>
+        <td>${escapeHtml(amount)}</td>
+        <td style="color: #8d99ae; max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(detailsText)}">
+            ${escapeHtml(detailsText)}
         </td>
-
-
         <td>
-
-            <strong>
-                ${escapeHtml(reference)}
-            </strong>
-
+            ${transaction.transaction_hash ? `
+                <a href="${buildExplorerUrl(transaction.transaction_hash)}" target="_blank" rel="noopener noreferrer" class="transaction-hash" title="${escapeHtml(transaction.transaction_hash)}">
+                    ${formatHash(transaction.transaction_hash)}
+                </a>
+            ` : "—"}
         </td>
-
-
-        <td>
-
-            <span class="transaction-type-badge">
-
-                ${escapeHtml(type)}
-
-            </span>
-
-        </td>
-
-
-        <td>
-
-            ${escapeHtml(amount)}
-
-        </td>
-
-
-        <td>
-
-            ${transaction.transaction_hash
-            ? `
-                        <a
-                            href="${buildExplorerUrl(
-                transaction.transaction_hash
-            )}"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            class="transaction-hash"
-                            title="${escapeHtml(
-                transaction.transaction_hash
-            )}"
-                        >
-                            ${formatHash(
-                transaction.transaction_hash
-            )}
-                        </a>
-                    `
-            : "—"
-        }
-
-        </td>
-
-
-        <td>
-
-            <span
-                class="transaction-status ${getStatusClass(
-            status
-        )}"
-            >
-
-                ${escapeHtml(status)}
-
-            </span>
-
-        </td>
-
+        <td><span class="transaction-status ${getStatusClass(status)}">${escapeHtml(status)}</span></td>
     `;
-
 }
 
 
@@ -995,99 +853,25 @@ function renderTransactionRow(
 // MILESTONE ROW
 // =====================================================
 
-function renderMilestoneRow(
-    row,
-    event
-) {
+function renderMilestoneRow(row, event) {
+    const milestone = event.milestone;
+    const agreement = event.agreement;
 
-    const milestone =
-        event.milestone;
-
-    const agreement =
-        event.agreement;
-
-
-    const reference =
-        agreement
-            ? agreement.reference_no
-            : `Agreement #${milestone.agreement_id}`;
-
-
-    const date =
-        formatDateTime(
-            event.date
-        );
-
-
-    const action =
-        event.milestoneAction;
-
+    const reference = agreement ? agreement.reference_no : `Agreement #${milestone.agreement_id}`;
+    const date = formatDateTime(event.date);
+    const action = event.milestoneAction;
+    
+    let detailsText = `Milestone ${milestone.milestone_index + 1}: ${milestone.checkpoint}`;
 
     row.innerHTML = `
-
-        <td>
-
-            ${escapeHtml(date)}
-
-        </td>
-
-
-        <td>
-
-            <strong>
-                ${escapeHtml(reference)}
-            </strong>
-
-        </td>
-
-
-        <td>
-
-            <span class="transaction-type-badge">
-
-                Milestone ${escapeHtml(
-        String(
-            milestone.milestone_index + 1
-        )
-    )}
-
-            </span>
-
-        </td>
-
-
-        <td>
-
-            ${escapeHtml(
-        milestone.percentage
-    )}%
-
-        </td>
-
-
-        <td>
-
-            —
-
-        </td>
-
-
-        <td>
-
-            <span
-                class="transaction-status status-completed"
-            >
-
-                ${escapeHtml(
-        action
-    )}
-
-            </span>
-
-        </td>
-
+        <td>${escapeHtml(date)}</td>
+        <td><strong>${escapeHtml(reference)}</strong></td>
+        <td><span class="transaction-type-badge">Milestone ${escapeHtml(String(milestone.milestone_index + 1))}</span></td>
+        <td>${escapeHtml(milestone.percentage)}%</td>
+        <td style="color: #8d99ae;">${escapeHtml(detailsText)}</td>
+        <td>—</td>
+        <td><span class="transaction-status status-completed">${escapeHtml(action)}</span></td>
     `;
-
 }
 
 
@@ -1315,7 +1099,7 @@ function findAgreement(
 
 
 // =====================================================
-// EXTRACT TRANSACTION AMOUNT
+// EXTRACT TRANSACTION AMOUNT (ROLE-AWARE)
 // =====================================================
 
 function extractTransactionAmount(transaction) {
@@ -1328,20 +1112,20 @@ function extractTransactionAmount(transaction) {
 
     if (typeof details === "object") {
         let amount = null;
-        let isIncoming = false; // false means outgoing (-), true means incoming (+)
+        let isIncoming = false; 
 
         if (details.escrow && details.escrow.amount !== undefined) {
             amount = Number(details.escrow.amount);
-            isIncoming = false; // Funding escrow is money out
+            isIncoming = false; 
         } else if (details.escrow_amount !== undefined) {
             amount = Number(details.escrow_amount);
             isIncoming = false;
         } else if (details.escrow_refunded !== undefined) {
             amount = Number(details.escrow_refunded);
-            isIncoming = true; // Refund is money back in
+            isIncoming = true; 
         } else if (eventType === "MilestonePaid" || eventType === "MilestonePayout") {
             amount = Number(details.amount || 0);
-            isIncoming = true; // Carrier receiving payout is money in
+            isIncoming = true; 
         }
 
         if (amount !== null && !isNaN(amount)) {
@@ -1625,16 +1409,6 @@ function buildExplorerUrl(
     if (!hash) {
         return "#";
     }
-
-
-    /*
-     * Ganache normally does not have a public Etherscan transaction page.
-     *
-     * Therefore return "#" for local development.
-     *
-     * If use Sepolia later, change this to:
-     * https://sepolia.etherscan.io/tx/
-     */
 
     return "#";
 

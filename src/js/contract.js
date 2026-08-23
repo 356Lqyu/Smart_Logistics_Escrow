@@ -1,5 +1,5 @@
 const CONTRACT_ADDRESS =
-    "0x7Ea1f21821FF2D39abbBe5234375D12b82dEe737";
+    "0x8d3a726587CB65b4408E2c415173eca6431aa8c4";
 
 
 const CONTRACT_ABI = [
@@ -52,7 +52,7 @@ const CONTRACT_ABI = [
       "anonymous": false,
       "inputs": [
         {
-          "indexed": false,
+          "indexed": true,
           "internalType": "uint256",
           "name": "agreementId",
           "type": "uint256"
@@ -146,7 +146,7 @@ const CONTRACT_ABI = [
           "type": "uint256"
         },
         {
-          "indexed": false,
+          "indexed": true,
           "internalType": "uint256",
           "name": "milestoneIndex",
           "type": "uint256"
@@ -158,7 +158,7 @@ const CONTRACT_ABI = [
           "type": "address"
         }
       ],
-      "name": "MilestoneCompleted",
+      "name": "MilestoneCompletionSubmitted",
       "type": "event"
     },
     {
@@ -171,7 +171,7 @@ const CONTRACT_ABI = [
           "type": "uint256"
         },
         {
-          "indexed": false,
+          "indexed": true,
           "internalType": "uint256",
           "name": "milestoneIndex",
           "type": "uint256"
@@ -189,7 +189,7 @@ const CONTRACT_ABI = [
           "type": "uint256"
         }
       ],
-      "name": "MilestonePaid",
+      "name": "MilestonePayout",
       "type": "event"
     },
     {
@@ -202,7 +202,7 @@ const CONTRACT_ABI = [
           "type": "uint256"
         },
         {
-          "indexed": false,
+          "indexed": true,
           "internalType": "uint256",
           "name": "milestoneIndex",
           "type": "uint256"
@@ -212,6 +212,12 @@ const CONTRACT_ABI = [
           "internalType": "address",
           "name": "shipper",
           "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
         }
       ],
       "name": "MilestoneVerified",
@@ -289,6 +295,16 @@ const CONTRACT_ABI = [
           "internalType": "bool",
           "name": "paid",
           "type": "bool"
+        },
+        {
+          "internalType": "uint256",
+          "name": "completedAt",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "verifiedAt",
+          "type": "uint256"
         }
       ],
       "stateMutability": "view",
@@ -346,36 +362,6 @@ const CONTRACT_ABI = [
     {
       "inputs": [
         {
-          "internalType": "address",
-          "name": "user",
-          "type": "address"
-        }
-      ],
-      "name": "getUser",
-      "outputs": [
-        {
-          "internalType": "string",
-          "name": "name",
-          "type": "string"
-        },
-        {
-          "internalType": "enum LogisticsEscrow.UserRole",
-          "name": "role",
-          "type": "uint8"
-        },
-        {
-          "internalType": "bool",
-          "name": "registered",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function",
-      "constant": true
-    },
-    {
-      "inputs": [
-        {
           "internalType": "uint256",
           "name": "id",
           "type": "uint256"
@@ -410,22 +396,12 @@ const CONTRACT_ABI = [
         },
         {
           "internalType": "uint256",
-          "name": "escrowReleased",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
           "name": "escrowRemaining",
           "type": "uint256"
         },
         {
           "internalType": "uint256",
           "name": "deadline",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "createdTime",
           "type": "uint256"
         },
         {
@@ -450,6 +426,96 @@ const CONTRACT_ABI = [
     },
     {
       "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "agreementId",
+          "type": "uint256"
+        }
+      ],
+      "name": "getMilestoneCount",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "constant": true
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "agreementId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "index",
+          "type": "uint256"
+        }
+      ],
+      "name": "getMilestone",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "checkpoint",
+          "type": "string"
+        },
+        {
+          "internalType": "uint256",
+          "name": "percentage",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bool",
+          "name": "completed",
+          "type": "bool"
+        },
+        {
+          "internalType": "bool",
+          "name": "verified",
+          "type": "bool"
+        },
+        {
+          "internalType": "bool",
+          "name": "paid",
+          "type": "bool"
+        },
+        {
+          "internalType": "uint256",
+          "name": "completedAt",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "verifiedAt",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "constant": true
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "shipmentDetails",
+          "type": "string"
+        },
+        {
+          "internalType": "uint256",
+          "name": "payloadValue",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "escrowAmount",
+          "type": "uint256"
+        },
         {
           "internalType": "uint256",
           "name": "deadline",
@@ -502,14 +568,9 @@ const CONTRACT_ABI = [
           "internalType": "uint256",
           "name": "agreementId",
           "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "milestoneIndex",
-          "type": "uint256"
         }
       ],
-      "name": "completeMilestone",
+      "name": "submitMilestoneCompletion",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -519,11 +580,6 @@ const CONTRACT_ABI = [
         {
           "internalType": "uint256",
           "name": "agreementId",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "milestoneIndex",
           "type": "uint256"
         }
       ],
@@ -557,107 +613,9 @@ const CONTRACT_ABI = [
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "agreementId",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "milestoneIndex",
-          "type": "uint256"
-        }
-      ],
-      "name": "getMilestone",
-      "outputs": [
-        {
-          "internalType": "string",
-          "name": "checkpoint",
-          "type": "string"
-        },
-        {
-          "internalType": "uint256",
-          "name": "percentage",
-          "type": "uint256"
-        },
-        {
-          "internalType": "bool",
-          "name": "completed",
-          "type": "bool"
-        },
-        {
-          "internalType": "bool",
-          "name": "verified",
-          "type": "bool"
-        },
-        {
-          "internalType": "bool",
-          "name": "paid",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function",
-      "constant": true
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "agreementId",
-          "type": "uint256"
-        }
-      ],
-      "name": "getMilestoneCount",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function",
-      "constant": true
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "agreementId",
-          "type": "uint256"
-        }
-      ],
-      "name": "getEscrowRemaining",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function",
-      "constant": true
-    },
-    {
-      "inputs": [],
-      "name": "getAgreementCount",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function",
-      "constant": true
     }
   ];
+
 
 
 let web3;

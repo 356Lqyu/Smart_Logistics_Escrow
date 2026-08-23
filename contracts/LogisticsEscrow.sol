@@ -26,9 +26,8 @@ contract LogisticsEscrow {
         UserRole role
     );
 
-
     // =====================================================
-    // AGREEMENT ENUMS
+    // AGREEMENT
     // =====================================================
 
     enum AgreementStatus {
@@ -45,57 +44,60 @@ contract LogisticsEscrow {
         Urgent
     }
 
-
-    // =====================================================
-    // MILESTONE
-    // =====================================================
-
     struct Milestone {
         string checkpoint;
         uint percentage;
+
+        // Carrier submitted completion.
         bool completed;
+
+        // Shipper verified completion.
         bool verified;
+
+        // ETH for this milestone was released.
         bool paid;
+
+        uint completedAt;
+        uint verifiedAt;
     }
 
-
-    // =====================================================
-    // AGREEMENT
-    // =====================================================
     struct Agreement {
         uint agreementId;
         string referenceNo;
+
         address payable shipper;
         address payable carrier;
+
+        string shipmentDetails;
+        uint payloadValue;
+
+        // Total escrow originally deposited.
         uint escrowAmount;
-        uint escrowReleased;
+
+        // Remaining escrow currently locked.
+        uint escrowRemaining;
+
         uint deadline;
         uint createdTime;
         Priority priority;
         AgreementStatus status;
+
+        // Only this milestone can currently be submitted/verified.
         uint currentMilestone;
     }
-
-
-    // =====================================================
-    // STORAGE
-    // =====================================================
 
     uint public agreementCounter;
 
     mapping(uint => Agreement) private agreements;
-
     mapping(uint => Milestone[]) public agreementMilestones;
-
     mapping(bytes32 => bool) private agreementHashes;
-
 
     // =====================================================
     // EVENTS
     // =====================================================
 
     event AgreementCreated(
-        uint agreementId,
+        uint indexed agreementId,
         string referenceNo,
         address indexed shipper,
         uint escrowAmount
@@ -111,6 +113,26 @@ contract LogisticsEscrow {
         address indexed carrier
     );
 
+    event MilestoneCompletionSubmitted(
+        uint indexed agreementId,
+        uint indexed milestoneIndex,
+        address indexed carrier
+    );
+
+    event MilestoneVerified(
+        uint indexed agreementId,
+        uint indexed milestoneIndex,
+        address indexed shipper,
+        uint amount
+    );
+
+    event MilestonePayout(
+        uint indexed agreementId,
+        uint indexed milestoneIndex,
+        address indexed carrier,
+        uint amount
+    );
+
     event AgreementCompleted(
         uint indexed agreementId
     );
@@ -123,31 +145,11 @@ contract LogisticsEscrow {
         uint indexed agreementId
     );
 
-    event MilestoneCompleted(
-        uint indexed agreementId,
-        uint milestoneIndex,
-        address indexed carrier
-    );
-
-    event MilestoneVerified(
-        uint indexed agreementId,
-        uint milestoneIndex,
-        address indexed shipper
-    );
-
-    event MilestonePaid(
-        uint indexed agreementId,
-        uint milestoneIndex,
-        address indexed carrier,
-        uint amount
-    );
-
     event EscrowRefunded(
         uint indexed agreementId,
         address indexed shipper,
         uint amount
     );
-
 
     // =====================================================
     // USER REGISTRATION
@@ -156,10 +158,7 @@ contract LogisticsEscrow {
     function register(
         string memory _name,
         UserRole _role
-    )
-        external
-    {
-
+    ) external {
         require(
             !users[msg.sender].registered,
             "Wallet already registered"
@@ -188,29 +187,6 @@ contract LogisticsEscrow {
         );
     }
 
-
-    // =====================================================
-    // VIEW USER
-    // =====================================================
-
-    function getUser(address user)
-        external
-        view
-        returns (
-            string memory name,
-            UserRole role,
-            bool registered
-        )
-    {
-        User storage u = users[user];
-        return (
-            u.name,
-            u.role,
-            u.registered
-        );
-    }
-
-
     // =====================================================
     // VIEW AGREEMENT
     // =====================================================
@@ -224,10 +200,8 @@ contract LogisticsEscrow {
             address shipper,
             address carrier,
             uint escrowAmount,
-            uint escrowReleased,
             uint escrowRemaining,
             uint deadline,
-            uint createdTime,
             Priority priority,
             AgreementStatus status,
             uint currentMilestone
@@ -235,42 +209,77 @@ contract LogisticsEscrow {
     {
         Agreement storage a = agreements[id];
 
-        uint remaining = 0;
-
-        if (a.escrowAmount > a.escrowReleased) {
-            remaining =
-                a.escrowAmount -
-                a.escrowReleased;
-        }
-
         return (
             a.agreementId,
             a.referenceNo,
             a.shipper,
             a.carrier,
             a.escrowAmount,
-            a.escrowReleased,
-            remaining,
+            a.escrowRemaining,
             a.deadline,
-            a.createdTime,
             a.priority,
             a.status,
             a.currentMilestone
         );
     }
 
+    function getMilestoneCount(uint agreementId)
+        external
+        view
+        returns (uint)
+    {
+        return agreementMilestones[agreementId].length;
+    }
+
+    function getMilestone(
+        uint agreementId,
+        uint index
+    )
+        external
+        view
+        returns (
+            string memory checkpoint,
+            uint percentage,
+            bool completed,
+            bool verified,
+            bool paid,
+            uint completedAt,
+            uint verifiedAt
+        )
+    {
+        require(
+            index < agreementMilestones[agreementId].length,
+            "Milestone does not exist"
+        );
+
+        Milestone storage m =
+            agreementMilestones[agreementId][index];
+
+        return (
+            m.checkpoint,
+            m.percentage,
+            m.completed,
+            m.verified,
+            m.paid,
+            m.completedAt,
+            m.verifiedAt
+        );
+    }
 
     // =====================================================
-    // CREATE AGREEMENT
+    // CREATE + AUTO-FUND AGREEMENT
     //
-    // Shipment details, origin, destination and payload
-    // value are stored in Supabase rather than blockchain.
+    // The shipper creates the agreement and sends the
+    // complete escrow amount in the SAME transaction.
     //
-    // Blockchain stores only information required for
-    // escrow execution and agreement identification.
+    // New state:
+    // Created = created + funded + waiting for carrier.
     // =====================================================
 
     function createAgreement(
+        string memory shipmentDetails,
+        uint payloadValue,
+        uint escrowAmount,
         uint deadline,
         Priority priority,
         string[] memory checkpoints,
@@ -278,11 +287,16 @@ contract LogisticsEscrow {
     )
         public
         payable
-        returns(uint256)
+        returns (uint256)
     {
         require(
-            msg.value >= 0.01 ether,
+            escrowAmount >= 0.01 ether,
             "Minimum escrow is 0.01 ETH"
+        );
+
+        require(
+            msg.value == escrowAmount,
+            "ETH sent must equal escrow amount"
         );
 
         require(
@@ -300,22 +314,23 @@ contract LogisticsEscrow {
             "At least one milestone required"
         );
 
+        require(
+            payloadValue > 0,
+            "Payload value must be greater than zero"
+        );
 
-        // =================================================
-        // Validate milestone percentages
-        // =================================================
+        require(
+            bytes(shipmentDetails).length > 0,
+            "Shipment details required"
+        );
 
         uint total = 0;
 
-        for (
-            uint i = 0;
-            i < percentages.length;
-            i++
-        ) {
-
+        for (uint i = 0; i < percentages.length; i++) {
             require(
-                percentages[i] > 0,
-                "Milestone percentage must be greater than zero"
+                percentages[i] > 0 &&
+                percentages[i] <= 100,
+                "Invalid milestone percentage"
             );
 
             total += percentages[i];
@@ -326,18 +341,14 @@ contract LogisticsEscrow {
             "Percentages must equal 100"
         );
 
-
-        // =================================================
-        // Duplicate agreement check
-        // =================================================
-
         bytes32 agreementHash =
             keccak256(
                 abi.encodePacked(
                     msg.sender,
-                    msg.value,
-                    deadline,
-                    block.timestamp
+                    keccak256(bytes(shipmentDetails)),
+                    payloadValue,
+                    escrowAmount,
+                    deadline
                 )
             );
 
@@ -348,35 +359,21 @@ contract LogisticsEscrow {
 
         agreementHashes[agreementHash] = true;
 
-
-        // =================================================
-        // Generate agreement ID
-        // =================================================
-
         agreementCounter++;
-
         uint newId = agreementCounter;
-
-
-        // =================================================
-        // Generate reference number
-        // =================================================
 
         string memory refNo =
             _generateReferenceNo(newId);
-
-
-        // =================================================
-        // Store agreement
-        // =================================================
 
         agreements[newId] = Agreement({
             agreementId: newId,
             referenceNo: refNo,
             shipper: payable(msg.sender),
             carrier: payable(address(0)),
-            escrowAmount: msg.value,
-            escrowReleased: 0,
+            shipmentDetails: shipmentDetails,
+            payloadValue: payloadValue,
+            escrowAmount: escrowAmount,
+            escrowRemaining: escrowAmount,
             deadline: deadline,
             createdTime: block.timestamp,
             priority: priority,
@@ -384,104 +381,93 @@ contract LogisticsEscrow {
             currentMilestone: 0
         });
 
-
-        // =================================================
-        // Store milestones
-        // =================================================
-
-        for (
-            uint i = 0;
-            i < checkpoints.length;
-            i++
-        ) {
-
+        for (uint i = 0; i < checkpoints.length; i++) {
             agreementMilestones[newId].push(
-
                 Milestone({
                     checkpoint: checkpoints[i],
                     percentage: percentages[i],
                     completed: false,
                     verified: false,
-                    paid: false
+                    paid: false,
+                    completedAt: 0,
+                    verifiedAt: 0
                 })
             );
         }
 
-
-        // =================================================
-        // Events
-        // =================================================
-
         emit AgreementCreated(
-            newId,refNo,msg.sender,msg.value
+            newId,
+            refNo,
+            msg.sender,
+            escrowAmount
         );
 
+        // Kept as an explicit event for transaction history.
         emit EscrowFunded(
-            newId, msg.value
+            newId,
+            escrowAmount
         );
 
         return newId;
     }
 
-
     // =====================================================
-    // GENERATE REFERENCE NUMBER
+    // REFERENCE NUMBER
     // =====================================================
 
     function _generateReferenceNo(uint id)
         internal
         pure
-        returns(string memory)
+        returns (string memory)
     {
-
         string memory paddedId;
 
-        if(id < 10){
-
-            paddedId =
-                string(
-                    abi.encodePacked("000", _uintToStr(id) )
-                );
-        }
-        else if(id < 100){
-
-            paddedId =
-                string(
-                    abi.encodePacked( "00", _uintToStr(id))
-                );
-        }
-        else if(id < 1000){
-
-            paddedId =
-                string(
-                    abi.encodePacked("0", _uintToStr(id))
-                );
-        }
-        else{
+        if (id < 10) {
+            paddedId = string(
+                abi.encodePacked(
+                    "000",
+                    _uintToStr(id)
+                )
+            );
+        } else if (id < 100) {
+            paddedId = string(
+                abi.encodePacked(
+                    "00",
+                    _uintToStr(id)
+                )
+            );
+        } else if (id < 1000) {
+            paddedId = string(
+                abi.encodePacked(
+                    "0",
+                    _uintToStr(id)
+                )
+            );
+        } else {
             paddedId = _uintToStr(id);
         }
 
-        return
-            string(
-                abi.encodePacked("LG-2026-",paddedId)
-            );
+        return string(
+            abi.encodePacked(
+                "LG-2026-",
+                paddedId
+            )
+        );
     }
-
 
     function _uintToStr(uint _i)
         internal
         pure
-        returns(string memory)
+        returns (string memory)
     {
-
-        if(_i == 0){
+        if (_i == 0) {
             return "0";
         }
 
         uint temp = _i;
         uint digits;
 
-        while(temp != 0){
+        while (temp != 0) {
             digits++;
             temp /= 10;
         }
@@ -489,17 +475,19 @@ contract LogisticsEscrow {
         bytes memory buffer =
             new bytes(digits);
 
-
-        while(_i != 0){
+        while (_i != 0) {
             digits--;
+
             buffer[digits] =
                 bytes1(
-                    uint8( 48 + uint(_i % 10) )
+                    uint8(
+                        48 +
+                        uint(_i % 10)
+                    )
                 );
 
             _i /= 10;
         }
-
 
         return string(buffer);
     }
@@ -507,7 +495,10 @@ contract LogisticsEscrow {
     // =====================================================
     // ACCEPT AGREEMENT
     //
-    // Created to InProgress
+    // Created → InProgress
+    //
+    // Created already contains escrow because creation
+    // automatically funded it.
     // =====================================================
 
     function acceptAgreement(
@@ -515,8 +506,8 @@ contract LogisticsEscrow {
     )
         external
     {
-
-        Agreement storage agreement = agreements[agreementId];
+        Agreement storage agreement =
+            agreements[agreementId];
 
         require(
             agreement.agreementId != 0,
@@ -525,7 +516,7 @@ contract LogisticsEscrow {
 
         require(
             agreement.status ==
-            AgreementStatus.Created,
+                AgreementStatus.Created,
             "Agreement is not available for acceptance"
         );
 
@@ -535,24 +526,22 @@ contract LogisticsEscrow {
         );
 
         require(
-            users[msg.sender].registered,
-            "Carrier is not registered"
-        );
-
-        require(
-            users[msg.sender].role ==
-                UserRole.Carrier,
-            "Only Carrier can accept"
-        );
-
-        require(
             block.timestamp <=
-            agreement.deadline,
+                agreement.deadline,
             "Deadline passed"
         );
 
-        agreement.carrier = payable(msg.sender);
-        agreement.status = AgreementStatus.InProgress;
+        require(
+            agreement.escrowRemaining ==
+                agreement.escrowAmount,
+            "Escrow is not fully funded"
+        );
+
+        agreement.carrier =
+            payable(msg.sender);
+
+        agreement.status =
+            AgreementStatus.InProgress;
 
         emit AgreementAccepted(
             agreementId,
@@ -560,21 +549,23 @@ contract LogisticsEscrow {
         );
     }
 
-
     // =====================================================
-    // COMPLETE MILESTONE
+    // CARRIER SUBMITS CURRENT MILESTONE
     //
-    // Carrier marks the milestone as completed.
-    // This does NOT release payment yet.
+    // Pending:
+    // completed=false, verified=false, paid=false
+    //
+    // After submission:
+    // completed=true, verified=false, paid=false
     // =====================================================
 
-    function completeMilestone(
-        uint agreementId,
-        uint milestoneIndex
+    function submitMilestoneCompletion(
+        uint agreementId
     )
         external
     {
-        Agreement storage agreement = agreements[agreementId];
+        Agreement storage agreement =
+            agreements[agreementId];
 
         require(
             agreement.agreementId != 0,
@@ -589,29 +580,35 @@ contract LogisticsEscrow {
 
         require(
             msg.sender == agreement.carrier,
-            "Only carrier can complete milestone"
+            "Only the carrier can submit completion"
         );
 
         require(
-            milestoneIndex <
+            block.timestamp <=
+                agreement.deadline,
+            "Agreement deadline has passed"
+        );
+
+        uint index =
+            agreement.currentMilestone;
+
+        require(
+            index <
                 agreementMilestones[agreementId].length,
-            "Invalid milestone"
-        );
-
-        require(
-            milestoneIndex ==
-                agreement.currentMilestone,
-            "Incorrect milestone order"
+            "All milestones are complete"
         );
 
         Milestone storage milestone =
-            agreementMilestones[
-                agreementId
-            ][milestoneIndex];
+            agreementMilestones[agreementId][index];
 
         require(
             !milestone.completed,
-            "Milestone already completed"
+            "Milestone already submitted"
+        );
+
+        require(
+            !milestone.verified,
+            "Milestone already verified"
         );
 
         require(
@@ -620,30 +617,38 @@ contract LogisticsEscrow {
         );
 
         milestone.completed = true;
+        milestone.completedAt =
+            block.timestamp;
 
-        emit MilestoneCompleted(
+        emit MilestoneCompletionSubmitted(
             agreementId,
-            milestoneIndex,
+            index,
             msg.sender
         );
     }
 
-
     // =====================================================
-    // VERIFY MILESTONE
+    // SHIPPER VERIFIES + RELEASES PAYMENT
     //
-    // Shipper verifies the completed milestone.
-    // Successful verification releases the milestone
-    // payment to the Carrier.
+    // completed=true
+    // verified=false
+    // paid=false
+    //
+    // becomes:
+    // completed=true
+    // verified=true
+    // paid=true
+    //
+    // Then currentMilestone increments.
     // =====================================================
 
     function verifyMilestone(
-        uint agreementId,
-        uint milestoneIndex
+        uint agreementId
     )
         external
     {
-        Agreement storage agreement = agreements[agreementId];
+        Agreement storage agreement =
+            agreements[agreementId];
 
         require(
             agreement.agreementId != 0,
@@ -658,29 +663,30 @@ contract LogisticsEscrow {
 
         require(
             msg.sender == agreement.shipper,
-            "Only shipper can verify milestone"
+            "Only the shipper can verify"
         );
 
         require(
-            milestoneIndex <
+            block.timestamp <=
+                agreement.deadline,
+            "Agreement deadline has passed"
+        );
+
+        uint index =
+            agreement.currentMilestone;
+
+        require(
+            index <
                 agreementMilestones[agreementId].length,
-            "Invalid milestone"
-        );
-
-        require(
-            milestoneIndex ==
-                agreement.currentMilestone,
-            "Incorrect milestone order"
+            "All milestones are complete"
         );
 
         Milestone storage milestone =
-            agreementMilestones[
-                agreementId
-            ][milestoneIndex];
+            agreementMilestones[agreementId][index];
 
         require(
             milestone.completed,
-            "Milestone not completed"
+            "Carrier has not submitted completion"
         );
 
         require(
@@ -693,90 +699,71 @@ contract LogisticsEscrow {
             "Milestone already paid"
         );
 
-        // Mark verified
+        require(
+            agreement.escrowRemaining > 0,
+            "Agreement has no remaining escrow"
+        );
+
+        uint payout =
+            (
+                agreement.escrowAmount *
+                milestone.percentage
+            ) / 100;
+
+        require(
+            payout > 0,
+            "Invalid milestone payout"
+        );
+
+        require(
+            agreement.escrowRemaining >= payout,
+            "Insufficient escrow remaining"
+        );
+
+        // State is updated before the external call.
+        // Re-entry is therefore unable to pay the same
+        // milestone again through this function.
         milestone.verified = true;
-
-        // =================================================
-        // Calculate payment
-        //
-        // Last milestone receives all remaining escrow.
-        // This prevents rounding issues.
-        // =================================================
-
-        uint payment;
-
-        bool isLastMilestone =
-            milestoneIndex ==
-            agreementMilestones[agreementId].length - 1;
-
-        if (isLastMilestone) {
-            payment = agreement.escrowAmount - agreement.escrowReleased;
-        }
-        else {
-
-            payment =
-                (
-                    agreement.escrowAmount *
-                    milestone.percentage
-                ) / 100;
-        }
-
-        require(
-            payment > 0,
-            "No payment available"
-        );
-
-        require(
-            agreement.escrowReleased + payment
-                <= agreement.escrowAmount,
-            "Insufficient escrow"
-        );
-
-        // =================================================
-        // Effects BEFORE transfer
-        // =================================================
-
         milestone.paid = true;
-        agreement.escrowReleased += payment;
+        milestone.verifiedAt =
+            block.timestamp;
+
+        agreement.escrowRemaining -= payout;
+
         agreement.currentMilestone++;
-
-
-        // =================================================
-        // Transfer payment to Carrier
-        // =================================================
 
         (bool success,) =
             agreement.carrier.call{
-                value: payment
+                value: payout
             }("");
 
         require(
             success,
-            "Milestone payment failed"
+            "Payment transfer failed"
         );
-
 
         emit MilestoneVerified(
             agreementId,
-            milestoneIndex,
-            msg.sender
+            index,
+            msg.sender,
+            payout
         );
 
-        emit MilestonePaid(
+        emit MilestonePayout(
             agreementId,
-            milestoneIndex,
+            index,
             agreement.carrier,
-            payment
+            payout
         );
-
-        // =================================================
-        // Complete agreement if all milestones are paid
-        // =================================================
 
         if (
-            agreement.currentMilestone ==
+            agreement.currentMilestone >=
             agreementMilestones[agreementId].length
         ) {
+            require(
+                agreement.escrowRemaining == 0,
+                "Escrow remains after final milestone"
+            );
 
             agreement.status =
                 AgreementStatus.Completed;
@@ -787,18 +774,12 @@ contract LogisticsEscrow {
         }
     }
 
-
-
-   // =====================================================
-    // CANCEL AGREEMENT
+    // =====================================================
+    // CANCEL
     //
-    // Only Shipper can cancel.
-    //
-    // Cancellation is allowed only before Carrier accepts.
-    //
-    // Remaining escrow is automatically refunded.
-    //
-    // Created to Cancelled
+    // Only shipper.
+    // Only before carrier acceptance.
+    // Refunds the complete remaining escrow.
     // =====================================================
 
     function cancelAgreement(
@@ -806,7 +787,8 @@ contract LogisticsEscrow {
     )
         external
     {
-        Agreement storage agreement = agreements[agreementId];
+        Agreement storage agreement =
+            agreements[agreementId];
 
         require(
             agreement.agreementId != 0,
@@ -824,25 +806,16 @@ contract LogisticsEscrow {
             "Agreement cannot be cancelled"
         );
 
+        uint amount =
+            agreement.escrowRemaining;
 
-        // =================================================
-        // Calculate remaining escrow
-        // =================================================
+        agreement.escrowRemaining = 0;
+        agreement.escrowAmount = 0;
 
-        uint amount = agreement.escrowAmount - agreement.escrowReleased;
+        agreement.status =
+            AgreementStatus.Cancelled;
 
-
-        // =================================================
-        // Effects
-        // =================================================
-        agreement.status = AgreementStatus.Cancelled;
-
-
-        // =================================================
-        // Refund remaining escrow
-        // =================================================
         if (amount > 0) {
-
             (bool success,) =
                 agreement.shipper.call{
                     value: amount
@@ -860,25 +833,16 @@ contract LogisticsEscrow {
             );
         }
 
-
         emit AgreementCancelled(
             agreementId
         );
     }
 
-
-
     // =====================================================
-    // EXPIRE AGREEMENT
+    // EXPIRE
     //
-    // Anyone can call this after the deadline.
-    //
-    // Created: Entire escrow refunded.
-    //
-    // InProgress: Any unpaid escrow refunded.
-    //
-    // InProgress -> Expired
-    // Created -> Expired
+    // Can be called after deadline.
+    // Remaining escrow is refunded to shipper.
     // =====================================================
 
     function expireAgreement(
@@ -886,7 +850,8 @@ contract LogisticsEscrow {
     )
         external
     {
-        Agreement storage agreement = agreements[agreementId];
+        Agreement storage agreement =
+            agreements[agreementId];
 
         require(
             agreement.agreementId != 0,
@@ -900,28 +865,23 @@ contract LogisticsEscrow {
         );
 
         require(
-            agreement.status == AgreementStatus.Created || agreement.status == AgreementStatus.InProgress,
+            agreement.status ==
+                AgreementStatus.Created ||
+            agreement.status ==
+                AgreementStatus.InProgress,
             "Cannot expire"
         );
 
+        uint amount =
+            agreement.escrowRemaining;
 
-        // =================================================
-        // Calculate remaining escrow
-        // =================================================
-        uint amount = agreement.escrowAmount - agreement.escrowReleased;
+        agreement.escrowRemaining = 0;
+        agreement.escrowAmount = 0;
 
+        agreement.status =
+            AgreementStatus.Expired;
 
-        // =================================================
-        // Effects
-        // =================================================
-        agreement.status = AgreementStatus.Expired;
-
-
-        // =================================================
-        // Refund remaining escrow
-        // =================================================
-        if(amount > 0){
-
+        if (amount > 0) {
             (bool success,) =
                 agreement.shipper.call{
                     value: amount
@@ -942,93 +902,5 @@ contract LogisticsEscrow {
         emit AgreementExpired(
             agreementId
         );
-    }
-
-
-    // =====================================================
-    // VIEW MILESTONE
-    // =====================================================
-
-    function getMilestone(
-        uint agreementId,
-        uint milestoneIndex
-    )
-        external
-        view
-        returns (
-            string memory checkpoint,
-            uint percentage,
-            bool completed,
-            bool verified,
-            bool paid
-        )
-    {
-        require(
-            milestoneIndex < agreementMilestones[agreementId].length,
-            "Invalid milestone"
-        );
-
-        Milestone storage milestone = agreementMilestones[agreementId][milestoneIndex];
-
-        return (
-            milestone.checkpoint,
-            milestone.percentage,
-            milestone.completed,
-            milestone.verified,
-            milestone.paid
-        );
-    }
-
-
-    // =====================================================
-    // GET MILESTONE COUNT
-    // =====================================================
-    function getMilestoneCount(
-        uint agreementId
-    )
-        external
-        view
-        returns(uint)
-    {
-        return
-            agreementMilestones[agreementId].length;
-    }
-
-
-    // =====================================================
-    // GET ESCROW REMAINING
-    //
-    // Calculated instead of stored.
-    // =====================================================
-
-    function getEscrowRemaining(
-        uint agreementId
-    )
-        public
-        view
-        returns(uint)
-    {
-        Agreement storage agreement = agreements[agreementId];
-
-        if (agreement.escrowReleased >= agreement.escrowAmount) {
-            return 0;
-        }
-
-        return
-            agreement.escrowAmount -
-            agreement.escrowReleased;
-    }
-
-
-    // =====================================================
-    // GET AGREEMENT COUNT
-    // =====================================================
-
-    function getAgreementCount()
-        external
-        view
-        returns(uint)
-    {
-        return agreementCounter;
     }
 }

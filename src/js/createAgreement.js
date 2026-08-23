@@ -3,79 +3,72 @@
 // =====================================================
 
 document.addEventListener("DOMContentLoaded", () => {
-
-
-    // -------------------------------------------------
-    // Initialize milestone preview
-    // -------------------------------------------------
-
     updateMilestones();
+
+    const form =
+        document.getElementById("createAgreementForm");
+
+    if (form) {
+        form.addEventListener(
+            "submit",
+            handleCreateAgreement
+        );
+    }
+
+    [
+        "m1_pct",
+        "m2_pct",
+        "m3_pct",
+        "escrowAmount"
+    ].forEach(id => {
+        const element =
+            document.getElementById(id);
+
+        if (element) {
+            element.addEventListener(
+                "input",
+                updateMilestones
+            );
+        }
+    });
 });
 
-
 // =====================================================
-// MILESTONE UI
+// MILESTONE PREVIEW
 // =====================================================
 
 function updateMilestones() {
-
-    const m1 =
-        document.getElementById("m1_pct");
-
-    const m2 =
-        document.getElementById("m2_pct");
-
-    const m3 =
-        document.getElementById("m3_pct");
-
-
     const p1 =
-        m1 ? parseInt(m1.value) || 0 : 0;
+        parseInt(
+            document.getElementById("m1_pct")?.value
+        ) || 0;
 
     const p2 =
-        m2 ? parseInt(m2.value) || 0 : 0;
+        parseInt(
+            document.getElementById("m2_pct")?.value
+        ) || 0;
 
     const p3 =
-        m3 ? parseInt(m3.value) || 0 : 0;
-
+        parseInt(
+            document.getElementById("m3_pct")?.value
+        ) || 0;
 
     const total =
         p1 + p2 + p3;
 
+    [
+        ["m1_bar", p1],
+        ["m2_bar", p2],
+        ["m3_bar", p3]
+    ].forEach(([id, value]) => {
+        const bar =
+            document.getElementById(id);
 
-    // =================================================
-    // Progress bars
-    // =================================================
-
-    const b1 =
-        document.getElementById("m1_bar");
-
-    const b2 =
-        document.getElementById("m2_bar");
-
-    const b3 =
-        document.getElementById("m3_bar");
-
-
-    if (b1) {
-        b1.style.width =
-            `${Math.min(Math.max(p1, 0), 100)}%`;
-    }
-
-    if (b2) {
-        b2.style.width =
-            `${Math.min(Math.max(p2, 0), 100)}%`;
-    }
-
-    if (b3) {
-        b3.style.width =
-            `${Math.min(Math.max(p3, 0), 100)}%`;
-    }
-
-
-    // =================================================
-    // Validation
-    // =================================================
+        if (bar) {
+            bar.style.width =
+                `${Math.min(Math.max(value, 0), 100)}%`;
+        }
+    });
 
     const totalBadge =
         document.getElementById("totalBadge");
@@ -86,222 +79,106 @@ function updateMilestones() {
     const submitBtn =
         document.getElementById("submitBtn");
 
-
     if (totalBadge) {
         totalBadge.innerText =
             `${total}% / 100%`;
     }
 
+    const valid =
+        p1 > 0 &&
+        p2 > 0 &&
+        p3 > 0 &&
+        total === 100;
 
-    if (total !== 100) {
-
-        if (totalBadge) {
-            totalBadge.style.background =
-                "rgba(239, 68, 68, 0.15)";
-
-            totalBadge.style.color =
-                "#f87171";
-
-            totalBadge.style.borderColor =
-                "rgba(239, 68, 68, 0.3)";
-        }
-
-        if (warning) {
-            warning.style.display =
-                "block";
-        }
-
-        if (submitBtn) {
-            submitBtn.disabled =
-                true;
-
-            submitBtn.style.opacity =
-                "0.5";
-
-            submitBtn.style.cursor =
-                "not-allowed";
-        }
-
-    } else {
-
-        if (totalBadge) {
-            totalBadge.style.background =
-                "rgba(16, 185, 129, 0.15)";
-
-            totalBadge.style.color =
-                "#34d399";
-
-            totalBadge.style.borderColor =
-                "rgba(16, 185, 129, 0.3)";
-        }
-
-        if (warning) {
-            warning.style.display =
-                "none";
-        }
-
-        if (submitBtn) {
-            submitBtn.disabled =
-                false;
-
-            submitBtn.style.opacity =
-                "1";
-
-            submitBtn.style.cursor =
-                "pointer";
-        }
+    if (warning) {
+        warning.style.display =
+            valid ? "none" : "block";
     }
 
-
-    // =================================================
-    // Payment Preview
-    // =================================================
-
-    const escrowElement =
-        document.getElementById("escrowAmount");
-
-    const escrowInput =
-        escrowElement
-            ? parseFloat(escrowElement.value) || 0
-            : 0;
-
-
-    const prev1 =
-        document.getElementById("prev_m1");
-
-    const prev2 =
-        document.getElementById("prev_m2");
-
-    const prev3 =
-        document.getElementById("prev_m3");
-
-
-    if (escrowInput > 0) {
-
-        if (prev1) {
-            prev1.innerText =
-                `${(escrowInput * p1 / 100).toFixed(3)} ETH (${p1}%)`;
-        }
-
-        if (prev2) {
-            prev2.innerText =
-                `${(escrowInput * p2 / 100).toFixed(3)} ETH (${p2}%)`;
-        }
-
-        if (prev3) {
-            prev3.innerText =
-                `${(escrowInput * p3 / 100).toFixed(3)} ETH (${p3}%)`;
-        }
-
-    } else {
-
-        if (prev1) {
-            prev1.innerText =
-                `--- ETH (${p1}%)`;
-        }
-
-        if (prev2) {
-            prev2.innerText =
-                `--- ETH (${p2}%)`;
-        }
-
-        if (prev3) {
-            prev3.innerText =
-                `--- ETH (${p3}%)`;
-        }
+    if (submitBtn) {
+        submitBtn.disabled = !valid;
+        submitBtn.style.opacity =
+            valid ? "1" : "0.5";
+        submitBtn.style.cursor =
+            valid ? "pointer" : "not-allowed";
     }
+
+    const escrow =
+        parseFloat(
+            document.getElementById("escrowAmount")?.value
+        ) || 0;
+
+    [
+        ["prev_m1", p1],
+        ["prev_m2", p2],
+        ["prev_m3", p3]
+    ].forEach(([id, percentage]) => {
+        const element =
+            document.getElementById(id);
+
+        if (!element) {
+            return;
+        }
+
+        element.innerText =
+            escrow > 0
+                ? `${(escrow * percentage / 100).toFixed(3)} ETH (${percentage}%)`
+                : `--- ETH (${percentage}%)`;
+    });
 }
 
-
 // =====================================================
-// CREATE AGREEMENT
+// CREATE AGREEMENT + AUTO FUND
 // =====================================================
 
 async function handleCreateAgreement(event) {
-
     event.preventDefault();
-
-
-    // =================================================
-    // 1. Validate milestones
-    // =================================================
-
-    const p1 =
-        parseInt(
-            document.getElementById("m1_pct").value
-        ) || 0;
-
-    const p2 =
-        parseInt(
-            document.getElementById("m2_pct").value
-        ) || 0;
-
-    const p3 =
-        parseInt(
-            document.getElementById("m3_pct").value
-        ) || 0;
-
-
-    if (
-        p1 <= 0 ||
-        p2 <= 0 ||
-        p3 <= 0
-    ) {
-
-        alert(
-            "Each milestone percentage must be greater than 0."
-        );
-
-        return;
-    }
-
-
-    if (
-        p1 + p2 + p3 !== 100
-    ) {
-
-        alert(
-            "Milestone percentages must equal 100%."
-        );
-
-        return;
-    }
-
 
     const submitBtn =
         document.getElementById("submitBtn");
 
-
-    if (submitBtn) {
-
-        submitBtn.innerHTML =
-            '<i class="fa-solid fa-spinner fa-spin"></i> Creating Agreement...';
-
-        submitBtn.disabled =
-            true;
-    }
-
-
     try {
+        const p1 =
+            parseInt(
+                document.getElementById("m1_pct")?.value
+            ) || 0;
 
-        // =================================================
-        // 2. Check MetaMask
-        // =================================================
+        const p2 =
+            parseInt(
+                document.getElementById("m2_pct")?.value
+            ) || 0;
+
+        const p3 =
+            parseInt(
+                document.getElementById("m3_pct")?.value
+            ) || 0;
+
+        if (
+            p1 <= 0 ||
+            p2 <= 0 ||
+            p3 <= 0
+        ) {
+            throw new Error(
+                "Each milestone percentage must be greater than 0."
+            );
+        }
+
+        if (
+            p1 + p2 + p3 !== 100
+        ) {
+            throw new Error(
+                "Milestone percentages must equal 100%."
+            );
+        }
 
         if (
             typeof window.ethereum ===
             "undefined"
         ) {
-
             throw new Error(
                 "MetaMask is required."
             );
         }
-
-
-        // =================================================
-        // 3. Get wallet
-        // =================================================
 
         const accounts =
             await window.ethereum.request({
@@ -309,31 +186,34 @@ async function handleCreateAgreement(event) {
                     "eth_requestAccounts"
             });
 
-
         if (
             !accounts ||
             accounts.length === 0
         ) {
-
             throw new Error(
                 "No MetaMask account connected."
             );
         }
 
-
         const currentAccount =
             accounts[0];
 
-
-        // =================================================
-        // 4. Initialize Web3
-        // =================================================
-
         const web3 =
-            new Web3(
-                window.ethereum
+            new Web3(window.ethereum);
+
+        const chainId =
+            Number(
+                await web3.eth.getChainId()
             );
 
+        if (
+            chainId !== 1337 &&
+            chainId !== 5777
+        ) {
+            throw new Error(
+                "Please connect MetaMask to Ganache (chain ID 1337 or 5777)."
+            );
+        }
 
         const contract =
             new web3.eth.Contract(
@@ -341,201 +221,125 @@ async function handleCreateAgreement(event) {
                 CONTRACT_ADDRESS
             );
 
-
-        // =================================================
-        // 5. Read form values
-        // =================================================
-
         const shipmentDetails =
             document.getElementById(
                 "shipmentDetails"
-            ).value.trim();
-
+            )?.value.trim();
 
         const origin =
             document.getElementById(
                 "origin"
-            ).value.trim();
-
+            )?.value.trim();
 
         const destination =
             document.getElementById(
                 "destination"
-            ).value.trim();
+            )?.value.trim();
 
+        const payloadValue =
+            Number(
+                document.getElementById(
+                    "payloadValue"
+                )?.value
+            );
 
-        const payloadValueInput =
-            document.getElementById(
-                "payloadValue"
-            ).value.trim();
-
-
-        const escrowInput =
-            document.getElementById(
-                "escrowAmount"
-            ).value.trim();
-
+        const escrowAmount =
+            parseFloat(
+                document.getElementById(
+                    "escrowAmount"
+                )?.value
+            );
 
         const priority =
             parseInt(
                 document.getElementById(
                     "priority"
-                ).value
+                )?.value
             );
 
-
-        // =================================================
-        // 6. Validate form values
-        // =================================================
+        const deadlineValue =
+            document.getElementById(
+                "deadline"
+            )?.value;
 
         if (!shipmentDetails) {
-
             throw new Error(
                 "Shipment details are required."
             );
         }
 
-
         if (!origin) {
-
             throw new Error(
                 "Origin is required."
             );
         }
 
-
         if (!destination) {
-
             throw new Error(
                 "Destination is required."
             );
         }
 
-
-        // -------------------------------------------------
-        // Payload value
-        // -------------------------------------------------
-
-        const payloadValue =
-            Number(
-                payloadValueInput
-            );
-
-
         if (
-            !Number.isFinite(
-                payloadValue
-            ) ||
+            !Number.isFinite(payloadValue) ||
             payloadValue <= 0
         ) {
-
             throw new Error(
                 "Payload value must be greater than 0."
             );
         }
 
-
-        // -------------------------------------------------
-        // Escrow amount
-        // -------------------------------------------------
-
-        const escrowAmount =
-            parseFloat(
-                escrowInput
-            );
-
-
         if (
-            !Number.isFinite(
-                escrowAmount
-            ) ||
+            !Number.isFinite(escrowAmount) ||
             escrowAmount < 0.01
         ) {
-
             throw new Error(
                 "Minimum escrow amount is 0.01 ETH."
             );
         }
-
-
-        // -------------------------------------------------
-        // Priority
-        // -------------------------------------------------
 
         if (
             !Number.isInteger(priority) ||
             priority < 0 ||
             priority > 2
         ) {
-
             throw new Error(
                 "Invalid delivery priority."
             );
         }
 
-
-        // =================================================
-        // 7. Validate deadline
-        // =================================================
-
-        const deadlineValue =
-            document.getElementById(
-                "deadline"
-            ).value;
-
-
         if (!deadlineValue) {
-
             throw new Error(
                 "Delivery deadline is required."
             );
         }
 
-
         const deadlineDate =
-            new Date(
-                deadlineValue
-            );
-
+            new Date(deadlineValue);
 
         if (
             isNaN(
                 deadlineDate.getTime()
             )
         ) {
-
             throw new Error(
                 "Invalid deadline."
             );
         }
-
 
         const deadlineTimestamp =
             Math.floor(
                 deadlineDate.getTime() / 1000
             );
 
-
-        const currentTimestamp =
-            Math.floor(
-                Date.now() / 1000
-            );
-
-
         if (
             deadlineTimestamp <=
-            currentTimestamp
+            Math.floor(Date.now() / 1000)
         ) {
-
             throw new Error(
                 "Deadline must be in the future."
             );
         }
-
-
-        // =================================================
-        // 8. Milestones
-        // =================================================
 
         const checkpoints = [
             "Goods Pickup",
@@ -543,114 +347,72 @@ async function handleCreateAgreement(event) {
             "Final Delivery"
         ];
 
-
         const percentages = [
             p1,
             p2,
             p3
         ];
 
-
         // =================================================
-        // 9. CREATE AGREEMENT ON BLOCKCHAIN
+        // IMPORTANT
+        //
+        // createAgreement() is payable now.
+        // The escrow is sent in the SAME MetaMask
+        // transaction as agreement creation.
         // =================================================
 
-        const escrowWei = web3.utils.toWei(
-            escrowAmount.toString(),
-            "ether"
-        );
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML =
+                '<i class="fa-solid fa-spinner fa-spin"></i> Creating & Funding...';
+        }
+
+        const escrowWei =
+            web3.utils.toWei(
+                escrowAmount.toString(),
+                "ether"
+            );
+
+        const tx =
+            await contract.methods
+                .createAgreement(
+                    shipmentDetails,
+                    payloadValue.toString(),
+                    escrowWei,
+                    deadlineTimestamp.toString(),
+                    priority,
+                    checkpoints,
+                    percentages
+                )
+                .send({
+                    from:
+                        currentAccount,
+                    value:
+                        escrowWei
+                });
 
         console.log(
-            "========== CREATE + FUND AGREEMENT =========="
+            "Agreement creation transaction:",
+            tx.transactionHash
         );
-
-        console.log("Shipment:", shipmentDetails);
-        console.log("Payload:", payloadValue);
-        console.log("Escrow:", escrowAmount, "ETH");
-        console.log("Escrow Wei:", escrowWei);
-        console.log("Deadline:", deadlineTimestamp);
-        console.log("Priority:", priority);
-        console.log("Checkpoints:", checkpoints);
-        console.log("Percentages:", percentages);
-
-        console.log(
-            "Creating agreement AND funding escrow..."
-        );
-
-        const tx = await contract.methods
-            .createAgreement(
-                deadlineTimestamp.toString(),
-                priority,
-                checkpoints,
-                percentages
-            )
-            .send({
-                from: currentAccount,
-                value: escrowWei
-            });
-
-        // =====================================================
-        // TRANSACTION HASH
-        // =====================================================
-
-        const transactionHash =
-            tx.transactionHash;
-
-        console.log(
-            "Blockchain transaction:",
-            transactionHash
-        );
-
-
-        // =================================================
-        // 10. Get AgreementCreated event
-        // =================================================
 
         const eventLog =
             tx.events &&
             tx.events.AgreementCreated;
 
-
         if (!eventLog) {
-
             throw new Error(
                 "AgreementCreated event was not found."
             );
         }
 
-
         const agreementId =
             Number(
-                eventLog.returnValues
-                    .agreementId
+                eventLog.returnValues.agreementId
             );
 
         const referenceNo =
             eventLog.returnValues.referenceNo;
-
-
-
-        if (
-            !Number.isInteger(
-                agreementId
-            )
-        ) {
-
-            throw new Error(
-                "Invalid agreement ID returned by contract."
-            );
-        }
-
-
-        console.log(
-            "Agreement ID:",
-            agreementId
-        );
-
-
-        // =================================================
-        // 11. Save agreement to Supabase
-        // =================================================
 
         const priorityMap = [
             "Normal",
@@ -658,22 +420,27 @@ async function handleCreateAgreement(event) {
             "Urgent"
         ];
 
+        // =================================================
+        // SAVE AGREEMENT
+        //
+        // Created means:
+        // - Agreement exists
+        // - Escrow is already locked
+        // - Carrier has not accepted yet
+        // =================================================
 
-        const now =
-            Math.floor(
-                Date.now() / 1000
-            );
+        const agreementRow = {
+            agreement_id:
+                agreementId,
 
-
-        const agreementData = {
-            agreement_id: agreementId,
-
-            reference_no: referenceNo,
+            reference_no:
+                referenceNo,
 
             shipper_address:
                 currentAccount.toLowerCase(),
 
-            carrier_address: null,
+            carrier_address:
+                null,
 
             shipment_details:
                 shipmentDetails,
@@ -709,7 +476,9 @@ async function handleCreateAgreement(event) {
                 0,
 
             created_time:
-                now,
+                Math.floor(
+                    Date.now() / 1000
+                ),
 
             accepted_at:
                 null,
@@ -727,51 +496,32 @@ async function handleCreateAgreement(event) {
                 0
         };
 
-
-        console.log(
-            "Saving agreement to Supabase:",
-            agreementData
-        );
-
-
         const {
-            error:
-            agreementError
+            error: agreementError
         } =
             await supabaseClient
                 .from("agreements")
                 .insert([
-                    agreementData
+                    agreementRow
                 ]);
 
-
-        if (
-            agreementError
-        ) {
-
-            console.error(
-                "Supabase agreement error:",
-                agreementError
-            );
-
+        if (agreementError) {
             throw new Error(
-                "Blockchain agreement creation succeeded, but saving the agreement to Supabase failed: " +
+                "Blockchain creation succeeded, but Supabase agreement saving failed: " +
                 agreementError.message
             );
         }
 
-
         // =================================================
-        // 12. Save milestones
+        // SAVE MILESTONES
         // =================================================
 
-        const milestoneInserts =
+        const milestoneRows =
             checkpoints.map(
                 (
                     checkpoint,
                     index
                 ) => ({
-
                     agreement_id:
                         agreementId,
 
@@ -788,102 +538,50 @@ async function handleCreateAgreement(event) {
                         false,
 
                     verified:
-                        false
+                        false,
+
+                    paid:
+                        false,
+
+                    completed_at:
+                        null,
+
+                    verified_at:
+                        null,
+
+                    paid_at:
+                        null
                 })
             );
 
-
         const {
-            error:
-            milestoneError
+            error: milestoneError
         } =
             await supabaseClient
                 .from("milestones")
                 .insert(
-                    milestoneInserts
+                    milestoneRows
                 );
 
-
-        if (
-            milestoneError
-        ) {
-
-            console.error(
-                "Supabase milestone error:",
-                milestoneError
-            );
-
+        if (milestoneError) {
             throw new Error(
-                "Agreement was saved, but milestones could not be saved: " +
+                "Agreement was created, but milestone saving failed: " +
                 milestoneError.message
             );
         }
 
+        // =================================================
+        // TRANSACTION HISTORY
+        //
+        // One blockchain transaction performed both:
+        // AgreementCreated + EscrowFunded
+        // =================================================
 
-        const transactionDetails = {
-
-            reference_no:
-                referenceNo,
-
-            shipment_details:
-                shipmentDetails,
-
-            payload_value:
-                payloadValue,
-
-            escrow: {
-
-                amount:
-                    escrowAmount,
-
-                currency:
-                    "ETH",
-
-                status:
-                    "Funded",
-
-                released:
-                    0,
-
-                remaining:
-                    escrowAmount
-            },
-
-            priority:
-                priorityMap[priority],
-
-            deadline:
-                deadlineTimestamp,
-
-            origin:
-                origin,
-
-            destination:
-                destination,
-
-            checkpoints:
-                checkpoints,
-
-            percentages:
-                percentages,
-
-            message:
-                "Agreement created and escrow funded during initialization."
-        };
-
-
-        // =====================================================
-        // INSERT TRANSACTION
-        // =====================================================
-
-        const {
-            error: transactionError
-        } = await supabaseClient
+        await supabaseClient
             .from("transactions")
             .insert([{
-
                 transaction_hash:
-                    transactionHash,
+                    tx.transactionHash,
 
                 agreement_id:
                     agreementId,
@@ -894,137 +592,60 @@ async function handleCreateAgreement(event) {
                 actor_address:
                     currentAccount.toLowerCase(),
 
-                details:
-                    transactionDetails
+                details: {
+                    reference_no:
+                        referenceNo,
+
+                    escrow_amount:
+                        escrowAmount,
+
+                    escrow_funded:
+                        true,
+
+                    status:
+                        "Created",
+
+                    description:
+                        "Agreement created and escrow automatically funded and locked in the smart contract."
+                }
             }]);
 
-
-        if (transactionError) {
-
-            console.warn(
-                "Transaction history logging failed:",
-                transactionError
-            );
-
-        }
-
-
-        // =================================================
-        // 14. Success
-        // =================================================
-
         alert(
-            `Agreement #${agreementId} successfully created!\n\n` +
+            `Agreement ${referenceNo} created successfully!\n\n` +
             `Status: Created\n` +
-            `Escrow: Funded\n\n`
+            `Escrow: ${escrowAmount.toFixed(3)} ETH locked\n\n` +
+            `The agreement is now available for a Carrier to accept.`
         );
-
-
-        // Redirect to agreement list
 
         window.location.href =
             "agreements.html";
 
-
     } catch (error) {
-
         console.error(
-            "================================="
-        );
-
-        console.error(
-            "AGREEMENT CREATION FAILED"
-        );
-
-        console.error(
+            "Agreement creation failed:",
             error
         );
-
-        console.error(
-            "================================="
-        );
-
 
         let message =
             error?.message ||
             String(error);
 
-
         if (
             error?.code === 4001
         ) {
-
             message =
                 "Transaction was rejected in MetaMask.";
         }
-
 
         alert(
             "Agreement creation failed:\n\n" +
             message
         );
 
-
         if (submitBtn) {
-
-            submitBtn.disabled =
-                false;
-
+            submitBtn.disabled = false;
             submitBtn.innerHTML =
                 '<i class="fa-solid fa-circle-plus"></i> Create Agreement';
         }
     }
 }
-
-
-// =====================================================
-// FORM LISTENERS
-// =====================================================
-
-document.addEventListener(
-    "DOMContentLoaded",
-    () => {
-
-        const form =
-            document.getElementById(
-                "createAgreementForm"
-            );
-
-
-        if (form) {
-
-            form.addEventListener(
-                "submit",
-                handleCreateAgreement
-            );
-        }
-
-
-        const milestoneInputs = [
-            "m1_pct",
-            "m2_pct",
-            "m3_pct",
-            "escrowAmount"
-        ];
-
-
-        milestoneInputs.forEach(
-            id => {
-
-                const element =
-                    document.getElementById(
-                        id
-                    );
-
-
-                if (element) {
-
-                    element.addEventListener(
-                        "input",
-                        updateMilestones
-                    );
-                }
-            }
-        );
-    }
-);

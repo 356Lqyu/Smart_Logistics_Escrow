@@ -1897,7 +1897,7 @@ body {
 ========================================================= */
 
 .transaction-history-page {
-    max-width: 1200px;
+    width: 1250px;
     margin: 0 auto;
     padding-bottom: 60px;
 }
@@ -2313,7 +2313,7 @@ body {
 
 
 .transaction-history-table td {
-    padding: 17px 26px;
+    padding: 17px 20px;
 
     color: #9bb0cc;
 

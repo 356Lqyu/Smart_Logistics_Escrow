@@ -1,19 +1,10 @@
 // =====================================================
-// GLOBAL VARIABLES
+// AGREEMENT DETAILS
 // =====================================================
 
 let agreementId = null;
-
 let agreementData = null;
-
 let milestoneData = [];
-
-let transactionData = [];
-
-
-// =====================================================
-// PAGE LOAD
-// =====================================================
 
 document.addEventListener(
     "DOMContentLoaded",
@@ -21,115 +12,50 @@ document.addEventListener(
 
         try {
 
-            // -----------------------------------------
-            // Get agreement ID
-            // -----------------------------------------
-
             const params =
                 new URLSearchParams(
                     window.location.search
                 );
 
-
             agreementId =
                 params.get("id");
 
-
             if (!agreementId) {
-
-                showError(
+                throw new Error(
                     "No agreement ID was provided."
                 );
-
-                return;
             }
-
-
-            console.log(
-                "Loading agreement:",
-                agreementId
-            );
-
-
-            // -----------------------------------------
-            // Load data
-            // -----------------------------------------
 
             await loadAgreement();
-
             await loadMilestones();
 
-            await loadTransactions();
-
-
-            // -----------------------------------------
-            // Render
-            // -----------------------------------------
-
             renderAgreement();
-
             renderMilestones();
-
-            renderTransactions();
-
             renderLifecycle();
-
-
-            // -----------------------------------------
-            // Buttons
-            // -----------------------------------------
-
             setupActions();
 
+            document.getElementById(
+                "details-loading"
+            ).style.display = "none";
 
-            // -----------------------------------------
-            // Show page
-            // -----------------------------------------
-
-            const loading =
-                document.getElementById(
-                    "details-loading"
-                );
-
-
-            const content =
-                document.getElementById(
-                    "agreement-content"
-                );
-
-
-            if (loading) {
-
-                loading.style.display =
-                    "none";
-            }
-
-
-            if (content) {
-
-                content.style.display =
-                    "block";
-            }
-
+            document.getElementById(
+                "agreement-content"
+            ).style.display = "block";
 
         } catch (error) {
 
             console.error(
-                "Failed to load agreement:",
+                "Agreement details failed:",
                 error
             );
 
-
             showError(
-                "Failed to load agreement details: " +
-                (error.message || error)
+                error.message ||
+                String(error)
             );
-
         }
-
     }
 );
-
 
 // =====================================================
 // LOAD AGREEMENT
@@ -150,47 +76,34 @@ async function loadAgreement() {
             )
             .single();
 
-
     if (error) {
-
         throw error;
     }
 
-
     if (!data) {
-
         throw new Error(
             "Agreement was not found."
         );
     }
 
-
     agreementData =
         data;
 
+    // -------------------------------------------------
+    // Blockchain is authoritative.
+    // -------------------------------------------------
 
-    console.log(
-        "Agreement from Supabase:",
-        agreementData
-    );
+    if (
+        typeof window.ethereum !==
+        "undefined"
+    ) {
 
-
-    // =================================================
-    // LOAD BLOCKCHAIN DATA
-    // =================================================
-
-    try {
-
-        if (
-            typeof window.ethereum !==
-            "undefined"
-        ) {
+        try {
 
             const web3 =
                 new Web3(
                     window.ethereum
                 );
-
 
             const contract =
                 new web3.eth.Contract(
@@ -198,51 +111,49 @@ async function loadAgreement() {
                     CONTRACT_ADDRESS
                 );
 
-
             const chainAgreement =
                 await contract.methods
                     .getAgreementBasic(
-                        agreementId
+                        Number(agreementId)
                     )
                     .call();
-
-
-            console.log(
-                "Agreement from blockchain:",
-                chainAgreement
-            );
-
 
             agreementData.blockchain_escrow =
                 chainAgreement.escrowAmount;
 
+            agreementData.blockchain_escrow_remaining =
+                chainAgreement.escrowRemaining;
 
             agreementData.blockchain_shipper =
                 chainAgreement.shipper;
 
-
             agreementData.blockchain_carrier =
                 chainAgreement.carrier;
-
 
             agreementData.blockchain_status =
                 Number(
                     chainAgreement.status
                 );
 
+            agreementData.blockchain_current_milestone =
+                Number(
+                    chainAgreement.currentMilestone
+                );
+
+            agreementData.blockchain_deadline =
+                Number(
+                    chainAgreement.deadline
+                );
+
+        } catch (error) {
+
+            console.warn(
+                "Could not load blockchain agreement:",
+                error
+            );
         }
-
-    } catch (error) {
-
-        console.warn(
-            "Could not load blockchain agreement:",
-            error
-        );
-
     }
-
 }
-
 
 // =====================================================
 // LOAD MILESTONES
@@ -250,172 +161,130 @@ async function loadAgreement() {
 
 async function loadMilestones() {
 
-    try {
-
-        const numericAgreementId =
-            Number(agreementId);
-
-
-        console.log(
-            "Loading milestones for agreement:",
-            numericAgreementId
-        );
-
-
-        if (
-            !numericAgreementId ||
-            numericAgreementId <= 0
-        ) {
-
-            console.warn(
-                "Invalid agreement ID:",
-                agreementId
-            );
-
-
-            milestoneData =
-                [];
-
-
-            return;
-        }
-
-
-        const {
-            data,
-            error
-        } =
-            await supabaseClient
-                .from("milestones")
-                .select(`
-                    id,
-                    agreement_id,
-                    milestone_index,
-                    checkpoint,
-                    percentage,
-                    completed,
-                    verified
-                `)
-                .eq(
-                    "agreement_id",
-                    numericAgreementId
-                )
-                .order(
-                    "milestone_index",
-                    {
-                        ascending: true
-                    }
-                );
-
-
-        if (error) {
-
-            console.error(
-                "Failed to load milestones:",
-                error
-            );
-
-
-            throw error;
-        }
-
-
-        milestoneData =
-            data || [];
-
-
-        console.log(
-            "Milestones returned from Supabase:",
-            milestoneData
-        );
-
-
-        console.log(
-            "Number of milestones:",
-            milestoneData.length
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            "loadMilestones() failed:",
-            error
-        );
-
-
-        milestoneData =
-            [];
-
-    }
-
-}
-
-
-// =====================================================
-// LOAD TRANSACTIONS
-// =====================================================
-
-async function loadTransactions() {
-
     const {
         data,
         error
     } =
         await supabaseClient
-            .from("transactions")
+            .from("milestones")
             .select(`
                 id,
-                transaction_hash,
                 agreement_id,
-                event_type,
-                actor_address,
-                details,
-                created_at,
-                users (
-                    name,
-                    role
-                )
+                milestone_index,
+                checkpoint,
+                percentage,
+                completed,
+                verified,
+                paid,
+                completed_at,
+                verified_at,
+                paid_at
             `)
             .eq(
                 "agreement_id",
-                agreementId
+                Number(agreementId)
             )
             .order(
-                "created_at",
+                "milestone_index",
                 {
-                    ascending: false
+                    ascending:
+                        true
                 }
             );
 
-
     if (error) {
-
-        console.warn(
-            "Transaction query failed:",
-            error
-        );
-
-
-        transactionData =
-            [];
-
-
-        return;
+        throw error;
     }
 
-
-    transactionData =
+    milestoneData =
         data || [];
 
+    // -------------------------------------------------
+    // Prefer current blockchain state for milestone UI.
+    // -------------------------------------------------
 
-    console.log(
-        "Transactions:",
-        transactionData
-    );
+    if (
+        typeof window.ethereum !==
+        "undefined"
+    ) {
 
+        try {
+
+            const web3 =
+                new Web3(
+                    window.ethereum
+                );
+
+            const contract =
+                new web3.eth.Contract(
+                    CONTRACT_ABI,
+                    CONTRACT_ADDRESS
+                );
+
+            const count =
+                Number(
+                    await contract.methods
+                        .getMilestoneCount(
+                            Number(agreementId)
+                        )
+                        .call()
+                );
+
+            if (
+                count ===
+                milestoneData.length
+            ) {
+
+                for (
+                    let i = 0;
+                    i < count;
+                    i++
+                ) {
+
+                    const chain =
+                        await contract.methods
+                            .getMilestone(
+                                Number(agreementId),
+                                i
+                            )
+                            .call();
+
+                    milestoneData[i].completed =
+                        normalizeBool(
+                            chain.completed
+                        );
+
+                    milestoneData[i].verified =
+                        normalizeBool(
+                            chain.verified
+                        );
+
+                    milestoneData[i].paid =
+                        normalizeBool(
+                            chain.paid
+                        );
+
+                    milestoneData[i].completed_at =
+                        Number(
+                            chain.completedAt
+                        ) || null;
+
+                    milestoneData[i].verified_at =
+                        Number(
+                            chain.verifiedAt
+                        ) || null;
+                }
+            }
+
+        } catch (error) {
+
+            console.warn(
+                "Could not load blockchain milestones:",
+                error
+            );
+        }
+    }
 }
-
 
 // =====================================================
 // RENDER AGREEMENT
@@ -423,59 +292,26 @@ async function loadTransactions() {
 
 function renderAgreement() {
 
-    // -----------------------------------------------
-    // Reference
-    // -----------------------------------------------
-
-    const reference =
-        agreementData.reference_no;
-
-
-    const referenceElement =
-        document.getElementById(
-            "agreement-reference"
-        );
-
-
-    if (referenceElement) {
-
-        referenceElement.innerText =
-            reference || "-";
-    }
-
-
-    // -----------------------------------------------
-    // Shipment
-    // -----------------------------------------------
-
-    const shipmentElement =
-        document.getElementById(
-            "agreement-shipment"
-        );
-
-
-    if (shipmentElement) {
-
-        shipmentElement.innerText =
-            agreementData.shipment_details ||
-            "Shipment details unavailable";
-    }
-
-
-    // -----------------------------------------------
-    // STATUS
-    // -----------------------------------------------
-
     const status =
         agreementData.status ||
         "Created";
 
+    setText(
+        "agreement-reference",
+        agreementData.reference_no ||
+        "-"
+    );
+
+    setText(
+        "agreement-shipment",
+        agreementData.shipment_details ||
+        "-"
+    );
 
     const statusElement =
         document.getElementById(
             "agreement-status"
         );
-
 
     if (statusElement) {
 
@@ -484,306 +320,1959 @@ function renderAgreement() {
             ${escapeHtml(status)}
         `;
 
-
         statusElement.className =
             "status-badge " +
-            getStatusClass(status);
+            getStatusClass(
+                status
+            );
     }
-
-
-    // -----------------------------------------------
-    // PRIORITY
-    // -----------------------------------------------
 
     const priority =
         agreementData.priority ||
         "Normal";
 
+    setText(
+        "agreement-priority",
+        priority.toUpperCase()
+    );
 
-    const priorityElement =
-        document.getElementById(
-            "agreement-priority"
+    setText(
+        "shipper-address",
+        shortenAddress(
+            agreementData.blockchain_shipper ||
+            agreementData.shipper_address
+        )
+    );
+
+    setText(
+        "carrier-address",
+        getCarrierAddress()
+    );
+
+    // -------------------------------------------------
+    // Escrow total
+    // -------------------------------------------------
+
+    const escrowEth =
+        getBlockchainEth(
+            agreementData.blockchain_escrow,
+            agreementData.escrow_amount
         );
 
+    setText(
+        "escrow-amount",
+        `${escrowEth.toFixed(3)} ETH`
+    );
 
-    if (priorityElement) {
-
-        priorityElement.innerText =
-            priority.toUpperCase();
-
-
-        priorityElement.className =
-            "priority-badge " +
-            getPriorityClass(priority);
-    }
-
-
-    // -----------------------------------------------
-    // ADDRESSES
-    // -----------------------------------------------
-
-    const shipper =
-        agreementData.blockchain_shipper ||
-        agreementData.shipper_address;
-
-
-    const carrier =
-        agreementData.blockchain_carrier ||
-        agreementData.carrier_address;
-
-
-    const shipperElement =
-        document.getElementById(
-            "shipper-address"
-        );
-
-
-    if (shipperElement) {
-
-        shipperElement.innerText =
-            shortenAddress(shipper);
-
-
-        shipperElement.title =
-            shipper || "";
-    }
-
-
-    const carrierElement =
-        document.getElementById(
-            "carrier-address"
-        );
-
-
-    if (
-        carrier &&
-        carrier !==
-        "0x0000000000000000000000000000000000000000"
-    ) {
-
-        if (carrierElement) {
-
-            carrierElement.innerText =
-                shortenAddress(carrier);
-
-            carrierElement.title =
-                carrier;
-        }
-
-    } else {
-
-        if (carrierElement) {
-
-            carrierElement.innerText =
-                "Unassigned";
-
-            carrierElement.title =
-                "";
-        }
-    }
-
-
-    // -----------------------------------------------
-    // ESCROW
-    // -----------------------------------------------
-
-    let escrow =
-        Number(
-            agreementData.escrow_amount || 0
-        );
-
-
-    if (
-        agreementData.blockchain_escrow !==
-        undefined &&
-        agreementData.blockchain_escrow !==
-        null
-    ) {
-
-        try {
-
-            escrow =
-                Number(
-                    Web3.utils.fromWei(
-                        agreementData
-                            .blockchain_escrow
-                            .toString(),
-                        "ether"
-                    )
-                );
-
-        } catch (error) {
-
-            console.warn(
-                "Escrow conversion failed:",
-                error
-            );
-        }
-    }
-
-
-    const escrowElement =
-        document.getElementById(
-            "escrow-amount"
-        );
-
-
-    if (escrowElement) {
-
-        escrowElement.innerText =
-            `${escrow.toFixed(3)} ETH`;
-    }
-
-
-    // -----------------------------------------------
-    // DEADLINE
-    // -----------------------------------------------
+    // -------------------------------------------------
+    // Deadline
+    // -------------------------------------------------
 
     const deadline =
         Number(
+            agreementData.blockchain_deadline ||
             agreementData.deadline
         );
 
-
-    const deadlineElement =
-        document.getElementById(
-            "agreement-deadline"
-        );
-
-
-    if (deadlineElement) {
-
-        deadlineElement.innerText =
-            formatDate(deadline);
-    }
-
+    setText(
+        "agreement-deadline",
+        formatDate(
+            deadline
+        )
+    );
 
     if (deadline) {
-
         updateCountdown(
             deadline
         );
     }
 
-
-    // -----------------------------------------------
-    // NETWORK
-    // -----------------------------------------------
+    // -------------------------------------------------
+    // Network
+    // -------------------------------------------------
 
     detectNetwork();
 
+    // -------------------------------------------------
+    // Etherscan link
+    // -------------------------------------------------
 
-    // -----------------------------------------------
-    // EXPLORER
-    // -----------------------------------------------
+    const explorer =
+        document.getElementById(
+            "etherscan-link"
+        );
 
-    setupExplorerLink();
-
-
-    // =====================================================
-    // SHIPMENT & AGREEMENT DETAILS
-    // =====================================================
-
-    // Shipment Details
-    const detailShipment =
-        document.getElementById("detail-shipment");
-
-    if (detailShipment) {
-        detailShipment.innerText =
-            agreementData.shipment_details ||
-            "No shipment details provided.";
+    if (explorer) {
+        explorer.href =
+            `https://etherscan.io/address/${CONTRACT_ADDRESS}`;
     }
 
+    // -------------------------------------------------
+    // Shipment details
+    // -------------------------------------------------
 
-    // Payload Value
-    const detailPayload =
-        document.getElementById("detail-payload-value");
+    setText(
+        "detail-shipment",
+        agreementData.shipment_details ||
+        "-"
+    );
 
-    if (detailPayload) {
-        const payload =
-            Number(agreementData.payload_value || 0);
+    const payload =
+        Number(
+            agreementData.payload_value ||
+            0
+        );
 
-        detailPayload.innerText =
-            `$${payload.toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            })}`;
+    setText(
+        "detail-payload-value",
+        `$${payload.toLocaleString(
+            undefined,
+            {
+                minimumFractionDigits:
+                    2,
+                maximumFractionDigits:
+                    2
+            }
+        )}`
+    );
+
+    setText(
+        "detail-priority",
+        priority
+    );
+
+    setText(
+        "detail-origin",
+        agreementData.origin ||
+        "-"
+    );
+
+    setText(
+        "detail-destination",
+        agreementData.destination ||
+        "-"
+    );
+
+    // -------------------------------------------------
+    // Financial section visibility (Role-Safe Normalization)
+    // -------------------------------------------------
+
+    const financialSection =
+        document.querySelector(".shipment-agreement-card");
+
+    const role =
+        String(localStorage.getItem("role") || "").toLowerCase();
+
+    const isCarrier =
+        role === "2" ||
+        role === "carrier";
+
+    if (financialSection) {
+        const subsections = financialSection.querySelectorAll(".detail-subsection");
+        if (subsections.length >= 3) {
+            subsections[2].style.display =
+                (
+                    isCarrier &&
+                    status === "Created"
+                )
+                    ? "none"
+                    : "block";
+        }
     }
 
+    setText(
+        "detail-escrow-amount",
+        `${escrowEth.toFixed(3)} ETH`
+    );
 
-    // Origin
-    const detailOrigin =
-        document.getElementById("detail-origin");
+    const released =
+        Number(
+            agreementData.escrow_released ||
+            0
+        );
 
-    if (detailOrigin) {
-        detailOrigin.innerText =
-            agreementData.origin ||
-            "-";
-    }
+    const remaining =
+        getBlockchainEth(
+            agreementData.blockchain_escrow_remaining,
+            agreementData.escrow_remaining
+        );
 
+    setText(
+        "detail-escrow-released",
+        `${released.toFixed(3)} ETH`
+    );
 
-    // Destination
-    const detailDestination =
-        document.getElementById("detail-destination");
-
-    if (detailDestination) {
-        detailDestination.innerText =
-            agreementData.destination ||
-            "-";
-    }
-
-
-    // Escrow Amount
-    const detailEscrowAmount =
-        document.getElementById("detail-escrow-amount");
-
-    if (detailEscrowAmount) {
-        const escrow =
-            Number(agreementData.escrow_amount || 0);
-
-        detailEscrowAmount.innerText =
-            `${escrow.toFixed(3)} ETH`;
-    }
-
-
-    // Escrow Released
-    const detailEscrowReleased =
-        document.getElementById("detail-escrow-released");
-
-    if (detailEscrowReleased) {
-        const released =
-            Number(agreementData.escrow_released || 0);
-
-        detailEscrowReleased.innerText =
-            `${released.toFixed(3)} ETH`;
-    }
-
-
-    // Escrow Remaining
-    const detailEscrowRemaining =
-        document.getElementById("detail-escrow-remaining");
-
-    if (detailEscrowRemaining) {
-        const remaining =
-            Number(agreementData.escrow_remaining || 0);
-
-        detailEscrowRemaining.innerText =
-            `${remaining.toFixed(3)} ETH`;
-    }
-
-
-    // Priority
-    const detailPriority =
-        document.getElementById("detail-priority");
-
-    if (detailPriority) {
-        detailPriority.innerText =
-            agreementData.priority ||
-            "Normal";
-    }
-
+    setText(
+        "detail-escrow-remaining",
+        `${remaining.toFixed(3)} ETH`
+    );
 }
 
+// =====================================================
+// MILESTONES
+// =====================================================
+
+function renderMilestones() {
+
+    const container =
+        document.getElementById(
+            "milestones-container"
+        );
+
+    if (!container) {
+        return;
+    }
+
+    container.innerHTML =
+        "";
+
+    if (
+        !milestoneData ||
+        milestoneData.length === 0
+    ) {
+
+        container.innerHTML = `
+            <div class="milestone-empty">
+                No milestones found.
+            </div>
+        `;
+
+        updateOverallProgress();
+        return;
+    }
+
+    const status =
+        agreementData.status;
+
+    let currentIndex =
+        Number(
+            agreementData.blockchain_current_milestone
+        );
+
+    if (
+        !Number.isInteger(
+            currentIndex
+        ) ||
+        currentIndex < 0
+    ) {
+        currentIndex =
+            findFirstUnpaidMilestone();
+    }
+
+    if (
+        currentIndex >=
+        milestoneData.length
+    ) {
+        currentIndex =
+            -1;
+    }
+
+    const role =
+        String(localStorage.getItem("role") || "").toLowerCase();
+
+    const isCarrier =
+        role === "2" ||
+        role === "carrier";
+
+    const isShipper =
+        role === "1" ||
+        role === "shipper";
+
+    milestoneData.forEach(
+        (
+            milestone,
+            index
+        ) => {
+
+            const completed =
+                normalizeBool(
+                    milestone.completed
+                );
+
+            const verified =
+                normalizeBool(
+                    milestone.verified
+                );
+
+            const paid =
+                normalizeBool(
+                    milestone.paid
+                );
+
+            const percentage =
+                Number(
+                    milestone.percentage ||
+                    0
+                );
+
+            const checkpoint =
+                milestone.checkpoint ||
+                `Milestone ${index + 1}`;
+
+            const amount =
+                calculateMilestoneAmount(
+                    percentage
+                );
+
+            let state =
+                "pending";
+
+            let stateText =
+                "Pending";
+
+            if (
+                completed &&
+                verified &&
+                paid
+            ) {
+                state =
+                    "completed";
+
+                stateText =
+                    "Completed & Paid";
+
+            } else if (
+                completed &&
+                !verified
+            ) {
+                state =
+                    "active";
+
+                stateText =
+                    "Awaiting Verification";
+
+            } else if (
+                index === currentIndex
+            ) {
+                state =
+                    "active";
+
+                stateText =
+                    "Pending";
+            }
+
+            let action =
+                "";
+
+            if (
+                status === "In Progress" &&
+                index === currentIndex
+            ) {
+
+                if (
+                    isCarrier &&
+                    !completed &&
+                    !verified &&
+                    !paid
+                ) {
+
+                    action = `
+                        <button
+                            type="button"
+                            class="primary-action-btn"
+                            style="
+                                margin-top:12px;
+                                padding:8px 14px;
+                                font-size:12px;
+                            "
+                            onclick="submitMilestoneCompletion(${Number(agreementId)})"
+                        >
+                            <i class="fa-solid fa-upload"></i>
+                            Submit Completion
+                        </button>
+                    `;
+
+                } else if (
+                    isShipper &&
+                    completed &&
+                    !verified &&
+                    !paid
+                ) {
+
+                    action = `
+                        <button
+                            type="button"
+                            class="primary-action-btn"
+                            style="
+                                margin-top:12px;
+                                padding:8px 14px;
+                                font-size:12px;
+                            "
+                            onclick="verifyMilestone(${Number(agreementId)})"
+                        >
+                            <i class="fa-solid fa-check-double"></i>
+                            Verify & Release Payment
+                        </button>
+                    `;
+                }
+            }
+
+            const item =
+                document.createElement(
+                    "div"
+                );
+
+            item.className =
+                `milestone-item ${state}`;
+
+            const numberContent =
+                (
+                    completed &&
+                    verified &&
+                    paid
+                )
+                    ? '<i class="fa-solid fa-check"></i>'
+                    : index + 1;
+
+            item.innerHTML = `
+                <div class="milestone-left">
+
+                    <div class="milestone-number">
+                        ${numberContent}
+                    </div>
+
+                    <div class="milestone-info">
+
+                        <h3>
+                            ${escapeHtml(
+                                checkpoint
+                            )}
+                        </h3>
+
+                        <div class="milestone-meta">
+
+                            <span>
+                                ${percentage}%
+                            </span>
+
+                            <span class="milestone-separator">
+                                •
+                            </span>
+
+                            <span>
+                                ${amount} ETH
+                            </span>
+
+                        </div>
+
+                        ${
+                            completed &&
+                            !verified
+                                ? `
+                                    <small
+                                        style="
+                                            display:block;
+                                            margin-top:6px;
+                                            color:#f59e0b;
+                                        "
+                                    >
+                                        Carrier submitted completion.
+                                    </small>
+                                  `
+                                : ""
+                        }
+
+                        ${
+                            completed &&
+                            verified &&
+                            paid
+                                ? `
+                                    <small
+                                        style="
+                                            display:block;
+                                            margin-top:6px;
+                                            color:#10b981;
+                                        "
+                                    >
+                                        ${amount} ETH released to Carrier.
+                                    </small>
+                                  `
+                                : ""
+                        }
+
+                        ${action}
+
+                    </div>
+                </div>
+
+                <div class="milestone-status ${state}">
+
+                    <span class="milestone-status-dot"></span>
+
+                    <span>
+                        ${stateText}
+                    </span>
+
+                </div>
+            `;
+
+            container.appendChild(
+                item
+            );
+        }
+    );
+
+    updateOverallProgress();
+}
+
+// =====================================================
+// CARRIER SUBMITS COMPLETION
+// =====================================================
+
+async function submitMilestoneCompletion(
+    id
+) {
+
+    try {
+
+        if (
+            agreementData.status !==
+            "In Progress"
+        ) {
+            throw new Error(
+                "The agreement is not In Progress."
+            );
+        }
+
+        if (
+            typeof window.ethereum ===
+            "undefined"
+        ) {
+            throw new Error(
+                "MetaMask is required."
+            );
+        }
+
+        const accounts =
+            await window.ethereum.request({
+                method:
+                    "eth_requestAccounts"
+            });
+
+        const account =
+            accounts[0];
+
+        const carrier =
+            getCarrierAddressRaw();
+
+        if (
+            carrier &&
+            account.toLowerCase() !==
+                carrier.toLowerCase()
+        ) {
+            throw new Error(
+                "Only the assigned Carrier can submit milestone completion."
+            );
+        }
+
+        const index =
+            getCurrentMilestoneIndex();
+
+        if (
+            index < 0
+        ) {
+            throw new Error(
+                "There is no pending milestone."
+            );
+        }
+
+        const milestone =
+            milestoneData[index];
+
+        if (
+            normalizeBool(
+                milestone.completed
+            )
+        ) {
+            throw new Error(
+                "This milestone is already awaiting verification or completed."
+            );
+        }
+
+        const web3 =
+            new Web3(
+                window.ethereum
+            );
+
+        const contract =
+            new web3.eth.Contract(
+                CONTRACT_ABI,
+                CONTRACT_ADDRESS
+            );
+
+        const confirmed =
+            confirm(
+                `Submit completion for "${milestone.checkpoint}"?\n\n` +
+                "MetaMask will ask you to confirm the blockchain transaction."
+            );
+
+        if (!confirmed) {
+            return;
+        }
+
+        const button =
+            findMilestoneActionButton(
+                "Submit Completion"
+            );
+
+        if (button) {
+            button.disabled =
+                true;
+
+            button.innerHTML =
+                '<i class="fa-solid fa-spinner fa-spin"></i> Submitting...';
+        }
+
+        const tx =
+            await contract.methods
+                .submitMilestoneCompletion(
+                    Number(id)
+                )
+                .send({
+                    from:
+                        account
+                });
+
+        await supabaseClient
+            .from("milestones")
+            .update({
+                completed:
+                    true,
+
+                completed_at:
+                    new Date().toISOString()
+            })
+            .eq(
+                "agreement_id",
+                Number(id)
+            )
+            .eq(
+                "milestone_index",
+                index
+            );
+
+        await saveTransaction(
+            tx.transactionHash,
+            "MilestoneSubmitted",
+            account,
+            {
+                milestone_index:
+                    index,
+
+                checkpoint:
+                    milestone.checkpoint,
+
+                percentage:
+                    milestone.percentage,
+
+                status:
+                    "Awaiting Verification",
+
+                description:
+                    "Carrier submitted milestone completion. Waiting for Shipper verification."
+            }
+        );
+
+        alert(
+            "Milestone completion submitted successfully.\n\n" +
+            "Status: Awaiting Verification"
+        );
+
+        await loadAgreement();
+        await loadMilestones();
+
+        renderAgreement();
+        renderMilestones();
+        renderLifecycle();
+        setupActions();
+
+    } catch (error) {
+
+        console.error(
+            "Submit completion failed:",
+            error
+        );
+
+        alert(
+            "Failed to submit milestone completion:\n\n" +
+            (
+                error?.code === 4001
+                    ? "Transaction was rejected in MetaMask."
+                    : error?.message ||
+                      String(error)
+            )
+        );
+
+        renderMilestones();
+    }
+}
+
+// =====================================================
+// SHIPPER VERIFIES + RELEASES
+// =====================================================
+
+async function verifyMilestone(
+    id
+) {
+
+    try {
+
+        if (
+            agreementData.status !==
+            "In Progress"
+        ) {
+            throw new Error(
+                "The agreement is not In Progress."
+            );
+        }
+
+        if (
+            typeof window.ethereum ===
+            "undefined"
+        ) {
+            throw new Error(
+                "MetaMask is required."
+            );
+        }
+
+        const accounts =
+            await window.ethereum.request({
+                method:
+                    "eth_requestAccounts"
+            });
+
+        const account =
+            accounts[0];
+
+        const shipper =
+            (
+                agreementData.blockchain_shipper ||
+                agreementData.shipper_address ||
+                ""
+            ).toLowerCase();
+
+        if (
+            account.toLowerCase() !==
+            shipper
+        ) {
+            throw new Error(
+                "Only the Shipper can verify a milestone."
+            );
+        }
+
+        const index =
+            getCurrentMilestoneIndex();
+
+        if (
+            index < 0
+        ) {
+            throw new Error(
+                "There is no milestone awaiting verification."
+            );
+        }
+
+        const milestone =
+            milestoneData[index];
+
+        if (
+            !normalizeBool(
+                milestone.completed
+            )
+        ) {
+            throw new Error(
+                "Carrier has not submitted this milestone."
+            );
+        }
+
+        if (
+            normalizeBool(
+                milestone.verified
+            ) ||
+            normalizeBool(
+                milestone.paid
+            )
+        ) {
+            throw new Error(
+                "This milestone has already been paid."
+            );
+        }
+
+        const payout =
+            calculateMilestoneAmount(
+                milestone.percentage
+            );
+
+        const web3 =
+            new Web3(
+                window.ethereum
+            );
+
+        const contract =
+            new web3.eth.Contract(
+                CONTRACT_ABI,
+                CONTRACT_ADDRESS
+            );
+
+        const confirmed =
+            confirm(
+                `Verify "${milestone.checkpoint}" and release ${payout} ETH to the Carrier?\n\n` +
+                "The smart contract will verify the Shipper, milestone, completion and payment state."
+            );
+
+        if (!confirmed) {
+            return;
+        }
+
+        const button =
+            findMilestoneActionButton(
+                "Verify & Release Payment"
+            );
+
+        if (button) {
+            button.disabled =
+                true;
+
+            button.innerHTML =
+                '<i class="fa-solid fa-spinner fa-spin"></i> Verifying...';
+        }
+
+        const tx =
+            await contract.methods
+                .verifyMilestone(
+                    Number(id)
+                )
+                .send({
+                    from:
+                        account
+                });
+
+        const now =
+            new Date().toISOString();
+
+        await supabaseClient
+            .from("milestones")
+            .update({
+                completed:
+                    true,
+
+                verified:
+                    true,
+
+                paid:
+                    true,
+
+                verified_at:
+                    now,
+
+                paid_at:
+                    now
+            })
+            .eq(
+                "agreement_id",
+                Number(id)
+            )
+            .eq(
+                "milestone_index",
+                index
+            );
+
+        const payoutNumber =
+            Number(
+                payout
+            );
+
+        const oldReleased =
+            Number(
+                agreementData.escrow_released ||
+                0
+            );
+
+        const oldRemaining =
+            Number(
+                agreementData.escrow_remaining ||
+                agreementData.escrow_amount ||
+                0
+            );
+
+        const allPaid =
+            index ===
+            milestoneData.length - 1;
+
+        await supabaseClient
+            .from("agreements")
+            .update({
+                escrow_released:
+                    oldReleased +
+                    payoutNumber,
+
+                escrow_remaining:
+                    Math.max(
+                        0,
+                        oldRemaining -
+                        payoutNumber
+                    ),
+
+                current_milestone:
+                    index + 1,
+
+                status:
+                    allPaid
+                        ? "Completed"
+                        : "In Progress",
+
+                completed_at:
+                    allPaid
+                        ? Math.floor(
+                            Date.now() / 1000
+                        )
+                        : null
+            })
+            .eq(
+                "agreement_id",
+                Number(id)
+            );
+
+        await saveTransaction(
+            tx.transactionHash,
+            "MilestoneVerified",
+            account,
+            {
+                milestone_index:
+                    index,
+
+                checkpoint:
+                    milestone.checkpoint,
+
+                percentage:
+                    milestone.percentage,
+
+                amount:
+                    payout,
+
+                status:
+                    "Completed & Paid",
+
+                description:
+                    "Shipper verified the milestone."
+            }
+        );
+
+        await saveTransaction(
+            tx.transactionHash + "-payout",
+            "MilestonePayout",
+            account,
+            {
+                milestone_index:
+                    index,
+
+                checkpoint:
+                    milestone.checkpoint,
+
+                amount:
+                    payout,
+
+                status:
+                    "Completed & Paid",
+
+                description:
+                    `${payout} ETH released to Carrier.`
+            }
+        );
+
+        if (allPaid) {
+
+            await saveTransaction(
+                tx.transactionHash + "-completed",
+                "AgreementCompleted",
+                account,
+                {
+                    status:
+                        "Completed",
+
+                    description:
+                        "All milestones completed, verified and paid."
+                }
+            );
+        }
+
+        alert(
+            `Milestone verified successfully.\n\n` +
+            `${payout} ETH released to Carrier.` +
+            (
+                allPaid
+                    ? "\n\nAgreement completed."
+                    : "\n\nThe next milestone is now active."
+            )
+        );
+
+        await loadAgreement();
+        await loadMilestones();
+
+        renderAgreement();
+        renderMilestones();
+        renderLifecycle();
+        setupActions();
+
+    } catch (error) {
+
+        console.error(
+            "Verify milestone failed:",
+            error
+        );
+
+        alert(
+            "Failed to verify milestone:\n\n" +
+            (
+                error?.code === 4001
+                    ? "Transaction was rejected in MetaMask."
+                    : error?.message ||
+                      String(error)
+            )
+        );
+
+        renderMilestones();
+    }
+}
+
+// =====================================================
+// CURRENT MILESTONE
+// =====================================================
+
+function getCurrentMilestoneIndex() {
+
+    const blockchainIndex =
+        Number(
+            agreementData
+                ?.blockchain_current_milestone
+        );
+
+    if (
+        Number.isInteger(
+            blockchainIndex
+        ) &&
+        blockchainIndex >= 0 &&
+        blockchainIndex <
+            milestoneData.length
+    ) {
+        return blockchainIndex;
+    }
+
+    return findFirstUnpaidMilestone();
+}
+
+function findFirstUnpaidMilestone() {
+
+    for (
+        let i = 0;
+        i < milestoneData.length;
+        i++
+    ) {
+
+        const paid =
+            normalizeBool(
+                milestoneData[i].paid
+            );
+
+        if (!paid) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+// =====================================================
+// CALCULATE PAYOUT DISPLAY
+// =====================================================
+
+function calculateMilestoneAmount(
+    percentage
+) {
+
+    const escrowEth =
+        getBlockchainEth(
+            agreementData?.blockchain_escrow,
+            agreementData?.escrow_amount
+        );
+
+    return (
+        escrowEth *
+        Number(percentage) /
+        100
+    ).toFixed(3);
+}
+
+// =====================================================
+// OVERALL PROGRESS
+// =====================================================
+
+function updateOverallProgress() {
+
+    const progressText =
+        document.getElementById(
+            "overall-progress"
+        );
+
+    const progressBar =
+        document.getElementById(
+            "overall-progress-bar"
+        );
+
+    let completedPercentage =
+        0;
+
+    milestoneData.forEach(
+        milestone => {
+
+            const completed =
+                normalizeBool(
+                    milestone.completed
+                );
+
+            const verified =
+                normalizeBool(
+                    milestone.verified
+                );
+
+            const paid =
+                normalizeBool(
+                    milestone.paid
+                );
+
+            if (
+                completed &&
+                verified &&
+                paid
+            ) {
+                completedPercentage +=
+                    Number(
+                        milestone.percentage ||
+                        0
+                    );
+            }
+        }
+    );
+
+    if (progressText) {
+        progressText.innerText =
+            `${completedPercentage}%`;
+    }
+
+    if (progressBar) {
+        progressBar.style.width =
+            `${Math.min(
+                completedPercentage,
+                100
+            )}%`;
+    }
+}
+
+// =====================================================
+// LIFECYCLE
+// =====================================================
+
+function renderLifecycle() {
+
+    const container =
+        document.getElementById(
+            "lifecycle-timeline"
+        );
+
+    if (!container) {
+        return;
+    }
+
+    const status =
+        agreementData.status ||
+        "Created";
+
+    if (
+        status ===
+        "Cancelled"
+    ) {
+
+        renderLifecycleStages(
+            container,
+            [
+                {
+                    label:
+                        "Created",
+                    state:
+                        "completed"
+                },
+                {
+                    label:
+                        "Cancelled",
+                    state:
+                        "cancelled"
+                },
+                {
+                    label:
+                        "Refunded",
+                    state:
+                        "refunded"
+                }
+            ]
+        );
+
+        return;
+    }
+
+    if (
+        status ===
+        "Expired"
+    ) {
+
+        renderLifecycleStages(
+            container,
+            [
+                {
+                    label:
+                        "Created",
+                    state:
+                        "completed"
+                },
+                {
+                    label:
+                        "Accepted",
+                    state:
+                        agreementData.blockchain_carrier &&
+                        !isZeroAddress(
+                            agreementData.blockchain_carrier
+                        )
+                            ? "completed"
+                            : "pending"
+                },
+                {
+                    label:
+                        "Expired",
+                    state:
+                        "expired"
+                },
+                {
+                    label:
+                        "Refunded",
+                    state:
+                        "refunded"
+                }
+            ]
+        );
+
+        return;
+    }
+
+    const stages = [
+        {
+            label:
+                "Created",
+            state:
+                "completed"
+        },
+        {
+            label:
+                "Accepted",
+            state:
+                "pending"
+        }
+    ];
+
+    const carrier =
+        getCarrierAddressRaw();
+
+    if (
+        carrier &&
+        !isZeroAddress(
+            carrier
+        )
+    ) {
+        stages[1].state =
+            "completed";
+    } else if (
+        status ===
+        "Created"
+    ) {
+        stages[1].state =
+            "pending";
+    }
+
+    milestoneData.forEach(
+        milestone => {
+
+            const completed =
+                normalizeBool(
+                    milestone.completed
+                );
+
+            const verified =
+                normalizeBool(
+                    milestone.verified
+                );
+
+            const paid =
+                normalizeBool(
+                    milestone.paid
+                );
+
+            stages.push({
+                label:
+                    milestone.checkpoint,
+                state:
+                    (
+                        completed &&
+                        verified &&
+                        paid
+                    )
+                        ? "completed"
+                        : (
+                            completed
+                                ? "active"
+                                : "pending"
+                        )
+            });
+        }
+    );
+
+    stages.push({
+        label:
+            "Completed",
+        state:
+            status ===
+            "Completed"
+                ? "completed"
+                : "pending"
+    });
+
+    renderLifecycleStages(
+        container,
+        stages
+    );
+}
+
+function renderLifecycleStages(
+    container,
+    stages
+) {
+
+    let html =
+        "";
+
+    stages.forEach(
+        (
+            stage,
+            index
+        ) => {
+
+            let className =
+                "";
+
+            if (
+                stage.state ===
+                "completed"
+            ) {
+                className =
+                    "completed";
+            } else if (
+                stage.state ===
+                "active"
+            ) {
+                className =
+                    "active";
+            } else if (
+                stage.state ===
+                "cancelled"
+            ) {
+                className =
+                    "cancelled";
+            } else if (
+                stage.state ===
+                "expired"
+            ) {
+                className =
+                    "expired";
+            } else if (
+                stage.state ===
+                "refunded"
+            ) {
+                className =
+                    "refunded";
+            } else {
+                className =
+                    "pending";
+            }
+
+            let circle =
+                index + 1;
+
+            if (
+                stage.state ===
+                "completed"
+            ) {
+                circle =
+                    '<i class="fa-solid fa-check"></i>';
+            } else if (
+                stage.state ===
+                "cancelled"
+            ) {
+                circle =
+                    '<i class="fa-solid fa-xmark"></i>';
+            } else if (
+                stage.state ===
+                "expired"
+            ) {
+                circle =
+                    '<i class="fa-solid fa-clock"></i>';
+            } else if (
+                stage.state ===
+                "refunded"
+            ) {
+                circle =
+                    '<i class="fa-solid fa-rotate-left"></i>';
+            }
+
+            html += `
+                <div class="timeline-stage ${className}">
+
+                    <div class="timeline-circle">
+                        ${circle}
+                    </div>
+
+                    <span>
+                        ${escapeHtml(
+                            stage.label
+                        )}
+                    </span>
+
+                </div>
+            `;
+        }
+    );
+
+    container.innerHTML =
+        html;
+}
+
+// =====================================================
+// ACTIONS (Role-Safe Cancel Check)
+// =====================================================
+
+function setupActions() {
+
+    const cancelButton =
+        document.getElementById(
+            "cancel-btn"
+        );
+
+    const role =
+        String(localStorage.getItem("role") || "").toLowerCase();
+
+    const isShipper =
+        role === "1" ||
+        role === "shipper";
+
+    const isCarrier =
+        role === "2" ||
+        role === "carrier";
+
+    if (cancelButton) {
+
+        // Only shipper can cancel, and only when Created.
+        if (
+            isShipper &&
+            agreementData.status ===
+                "Created"
+        ) {
+
+            cancelButton.style.display =
+                "inline-flex";
+
+            cancelButton.disabled =
+                false;
+
+            cancelButton.onclick =
+                cancelAgreement;
+
+        } else if (
+            isCarrier &&
+            agreementData.status ===
+                "Created"
+        ) {
+            // Show Accept Agreement button in the exact same slot for carriers
+            cancelButton.style.display =
+                "inline-flex";
+
+            cancelButton.disabled =
+                false;
+
+            cancelButton.className = "primary-action-btn"; // Switch style to primary action button
+            
+            cancelButton.innerHTML = `
+                <i class="fa-solid fa-check"></i>
+                Accept Agreement
+            `;
+
+            cancelButton.onclick =
+                acceptAgreementDetailsAction;
+
+        } else {
+            cancelButton.style.display =
+                "none";
+        }
+    }
+}
+
+
+// =====================================================
+// ACCEPT AGREEMENT FROM DETAILS PAGE (CARRIER)
+// =====================================================
+
+async function acceptAgreementDetailsAction() {
+    try {
+        if (typeof window.ethereum === "undefined") {
+            throw new Error("MetaMask is required.");
+        }
+
+        const accounts = await window.ethereum.request({
+            method: "eth_requestAccounts"
+        });
+
+        if (!accounts || accounts.length === 0) {
+            throw new Error("No wallet connected.");
+        }
+
+        const currentAccount = accounts[0];
+        const web3 = new Web3(window.ethereum);
+        const contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
+
+        const confirmed = confirm(
+            "Accept this logistics agreement?\n\nAfter acceptance, the agreement becomes In Progress."
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        const tx = await contract.methods.acceptAgreement(Number(agreementId)).send({
+            from: currentAccount
+        });
+
+        const now = Math.floor(Date.now() / 1000);
+
+        await supabaseClient
+            .from("agreements")
+            .update({
+                status: "In Progress",
+                carrier_address: currentAccount.toLowerCase(),
+                accepted_at: now
+            })
+            .eq("agreement_id", agreementId);
+
+        await supabaseClient.from("transactions").insert([{
+            transaction_hash: tx.transactionHash,
+            agreement_id: Number(agreementId),
+            event_type: "AgreementAccepted",
+            actor_address: currentAccount.toLowerCase(),
+            details: {
+                status: "In Progress",
+                description: "Carrier accepted the logistics agreement."
+            }
+        }]);
+
+        alert("Agreement accepted successfully!\n\nStatus: In Progress");
+        window.location.reload();
+
+    } catch (error) {
+        console.error("Acceptance failed:", error);
+        let message = error?.message || String(error);
+        if (error?.code === 4001) {
+            message = "Transaction was rejected in MetaMask.";
+        }
+        alert("Failed to accept agreement:\n\n" + message);
+    }
+}
+
+
+// =====================================================
+// CANCEL AGREEMENT
+// =====================================================
+
+async function cancelAgreement() {
+
+    if (
+        agreementData.status !==
+        "Created"
+    ) {
+        alert(
+            "Only a Created agreement can be cancelled."
+        );
+        return;
+    }
+
+    const role =
+        String(localStorage.getItem("role") || "").toLowerCase();
+
+    if (
+        role !== "1" &&
+        role !== "shipper"
+    ) {
+        alert(
+            "Only the Shipper can cancel the agreement."
+        );
+        return;
+    }
+
+    if (
+        !confirm(
+            "Cancel this agreement?\n\n" +
+            "The complete remaining escrow will be refunded to the Shipper."
+        )
+    ) {
+        return;
+    }
+
+    try {
+
+        if (
+            typeof window.ethereum ===
+            "undefined"
+        ) {
+            throw new Error(
+                "MetaMask is required."
+            );
+        }
+
+        const accounts =
+            await window.ethereum.request({
+                method:
+                    "eth_requestAccounts"
+            });
+
+        const account =
+            accounts[0];
+
+        const shipper =
+            (
+                agreementData.blockchain_shipper ||
+                agreementData.shipper_address ||
+                ""
+            ).toLowerCase();
+
+        if (
+            account.toLowerCase() !==
+            shipper
+        ) {
+            throw new Error(
+                "Only the Shipper can cancel this agreement."
+            );
+        }
+
+        const web3 =
+            new Web3(
+                window.ethereum
+            );
+
+        const contract =
+            new web3.eth.Contract(
+                CONTRACT_ABI,
+                CONTRACT_ADDRESS
+            );
+
+        const button =
+            document.getElementById(
+                "cancel-btn"
+            );
+
+        if (button) {
+            button.disabled =
+                true;
+
+            button.innerHTML =
+                '<i class="fa-solid fa-spinner fa-spin"></i> Cancelling & Refunding...';
+        }
+
+        const tx =
+            await contract.methods
+                .cancelAgreement(
+                    Number(agreementId)
+                )
+                .send({
+                    from:
+                        account
+                });
+
+        const refund =
+            Number(
+                agreementData.escrow_remaining ||
+                agreementData.escrow_amount ||
+                0
+            );
+
+        await supabaseClient
+            .from("agreements")
+            .update({
+                status:
+                    "Cancelled",
+
+                cancelled_at:
+                    Math.floor(
+                        Date.now() / 1000
+                    ),
+
+                refunded_amount:
+                    refund,
+
+                escrow_released:
+                    refund,
+
+                escrow_remaining:
+                    0
+            })
+            .eq(
+                "agreement_id",
+                Number(agreementId)
+            );
+
+        await saveTransaction(
+            tx.transactionHash,
+            "AgreementCancelled",
+            account,
+            {
+                status:
+                    "Cancelled",
+
+                escrow_refunded:
+                    refund,
+
+                description:
+                    "Agreement cancelled and escrow refunded to shipper."
+            }
+        );
+
+        alert(
+            "Agreement cancelled successfully.\n\n" +
+            "The escrow has been refunded to the Shipper."
+        );
+
+        window.location.reload();
+
+    } catch (error) {
+
+        console.error(
+            "Cancellation failed:",
+            error
+        );
+
+        alert(
+            "Cancellation failed:\n\n" +
+            (
+                error?.code === 4001
+                    ? "Transaction was rejected in MetaMask."
+                    : error?.message ||
+                      String(error)
+            )
+        );
+
+        const button =
+            document.getElementById(
+                "cancel-btn"
+            );
+
+        if (button) {
+            button.disabled =
+                false;
+
+            button.innerHTML =
+                '<i class="fa-solid fa-xmark"></i> Cancel Agreement';
+        }
+    }
+}
+
+// =====================================================
+// SAVE TRANSACTION
+// =====================================================
+
+async function saveTransaction(
+    hash,
+    eventType,
+    actor,
+    details
+) {
+
+    const {
+        error
+    } =
+        await supabaseClient
+            .from("transactions")
+            .insert([{
+                transaction_hash:
+                    hash,
+
+                agreement_id:
+                    Number(
+                        agreementId
+                    ),
+
+                event_type:
+                    eventType,
+
+                actor_address:
+                    actor.toLowerCase(),
+
+                details:
+                    details
+            }]);
+
+    if (error) {
+        console.warn(
+            "Transaction save failed:",
+            error
+        );
+    }
+}
+
+// =====================================================
+// HELPERS
+// =====================================================
+
+function findMilestoneActionButton(
+    text
+) {
+
+    return Array
+        .from(
+            document.querySelectorAll(
+                "#milestones-container button"
+            )
+        )
+        .find(
+            button =>
+                button.innerText
+                    .includes(text)
+        );
+}
+
+function getCarrierAddressRaw() {
+
+    return (
+        agreementData.blockchain_carrier ||
+        agreementData.carrier_address ||
+        ""
+    );
+}
+
+function getCarrierAddress() {
+
+    const carrier =
+        getCarrierAddressRaw();
+
+    if (
+        !carrier ||
+        isZeroAddress(
+            carrier
+        )
+    ) {
+        return "Unassigned";
+    }
+
+    return shortenAddress(
+        carrier
+    );
+}
+
+function isZeroAddress(
+    address
+) {
+
+    return (
+        String(address)
+            .toLowerCase() ===
+        "0x0000000000000000000000000000000000000000"
+    );
+}
+
+function normalizeBool(
+    value
+) {
+
+    return (
+        value === true ||
+        value === "true" ||
+        value === 1 ||
+        value === "1"
+    );
+}
+
+function getBlockchainEth(
+    weiValue,
+    fallbackEth
+) {
+
+    if (
+        weiValue !==
+        undefined &&
+        weiValue !==
+        null
+    ) {
+
+        try {
+            return Number(
+                Web3.utils.fromWei(
+                    weiValue.toString(),
+                    "ether"
+                )
+            );
+        } catch (error) {
+            console.warn(
+                "Wei conversion failed:",
+                error
+            );
+        }
+    }
+
+    return Number(
+        fallbackEth ||
+        0
+    );
+}
+
+function setText(
+    id,
+    value
+) {
+
+    const element =
+        document.getElementById(
+            id
+        );
+
+    if (element) {
+        element.innerText =
+            value;
+    }
+}
+
+function formatDate(
+    timestamp
+) {
+
+    if (!timestamp) {
+        return "-";
+    }
+
+    return new Date(
+        Number(timestamp) *
+        1000
+    ).toLocaleDateString(
+        "en-US",
+        {
+            year:
+                "numeric",
+            month:
+                "long",
+            day:
+                "numeric"
+        }
+    );
+}
 
 // =====================================================
 // STATUS CLASS
@@ -817,2272 +2306,6 @@ function getStatusClass(status) {
 
 }
 
-
-// =====================================================
-// PRIORITY CLASS
-// =====================================================
-
-function getPriorityClass(priority) {
-
-    switch (priority) {
-
-        case "Urgent":
-            return "priority-urgent";
-
-        case "Express":
-            return "priority-express";
-
-        default:
-            return "priority-normal";
-    }
-
-}
-
-
-// =====================================================
-// MILESTONES
-// =====================================================
-
-function renderMilestones() {
-
-    const container =
-        document.getElementById(
-            "milestones-container"
-        );
-
-
-    // -------------------------------------------------
-    // SAFETY CHECK
-    // -------------------------------------------------
-
-    if (!container) {
-
-        console.warn(
-            "Milestones container not found."
-        );
-
-        return;
-    }
-
-
-    // -------------------------------------------------
-    // CANCELLED AGREEMENT
-    // -------------------------------------------------
-
-    if (
-        agreementData &&
-        agreementData.status === "Cancelled"
-    ) {
-
-        container.innerHTML = `
-        <div class="milestone-cancelled">
-                <p>
-                    This agreement was cancelled before shipment
-                    progress began. The escrow has been refunded
-                    to the shipper.
-                </p>
-
-        </div>
-    `;
-
-        const progressText =
-            document.getElementById(
-                "overall-progress"
-            );
-
-        const progressBar =
-            document.getElementById(
-                "overall-progress-bar"
-            );
-
-
-        if (progressBar) {
-            progressBar.style.width = "0%";
-        }
-
-        return;
-    }
-
-    // -------------------------------------------------
-    // CLEAR
-    // -------------------------------------------------
-
-    container.innerHTML =
-        "";
-
-
-    // -------------------------------------------------
-    // NO DATA
-    // -------------------------------------------------
-
-    if (
-        !milestoneData ||
-        milestoneData.length === 0
-    ) {
-
-        container.innerHTML = `
-            <div class="milestone-empty">
-                No milestones found.
-            </div>
-        `;
-
-
-        updateOverallProgress();
-
-
-        return;
-    }
-
-
-    // -------------------------------------------------
-    // CHECK IF AGREEMENT IS IN PROGRESS 
-    // -------------------------------------------------
-    const isAccepted =
-        agreementData &&
-        (agreementData.status === "In Progress" || agreementData.status === "Completed");
-
-
-    // -------------------------------------------------
-    // FIND FIRST INCOMPLETE MILESTONE (Only if accepted)
-    // -------------------------------------------------
-
-    let firstIncompleteIndex =
-        -1;
-
-
-    if (isAccepted) {
-        for (
-            let i = 0;
-            i < milestoneData.length;
-            i++
-        ) {
-            const milestone = milestoneData[i];
-
-            const completed =
-                milestone.completed === true ||
-                milestone.completed === "true" ||
-                milestone.completed === 1;
-
-            const verified =
-                milestone.verified === true ||
-                milestone.verified === "true" ||
-                milestone.verified === 1;
-
-            if (!(completed && verified)) {
-                firstIncompleteIndex = i;
-                break;
-            }
-        }
-    }
-
-
-    // -------------------------------------------------
-    // RENDER
-    // -------------------------------------------------
-
-    milestoneData.forEach(
-        (
-            milestone,
-            index
-        ) => {
-
-            // =========================================
-            // NORMALIZE
-            // =========================================
-
-            const completed =
-                milestone.completed === true ||
-                milestone.completed === "true" ||
-                milestone.completed === 1;
-
-
-            const verified =
-                milestone.verified === true ||
-                milestone.verified === "true" ||
-                milestone.verified === 1;
-
-
-            const percentage =
-                Number(
-                    milestone.percentage || 0
-                );
-
-
-            const checkpoint =
-                milestone.checkpoint ||
-                milestone.name ||
-                milestone.title ||
-                `Milestone ${index + 1}`;
-
-
-            // =========================================
-            // DETERMINE STATE
-            // =========================================
-
-            let state =
-                "pending";
-
-
-            let stateText =
-                "Pending";
-
-
-            // -----------------------------------------
-            // COMPLETED
-            // -----------------------------------------
-
-            if (
-                completed &&
-                verified
-            ) {
-
-                state =
-                    "completed";
-
-
-                stateText =
-                    "Completed";
-            }
-
-
-            // -----------------------------------------
-            // COMPLETED BUT WAITING VERIFICATION
-            // -----------------------------------------
-
-            else if (
-                completed &&
-                !verified
-            ) {
-
-                state =
-                    "active";
-
-
-                stateText =
-                    "Awaiting Verification";
-            }
-
-
-            // -----------------------------------------
-            // CURRENT ACTIVE MILESTONE
-            // -----------------------------------------
-
-            else if (
-                index ===
-                firstIncompleteIndex
-            ) {
-
-                state =
-                    "active";
-
-
-                stateText =
-                    "Active";
-            }
-
-
-            // -----------------------------------------
-            // PENDING
-            // -----------------------------------------
-
-            else {
-
-                state =
-                    "pending";
-
-
-                stateText =
-                    "Pending";
-            }
-
-
-            // =========================================
-            // ETH AMOUNT
-            // =========================================
-
-            const amount =
-                calculateMilestoneAmount(
-                    percentage
-                );
-
-
-            // =========================================
-            // NUMBER / CHECK
-            // =========================================
-
-            let numberContent =
-                index + 1;
-
-
-            if (
-                completed &&
-                verified
-            ) {
-
-                numberContent = `
-                    <i class="fa-solid fa-check"></i>
-                `;
-            }
-
-
-            // =========================================
-            // CREATE ROW
-            // =========================================
-
-            const item =
-                document.createElement(
-                    "div"
-                );
-
-
-            item.className =
-                `milestone-item ${state}`;
-
-
-            // =========================================
-            // HTML
-            // =========================================
-
-            item.innerHTML = `
-
-                <div class="milestone-left">
-
-                    <div class="milestone-number">
-
-                        ${numberContent}
-
-                    </div>
-
-
-                    <div class="milestone-info">
-
-                        <h3>
-                            ${escapeHtml(
-                checkpoint
-            )}
-                        </h3>
-
-
-                        <div class="milestone-meta">
-
-                            <span>
-                                ${percentage}%
-                            </span>
-
-                            <span class="milestone-separator">
-                                •
-                            </span>
-
-                            <span>
-                                ${amount} ETH
-                            </span>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-
-                <div class="milestone-status ${state}">
-
-                    <span class="milestone-status-dot"></span>
-
-                    <span>
-                        ${stateText}
-                    </span>
-
-                </div>
-
-            `;
-
-
-            // =========================================
-            // ADD
-            // =========================================
-
-            container.appendChild(
-                item
-            );
-
-        }
-    );
-
-
-    // -------------------------------------------------
-    // UPDATE PROGRESS
-    // -------------------------------------------------
-
-    updateOverallProgress();
-
-}
-
-
-// =====================================================
-// CALCULATE MILESTONE ETH AMOUNT
-// =====================================================
-
-function calculateMilestoneAmount(
-    percentage
-) {
-
-    let escrowWei =
-        null;
-
-
-    // -------------------------------------------------
-    // FIRST: BLOCKCHAIN ESCROW
-    // -------------------------------------------------
-
-    if (
-        agreementData &&
-        agreementData.blockchain_escrow !==
-        undefined &&
-        agreementData.blockchain_escrow !==
-        null
-    ) {
-
-        escrowWei =
-            agreementData.blockchain_escrow;
-    }
-
-
-    // -------------------------------------------------
-    // FALLBACK: SUPABASE ESCROW
-    // -------------------------------------------------
-
-    if (
-        escrowWei === null ||
-        escrowWei === undefined
-    ) {
-
-        escrowWei =
-            agreementData
-                ? agreementData.escrow_amount
-                : 0;
-    }
-
-
-    // -------------------------------------------------
-    // CONVERT TO ETH
-    // -------------------------------------------------
-
-    let escrowEth =
-        0;
-
-
-    try {
-
-        if (
-            typeof Web3 !==
-            "undefined" &&
-            Web3.utils &&
-            escrowWei !==
-            undefined &&
-            escrowWei !==
-            null
-        ) {
-
-            escrowEth =
-                Number(
-                    Web3.utils.fromWei(
-                        escrowWei.toString(),
-                        "ether"
-                    )
-                );
-
-        } else {
-
-            escrowEth =
-                Number(
-                    escrowWei || 0
-                );
-
-        }
-
-    } catch (error) {
-
-        console.warn(
-            "Could not calculate milestone ETH:",
-            error
-        );
-
-
-        escrowEth =
-            Number(
-                escrowWei || 0
-            );
-
-    }
-
-
-    // -------------------------------------------------
-    // CALCULATE
-    // -------------------------------------------------
-
-    const milestoneAmount =
-        escrowEth *
-        Number(percentage) /
-        100;
-
-
-    // -------------------------------------------------
-    // RETURN
-    // -------------------------------------------------
-
-    return milestoneAmount.toFixed(3);
-
-}
-
-
-// =====================================================
-// OVERALL PROGRESS
-// =====================================================
-
-function updateOverallProgress() {
-
-    const progressText =
-        document.getElementById(
-            "overall-progress"
-        );
-
-
-    const progressBar =
-        document.getElementById(
-            "overall-progress-bar"
-        );
-
-
-    if (
-        !milestoneData ||
-        milestoneData.length === 0
-    ) {
-
-        if (progressText) {
-
-            progressText.innerText =
-                "0%";
-        }
-
-
-        if (progressBar) {
-
-            progressBar.style.width =
-                "0%";
-        }
-
-
-        return;
-    }
-
-
-    let completedPercentage =
-        0;
-
-
-    milestoneData.forEach(
-        milestone => {
-
-            const completed =
-                milestone.completed === true ||
-                milestone.completed === "true" ||
-                milestone.completed === 1;
-
-
-            const verified =
-                milestone.verified === true ||
-                milestone.verified === "true" ||
-                milestone.verified === 1;
-
-
-            if (
-                completed &&
-                verified
-            ) {
-
-                completedPercentage +=
-                    Number(
-                        milestone.percentage
-                    );
-            }
-
-        }
-    );
-
-
-    if (progressText) {
-
-        progressText.innerText =
-            `${completedPercentage}%`;
-    }
-
-
-    if (progressBar) {
-
-        progressBar.style.width =
-            `${Math.min(
-                completedPercentage,
-                100
-            )}%`;
-    }
-
-}
-
-
-// =====================================================
-// LIFECYCLE
-// =====================================================
-
-function renderLifecycle() {
-
-    const container =
-        document.getElementById(
-            "lifecycle-timeline"
-        );
-
-
-    if (!container) {
-
-        console.warn(
-            "Lifecycle container not found."
-        );
-
-        return;
-    }
-
-
-    // -------------------------------------------------
-    // STATUS
-    // -------------------------------------------------
-
-    const status =
-        agreementData &&
-            agreementData.status
-            ? agreementData.status
-            : "Created";
-
-
-    // -------------------------------------------------
-    // CHECK WHETHER CARRIER IS ASSIGNED
-    // -------------------------------------------------
-
-    const zeroAddress =
-        "0x0000000000000000000000000000000000000000";
-
-
-    const carrier =
-        agreementData &&
-        (
-            agreementData.blockchain_carrier ||
-            agreementData.carrier_address
-        );
-
-
-    const hasCarrier =
-        carrier &&
-        carrier.toLowerCase() !==
-        zeroAddress;
-
-
-    // -------------------------------------------------
-    // CHECK MILESTONE COMPLETION
-    // -------------------------------------------------
-
-    function milestoneCompleted(
-        milestone
-    ) {
-
-        const completed =
-            milestone.completed === true ||
-            milestone.completed === "true" ||
-            milestone.completed === 1;
-
-
-        const verified =
-            milestone.verified === true ||
-            milestone.verified === "true" ||
-            milestone.verified === 1;
-
-
-        return (
-            completed &&
-            verified
-        );
-    }
-
-
-    // =================================================
-    // 1. CANCELLED
-    // =================================================
-    //
-    // Created → Cancelled
-    //
-    // Cancellation happens before acceptance.
-    // No milestones.
-    // =================================================
-
-    if (
-        status === "Cancelled"
-    ) {
-
-        const stages = [
-
-            {
-                key: "Created",
-                label: "Created",
-                state: "completed"
-            },
-
-            {
-                key: "Cancelled",
-                label: "Cancelled",
-                state: "cancelled"
-            },
-
-            {
-                key: "Refunded",
-                label: "Refunded",
-                state: "refunded"
-            }
-
-        ];
-
-
-        renderLifecycleStages(
-            container,
-            stages
-        );
-
-
-        return;
-    }
-
-
-    // =================================================
-    // 2. EXPIRED
-    // =================================================
-    //
-    // If carrier accepted:
-    //
-    // Created → Accepted → Expired → Refunded
-    //
-    // If carrier did not accept:
-    //
-    // Created → Expired → Refunded
-    //
-    // No normal milestones.
-    // =================================================
-
-    if (
-        status === "Expired"
-    ) {
-
-        const stages = [
-
-            {
-                key: "Created",
-                label: "Created",
-                state: "completed"
-            }
-
-        ];
-
-
-        // ---------------------------------------------
-        // Carrier accepted
-        // ---------------------------------------------
-
-        if (hasCarrier) {
-
-            stages.push({
-
-                key: "Accepted",
-                label: "Accepted",
-                state: "completed"
-
-            });
-
-        }
-
-
-        // ---------------------------------------------
-        // Expired
-        // ---------------------------------------------
-
-        stages.push({
-
-            key: "Expired",
-            label: "Expired",
-            state: "expired"
-
-        });
-
-
-        // ---------------------------------------------
-        // Refund
-        //
-        // expireAgreement() refunds the escrow.
-        // ---------------------------------------------
-
-        stages.push({
-
-            key: "Refunded",
-            label: "Refunded",
-            state: "refunded"
-
-        });
-
-
-        renderLifecycleStages(
-            container,
-            stages
-        );
-
-
-        return;
-    }
-
-
-    // =================================================
-    // 3. REFUNDED
-    // =================================================
-    //
-    // This is included for safety in case your
-    // Supabase record eventually uses "Refunded"
-    // as its final status.
-    //
-    // Created → Refunded
-    //
-    // No milestones.
-    // =================================================
-
-    if (
-        status === "Refunded"
-    ) {
-
-        const stages = [
-
-            {
-                key: "Created",
-                label: "Created",
-                state: "completed"
-            },
-
-            {
-                key: "Refunded",
-                label: "Refunded",
-                state: "refunded"
-            }
-
-        ];
-
-
-        renderLifecycleStages(
-            container,
-            stages
-        );
-
-
-        return;
-    }
-
-
-    // =================================================
-    // 4. NORMAL AGREEMENT
-    // =================================================
-    //
-    // Created
-    // Accepted
-    // Milestones
-    // Completed
-    //
-    // Milestones are dynamically loaded from Supabase.
-    // =================================================
-
-    const stages = [
-
-        {
-            key: "Created",
-            label: "Created"
-        },
-
-        {
-            key: "Accepted",
-            label: "Accepted"
-        }
-
-    ];
-
-
-    // -------------------------------------------------
-    // Add actual milestones
-    // -------------------------------------------------
-
-    if (
-        milestoneData &&
-        milestoneData.length > 0
-    ) {
-
-        milestoneData.forEach(
-            (
-                milestone,
-                index
-            ) => {
-
-                stages.push({
-
-                    key:
-                        `Milestone-${index}`,
-
-                    label:
-                        milestone.checkpoint ||
-                        `Milestone ${index + 1}`,
-
-                    milestone:
-                        true,
-
-                    completed:
-                        milestoneCompleted(
-                            milestone
-                        )
-
-                });
-
-            }
-        );
-
-    }
-
-
-    // -------------------------------------------------
-    // Completed
-    // -------------------------------------------------
-
-    stages.push({
-
-        key: "Completed",
-
-        label: "Completed"
-
-    });
-
-
-    // =================================================
-    // DETERMINE CURRENT NORMAL STAGE
-    // =================================================
-
-    let currentIndex = 0;
-
-
-    // -------------------------------------------------
-    // CREATED
-    // -------------------------------------------------
-
-    if (
-        status === "Created"
-    ) {
-
-        currentIndex =
-            0;
-
-    }
-
-
-    // -------------------------------------------------
-    // IN PROGRESS
-    // -------------------------------------------------
-
-    else if (
-        status === "In Progress"
-    ) {
-
-        // Created = 0
-        // Accepted = 1
-        // Milestone 1 = 2
-        // Milestone 2 = 3
-        // ...
-
-        let completedMilestones =
-            0;
-
-
-        if (
-            milestoneData &&
-            milestoneData.length > 0
-        ) {
-
-            milestoneData.forEach(
-                milestone => {
-
-                    if (
-                        milestoneCompleted(
-                            milestone
-                        )
-                    ) {
-
-                        completedMilestones++;
-
-                    }
-
-                }
-            );
-
-        }
-
-
-        currentIndex =
-            1 +
-            completedMilestones;
-
-
-        // Never exceed last stage
-        currentIndex =
-            Math.min(
-                currentIndex,
-                stages.length - 1
-            );
-
-    }
-
-
-    // -------------------------------------------------
-    // COMPLETED
-    // -------------------------------------------------
-
-    else if (
-        status === "Completed"
-    ) {
-
-        currentIndex =
-            stages.length - 1;
-
-    }
-
-
-    // =================================================
-    // APPLY STATE
-    // =================================================
-
-    stages.forEach(
-        (
-            stage,
-            index
-        ) => {
-
-            if (
-                status === "Completed"
-            ) {
-
-                stage.state =
-                    "completed";
-
-            }
-
-            else if (
-                index <
-                currentIndex
-            ) {
-
-                stage.state =
-                    "completed";
-
-            }
-
-            else if (
-                index ===
-                currentIndex
-            ) {
-
-                stage.state =
-                    "active";
-
-            }
-
-            else {
-
-                stage.state =
-                    "pending";
-
-            }
-
-        }
-    );
-
-
-    // =================================================
-    // RENDER
-    // =================================================
-
-    renderLifecycleStages(
-        container,
-        stages
-    );
-}
-
-
-// =====================================================
-// RENDER LIFECYCLE STAGES
-// =====================================================
-function renderLifecycleStages(
-    container,
-    stages
-) {
-
-    let html =
-        "";
-
-
-    stages.forEach(
-        (
-            stage,
-            index
-        ) => {
-
-            let className =
-                "";
-
-
-            // -------------------------------------------------
-            // STATE CLASS
-            // -------------------------------------------------
-
-            if (
-                stage.state ===
-                "completed"
-            ) {
-
-                className =
-                    "completed";
-
-            }
-
-            else if (
-                stage.state ===
-                "active"
-            ) {
-
-                className =
-                    "active";
-
-            }
-
-            else if (
-                stage.state ===
-                "cancelled"
-            ) {
-
-                className =
-                    "cancelled";
-
-            }
-
-            else if (
-                stage.state ===
-                "expired"
-            ) {
-
-                className =
-                    "expired";
-
-            }
-
-            else if (
-                stage.state ===
-                "refunded"
-            ) {
-
-                className =
-                    "refunded";
-
-            }
-
-
-            // -------------------------------------------------
-            // CIRCLE CONTENT
-            // -------------------------------------------------
-
-            let circleContent =
-                index + 1;
-
-
-            if (
-                stage.state ===
-                "completed"
-            ) {
-
-                circleContent =
-                    '<i class="fa-solid fa-check"></i>';
-
-            }
-
-            else if (
-                stage.state ===
-                "cancelled"
-            ) {
-
-                circleContent =
-                    '<i class="fa-solid fa-xmark"></i>';
-
-            }
-
-            else if (
-                stage.state ===
-                "expired"
-            ) {
-
-                circleContent =
-                    '<i class="fa-solid fa-clock"></i>';
-
-            }
-
-            else if (
-                stage.state ===
-                "refunded"
-            ) {
-
-                circleContent =
-                    '<i class="fa-solid fa-rotate-left"></i>';
-
-            }
-
-
-            // -------------------------------------------------
-            // HTML
-            // -------------------------------------------------
-
-            html += `
-
-                <div class="timeline-stage ${className}">
-
-                    <div class="timeline-circle">
-
-                        ${circleContent}
-
-                    </div>
-
-                    <span>
-                        ${escapeHtml(
-                stage.label
-            )}
-                    </span>
-
-                </div>
-
-            `;
-
-        }
-    );
-
-
-    container.innerHTML =
-        html;
-}
-
-
-// =====================================================
-// ACTION BUTTONS
-// =====================================================
-
-function setupActions() {
-
-    const cancelButton =
-        document.getElementById(
-            "cancel-btn"
-        );
-
-
-    const notesButton =
-        document.getElementById(
-            "notes-btn"
-        );
-
-
-    // =================================================
-    // CANCEL
-    // =================================================
-    //
-    // ONLY Created can be cancelled.
-    //
-    // Created means:
-    // - Agreement has been created
-    // - Escrow has already been funded
-    //
-    // In Progress CANNOT be cancelled.
-    //
-    // =================================================
-
-    if (
-        cancelButton
-    ) {
-
-        if (
-            agreementData.status ===
-            "Created"
-        ) {
-
-            cancelButton.style.display =
-                "inline-flex";
-
-            cancelButton.disabled =
-                false;
-
-        } else {
-
-            cancelButton.style.display =
-                "none";
-
-        }
-
-
-        cancelButton.onclick =
-            cancelAgreement;
-    }
-
-
-    // =================================================
-    // NOTES
-    // =================================================
-
-    if (
-        notesButton
-    ) {
-
-        notesButton.onclick =
-            () => {
-
-                const section =
-                    document.getElementById(
-                        "notes-section"
-                    );
-
-
-                if (!section) {
-
-                    return;
-                }
-
-
-                if (
-                    section.style.display ===
-                    "none"
-                ) {
-
-                    section.style.display =
-                        "block";
-
-
-                    notesButton.innerHTML = `
-                        <i class="fa-regular fa-file-lines"></i>
-                        Hide Notes
-                    `;
-
-                } else {
-
-                    section.style.display =
-                        "none";
-
-
-                    notesButton.innerHTML = `
-                        <i class="fa-regular fa-file-lines"></i>
-                        View Notes
-                    `;
-                }
-
-            };
-    }
-
-}
-
-
-// =====================================================
-// CANCEL AGREEMENT
-// =====================================================
-
-async function cancelAgreement() {
-
-    // -------------------------------------------------
-    // CHECK LOCAL STATUS FIRST
-    // -------------------------------------------------
-
-    if (
-        agreementData.status !==
-        "Created"
-    ) {
-
-        alert(
-            "Only a Created agreement can be cancelled.\n\n" +
-            "In Progress agreements cannot be cancelled."
-        );
-
-        return;
-    }
-
-
-    // -------------------------------------------------
-    // Confirm
-    // -------------------------------------------------
-
-    const confirmed =
-        confirm(
-            "Are you sure you want to cancel this agreement?\n\n" +
-            "The escrow ETH will be refunded to the shipper."
-        );
-
-
-    if (!confirmed) {
-
-        return;
-    }
-
-
-    try {
-
-        // -------------------------------------------------
-        // Check MetaMask
-        // -------------------------------------------------
-
-        if (
-            typeof window.ethereum ===
-            "undefined"
-        ) {
-
-            throw new Error(
-                "MetaMask is required."
-            );
-        }
-
-
-        // -------------------------------------------------
-        // Get account
-        // -------------------------------------------------
-
-        const accounts =
-            await window.ethereum.request({
-
-                method:
-                    "eth_requestAccounts"
-
-            });
-
-
-        if (
-            !accounts ||
-            accounts.length === 0
-        ) {
-
-            throw new Error(
-                "No wallet connected."
-            );
-        }
-
-
-        const account =
-            accounts[0];
-
-
-        // -------------------------------------------------
-        // Web3
-        // -------------------------------------------------
-
-        const web3 =
-            new Web3(
-                window.ethereum
-            );
-
-
-        const contract =
-            new web3.eth.Contract(
-                CONTRACT_ABI,
-                CONTRACT_ADDRESS
-            );
-
-
-        // -------------------------------------------------
-        // Make sure current user is shipper
-        // -------------------------------------------------
-
-        const shipper =
-            (
-                agreementData.blockchain_shipper ||
-                agreementData.shipper_address ||
-                ""
-            ).toLowerCase();
-
-
-        if (
-            account.toLowerCase() !==
-            shipper
-        ) {
-
-            throw new Error(
-                "Only the shipper can cancel this agreement."
-            );
-        }
-
-
-        // -------------------------------------------------
-        // Make sure status is Created
-        // -------------------------------------------------
-
-        if (
-            agreementData.status !==
-            "Created"
-        ) {
-
-            throw new Error(
-                "Only a Created agreement can be cancelled. " +
-                "In Progress agreements cannot be cancelled."
-            );
-        }
-
-
-        // -------------------------------------------------
-        // Button
-        // -------------------------------------------------
-
-        const button =
-            document.getElementById(
-                "cancel-btn"
-            );
-
-
-        if (button) {
-
-            button.disabled =
-                true;
-
-
-            button.innerHTML = `
-                <i class="fa-solid fa-spinner fa-spin"></i>
-                Cancelling & Refunding...
-            `;
-        }
-
-
-        // -------------------------------------------------
-        // CANCEL + REFUND
-        //
-        // The smart contract performs the refund.
-        //
-        // No ETH is sent from frontend.
-        //
-        // -------------------------------------------------
-
-        const tx =
-            await contract.methods
-                .cancelAgreement(
-                    agreementId
-                )
-                .send({
-
-                    from:
-                        account
-
-                });
-
-
-        console.log(
-            "Agreement cancelled:",
-            tx
-        );
-
-
-        // -------------------------------------------------
-        // Update Supabase
-        // -------------------------------------------------
-
-        const now =
-            Math.floor(
-                Date.now() / 1000
-            );
-
-
-        const escrowAmount =
-            Number(
-                agreementData.escrow_amount ||
-                0
-            );
-
-
-        const {
-            error:
-            updateError
-        } =
-            await supabaseClient
-                .from("agreements")
-                .update({
-
-                    status:
-                        "Cancelled",
-
-                    cancelled_at:
-                        now,
-
-                    refunded_amount:
-                        escrowAmount,
-
-                    escrow_remaining:
-                        0
-
-                })
-                .eq(
-                    "agreement_id",
-                    agreementId
-                );
-
-
-        if (updateError) {
-
-            console.error(
-                "Supabase update failed:",
-                updateError
-            );
-
-        }
-
-
-        // -------------------------------------------------
-        // Save transaction
-        // -------------------------------------------------
-
-        await saveTransaction(
-            tx.transactionHash,
-            "AgreementCancelled",
-            account,
-            {
-                description:
-                    "Agreement cancelled and escrow refunded to shipper.",
-
-                escrow_refunded:
-                    escrowAmount,
-
-                status:
-                    "Cancelled"
-            }
-        );
-
-
-        // -------------------------------------------------
-        // Success
-        // -------------------------------------------------
-
-        alert(
-            "Agreement cancelled successfully.\n\n" +
-            "The escrow has been refunded to the shipper."
-        );
-
-
-        window.location.reload();
-
-
-    } catch (error) {
-
-        console.error(
-            "Cancellation failed:",
-            error
-        );
-
-
-        let message =
-            error.message ||
-            String(error);
-
-
-        if (
-            error.code === 4001
-        ) {
-
-            message =
-                "Transaction was rejected in MetaMask.";
-        }
-
-
-        alert(
-            "Cancellation failed:\n\n" +
-            message
-        );
-
-
-        // Restore button
-
-        const button =
-            document.getElementById(
-                "cancel-btn"
-            );
-
-
-        if (button) {
-
-            button.disabled =
-                false;
-
-
-            button.innerHTML = `
-                <i class="fa-solid fa-xmark"></i>
-                Cancel Agreement
-            `;
-        }
-
-    }
-
-}
-
-
-// =====================================================
-// SAVE TRANSACTION
-// =====================================================
-
-async function saveTransaction(
-    hash,
-    eventType,
-    actor,
-    details
-) {
-
-    const {
-        error
-    } =
-        await supabaseClient
-            .from("transactions")
-            .insert([{
-
-                transaction_hash:
-                    hash,
-
-                agreement_id:
-                    Number(agreementId),
-
-                event_type:
-                    eventType,
-
-                actor_address:
-                    actor.toLowerCase(),
-
-                details:
-                    details
-
-            }]);
-
-    if (error) {
-
-        console.error(
-            "Transaction save failed:",
-            error
-        );
-
-    }
-
-}
-
-
-// =====================================================
-// NETWORK
-// =====================================================
-
-async function detectNetwork() {
-
-    try {
-
-        if (
-            typeof window.ethereum ===
-            "undefined"
-        ) {
-
-            return;
-        }
-
-
-        const web3 =
-            new Web3(
-                window.ethereum
-            );
-
-
-        const chainId =
-            Number(
-                await web3.eth.getChainId()
-            );
-
-
-        const chainElement =
-            document.getElementById(
-                "chain-id"
-            );
-
-
-        const networkElement =
-            document.getElementById(
-                "network-name"
-            );
-
-
-        if (chainElement) {
-
-            chainElement.innerText =
-                chainId;
-        }
-
-
-        if (networkElement) {
-
-            if (
-                chainId === 1337 ||
-                chainId === 5777
-            ) {
-
-                networkElement.innerText =
-                    "Ganache";
-
-            } else if (
-                chainId === 1
-            ) {
-
-                networkElement.innerText =
-                    "Ethereum Mainnet";
-
-            } else {
-
-                networkElement.innerText =
-                    `Chain ${chainId}`;
-            }
-        }
-
-
-        // ---------------------------------------------
-        // Gas
-        // ---------------------------------------------
-
-        const gasPrice =
-            await web3.eth.getGasPrice();
-
-
-        const gasGwei =
-            web3.utils.fromWei(
-                gasPrice,
-                "gwei"
-            );
-
-
-        const gasElement =
-            document.getElementById(
-                "gas-price"
-            );
-
-
-        if (gasElement) {
-
-            gasElement.innerText =
-                `${Number(
-                    gasGwei
-                ).toFixed(1)} Gwei`;
-        }
-
-
-    } catch (error) {
-
-        console.warn(
-            "Network information unavailable:",
-            error
-        );
-
-    }
-
-}
-
-
-// =====================================================
-// EXPLORER
-// =====================================================
-
-function setupExplorerLink() {
-
-    const link =
-        document.getElementById(
-            "etherscan-link"
-        );
-
-
-    if (!link) {
-
-        return;
-    }
-
-
-    link.href =
-        `https://etherscan.io/address/${CONTRACT_ADDRESS}`;
-
-}
-
-
-// =====================================================
-// EXPLORER TRANSACTION URL
-// =====================================================
-
-function getExplorerTxUrl(
-    hash
-) {
-
-    return (
-        `https://etherscan.io/tx/${hash}`
-    );
-
-}
-
-
-// =====================================================
-// TRANSACTIONS
-// =====================================================
-
-function renderTransactions() {
-
-    const body =
-        document.getElementById(
-            "transactions-body"
-        );
-
-
-    if (!body) {
-
-        return;
-    }
-
-
-    body.innerHTML =
-        "";
-
-
-    if (
-        !transactionData ||
-        transactionData.length === 0
-    ) {
-
-        body.innerHTML = `
-            <tr>
-                <td colspan="5">
-                    No transactions found.
-                </td>
-            </tr>
-        `;
-
-
-        return;
-    }
-
-
-    transactionData.forEach(
-        transaction => {
-
-            const row =
-                document.createElement(
-                    "tr"
-                );
-
-
-            const actor =
-                transaction.actor_address;
-
-
-            const hash =
-                transaction.transaction_hash;
-
-
-            const user =
-                transaction.users;
-
-
-            const userName =
-                user &&
-                    user.name
-                    ? user.name
-                    : "";
-
-
-            row.innerHTML = `
-
-                <td>
-
-                    <span class="event-badge">
-
-                        ${escapeHtml(
-                transaction.event_type
-            )}
-
-                    </span>
-
-                </td>
-
-
-                <td>
-
-                    <div class="actor-cell">
-
-                        <strong>
-
-                            ${userName ||
-                shortenAddress(
-                    actor
-                )
-                }
-
-                        </strong>
-
-                        <small>
-
-                            ${shortenAddress(
-                    actor
-                )}
-
-                        </small>
-
-                    </div>
-
-                </td>
-
-
-                <td>
-
-                    <a
-                        href="${getExplorerTxUrl(hash)}"
-                        target="_blank"
-                        class="transaction-link"
-                    >
-
-                        ${shortenHash(hash)}
-
-                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
-
-                    </a>
-
-                </td>
-
-
-                <td>
-
-                   ${escapeHtml(
-                    formatTransactionDetails(transaction)
-                )}
-                )}
-
-                </td>
-
-
-                <td>
-
-                    ${formatTimestamp(
-                    transaction.created_at
-                )}
-
-                </td>
-
-            `;
-
-
-            body.appendChild(
-                row
-            );
-
-        }
-    );
-
-}
-
-
-// =====================================================
-// FORMAT TRANSACTION DETAILS
-// =====================================================
-
-function formatTransactionDetails(transaction) {
-
-    const eventType =
-        transaction.event_type;
-
-    let details = {};
-
-    try {
-
-        details = JSON.parse(
-            transaction.details || "{}"
-        );
-
-    } catch (error) {
-
-        return transaction.details || "-";
-    }
-
-
-    // -------------------------------------------------
-    // AGREEMENT CREATED + ESCROW FUNDED
-    // -------------------------------------------------
-
-    if (
-        eventType === "AgreementCreated"
-    ) {
-
-        const escrow =
-            details.escrow || {};
-
-        return (
-            "Agreement " +
-            (details.reference_no || "-") +
-            " created and escrow funded with " +
-            (escrow.amount || "0") +
-            " ETH."
-        );
-    }
-
-
-    // -------------------------------------------------
-    // ESCROW FUNDED
-    // -------------------------------------------------
-
-    if (
-        eventType === "EscrowFunded"
-    ) {
-
-        return (
-            "Escrow funded with " +
-            (details.amount || "0") +
-            " ETH."
-        );
-    }
-
-
-    // -------------------------------------------------
-    // AGREEMENT ACCEPTED
-    // -------------------------------------------------
-
-    if (
-        eventType === "AgreementAccepted"
-    ) {
-
-        return (
-            "Carrier accepted the logistics agreement."
-        );
-    }
-
-
-    // -------------------------------------------------
-    // MILESTONE COMPLETED
-    // -------------------------------------------------
-
-    if (
-        eventType === "MilestoneCompleted"
-    ) {
-
-        return (
-            (details.checkpoint || "Milestone") +
-            " completed."
-        );
-    }
-
-
-    // -------------------------------------------------
-    // MILESTONE VERIFIED
-    // -------------------------------------------------
-
-    if (
-        eventType === "MilestoneVerified"
-    ) {
-
-        return (
-            (details.checkpoint || "Milestone") +
-            " verified."
-        );
-    }
-
-
-    // -------------------------------------------------
-    // MILESTONE PAYOUT
-    // -------------------------------------------------
-
-    if (
-        eventType === "MilestonePayout"
-    ) {
-
-        return (
-            (details.amount || "0") +
-            " ETH released for " +
-            (details.checkpoint || "milestone") +
-            ". Remaining escrow: " +
-            (details.escrow_remaining || "0") +
-            " ETH."
-        );
-    }
-
-
-    // -------------------------------------------------
-    // AGREEMENT COMPLETED
-    // -------------------------------------------------
-
-    if (
-        eventType === "AgreementCompleted"
-    ) {
-
-        return (
-            "Agreement completed successfully."
-        );
-    }
-
-
-    // -------------------------------------------------
-    // AGREEMENT CANCELLED
-    // -------------------------------------------------
-
-    if (
-        eventType === "AgreementCancelled"
-    ) {
-
-        return (
-            "Agreement cancelled."
-        );
-    }
-
-
-    // -------------------------------------------------
-    // ESCROW REFUNDED
-    // -------------------------------------------------
-
-    if (
-        eventType === "EscrowRefunded"
-    ) {
-
-        return (
-            (details.amount || "0") +
-            " ETH refunded to the shipper."
-        );
-    }
-
-
-    // -------------------------------------------------
-    // AGREEMENT EXPIRED
-    // -------------------------------------------------
-
-    if (
-        eventType === "AgreementExpired"
-    ) {
-
-        return (
-            "Agreement expired."
-        );
-    }
-
-
-    // -------------------------------------------------
-    // FALLBACK
-    // -------------------------------------------------
-
-    return (
-        details.message ||
-        details.description ||
-        transaction.details ||
-        "-"
-    );
-}
-
-// =====================================================
-// COUNTDOWN
-// =====================================================
-
 function updateCountdown(
     deadline
 ) {
@@ -3092,47 +2315,30 @@ function updateCountdown(
             "expiry-countdown"
         );
 
-
     if (!element) {
-
         return;
     }
 
-
     function update() {
 
-        const now =
+        const difference =
+            Number(deadline) -
             Math.floor(
                 Date.now() / 1000
             );
 
-
-        const difference =
-            Number(deadline) -
-            now;
-
-
         if (
             difference <= 0
         ) {
-
             element.innerText =
                 "Expired";
-
-
-            element.style.color =
-                "#ef4444";
-
-
             return;
         }
-
 
         const days =
             Math.floor(
                 difference / 86400
             );
-
 
         const hours =
             Math.floor(
@@ -3140,159 +2346,89 @@ function updateCountdown(
                 3600
             );
 
-
         const minutes =
             Math.floor(
                 (difference % 3600) /
                 60
             );
 
-
         element.innerText =
             `${days}d ${hours}h ${minutes}m`;
-
-
-        element.style.color =
-            "";
     }
 
-
     update();
-
 
     setInterval(
         update,
         60000
     );
-
 }
 
+async function detectNetwork() {
 
-// =====================================================
-// DATE
-// =====================================================
+    try {
 
-function formatDate(
-    timestamp
-) {
-
-    if (!timestamp) {
-
-        return "-";
-    }
-
-
-    return new Date(
-        Number(timestamp) * 1000
-    ).toLocaleDateString(
-        "en-US",
-        {
-
-            year:
-                "numeric",
-
-            month:
-                "long",
-
-            day:
-                "numeric"
-
+        if (
+            typeof window.ethereum ===
+            "undefined"
+        ) {
+            return;
         }
-    );
 
-}
+        const web3 =
+            new Web3(
+                window.ethereum
+            );
 
+        const chainId =
+            Number(
+                await web3.eth.getChainId()
+            );
 
-// =====================================================
-// TIMESTAMP
-// =====================================================
+        setText(
+            "network-name",
+            (
+                chainId === 1337 ||
+                chainId === 5777
+            )
+                ? "Ganache"
+                : `Chain ${chainId}`
+        );
 
-function formatTimestamp(
-    timestamp
-) {
+    } catch (error) {
 
-    if (!timestamp) {
-
-        return "-";
+        console.warn(
+            "Network detection failed:",
+            error
+        );
     }
-
-
-    return new Date(
-        timestamp
-    ).toLocaleString();
-
 }
-
-
-// =====================================================
-// ADDRESS
-// =====================================================
 
 function shortenAddress(
     address
 ) {
 
     if (!address) {
-
         return "-";
     }
-
 
     if (
         address.length < 12
     ) {
-
         return address;
     }
 
-
     return (
-        address.substring(0, 6) +
+        address.substring(
+            0,
+            6
+        ) +
         "..." +
         address.substring(
             address.length - 4
         )
     );
-
 }
-
-
-// =====================================================
-// HASH
-// =====================================================
-
-function shortenHash(
-    hash
-) {
-
-    if (!hash) {
-
-        return "-";
-    }
-
-
-    if (
-        hash.length < 20
-    ) {
-
-        return hash;
-    }
-
-
-    return (
-        hash.substring(0, 10) +
-        "..." +
-        hash.substring(
-            hash.length - 8
-        )
-    );
-
-}
-
-
-// =====================================================
-// HTML ESCAPE
-// =====================================================
 
 function escapeHtml(
     value
@@ -3302,44 +2438,31 @@ function escapeHtml(
         value === null ||
         value === undefined
     ) {
-
         return "";
     }
 
-
     return String(value)
-
         .replace(
             /&/g,
             "&amp;"
         )
-
         .replace(
             /</g,
             "&lt;"
         )
-
         .replace(
             />/g,
             "&gt;"
         )
-
         .replace(
             /"/g,
             "&quot;"
         )
-
         .replace(
             /'/g,
             "&#039;"
         );
-
 }
-
-
-// =====================================================
-// ERROR
-// =====================================================
 
 function showError(
     message
@@ -3350,34 +2473,25 @@ function showError(
             "details-loading"
         );
 
-
     if (loading) {
-
         loading.style.display =
             "none";
     }
-
 
     const errorElement =
         document.getElementById(
             "details-error"
         );
 
-
     if (!errorElement) {
-
         return;
     }
-
 
     errorElement.style.display =
         "block";
 
-
     errorElement.innerHTML = `
-
         <i class="fa-solid fa-circle-exclamation"></i>
-
         ${escapeHtml(message)}
 
         <br><br>
@@ -3385,7 +2499,5 @@ function showError(
         <a href="agreements.html">
             ← Back to Agreements
         </a>
-
     `;
-
 }

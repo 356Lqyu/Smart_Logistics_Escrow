@@ -1,3 +1,5 @@
+let currentAccount = null;
+
 document.addEventListener("DOMContentLoaded", () => {
 
     const connectButton = document.getElementById("connectWalletBtn");
