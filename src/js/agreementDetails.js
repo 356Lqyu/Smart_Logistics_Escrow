@@ -6,6 +6,11 @@ let agreementId = null;
 let agreementData = null;
 let milestoneData = [];
 
+
+// =====================================================
+// PAGE INITIALIZATION
+// =====================================================
+
 document.addEventListener(
     "DOMContentLoaded",
     async () => {
@@ -26,7 +31,23 @@ document.addEventListener(
                 );
             }
 
+            // -------------------------------------------------
+            // Load agreement
+            // -------------------------------------------------
+
             await loadAgreement();
+
+            // -------------------------------------------------
+            // IMPORTANT:
+            // Automatically process expiry before rendering.
+            // -------------------------------------------------
+
+            await processAgreementExpiry();
+
+            // Reload after expiry in case blockchain/database
+            // state was changed.
+            await loadAgreement();
+
             await loadMilestones();
 
             renderAgreement();
@@ -57,6 +78,7 @@ document.addEventListener(
     }
 );
 
+
 // =====================================================
 // LOAD AGREEMENT
 // =====================================================
@@ -72,7 +94,7 @@ async function loadAgreement() {
             .select("*")
             .eq(
                 "agreement_id",
-                agreementId
+                Number(agreementId)
             )
             .single();
 
@@ -90,7 +112,7 @@ async function loadAgreement() {
         data;
 
     // -------------------------------------------------
-    // Blockchain is authoritative.
+    // Blockchain is authoritative
     // -------------------------------------------------
 
     if (
@@ -155,6 +177,386 @@ async function loadAgreement() {
     }
 }
 
+
+// =====================================================
+// PROCESS AGREEMENT EXPIRY
+// =====================================================
+//
+// IMPORTANT:
+//
+// Expiry is determined by the blockchain deadline.
+//
+// If:
+//      current time > deadline
+//
+// and the blockchain agreement is not already Completed,
+// Cancelled or Expired:
+//
+//      call expireAgreement()
+//
+// The smart contract must refund remaining escrow
+// to the Shipper and change blockchain status to Expired.
+//
+// =====================================================
+
+async function processAgreementExpiry() {
+
+    if (!agreementData) {
+        return;
+    }
+
+    const deadline =
+        Number(
+            agreementData.blockchain_deadline ||
+            agreementData.deadline ||
+            0
+        );
+
+    if (!deadline) {
+        return;
+    }
+
+    const now =
+        Math.floor(
+            Date.now() / 1000
+        );
+
+    // Agreement has not expired yet.
+    if (now <= deadline) {
+        return;
+    }
+
+    // Do NOT expire if the agreement is already Completed, Cancelled, or Expired
+    const blockchainStatus =
+        Number(
+            agreementData.blockchain_status || 0
+        );
+    if (blockchainStatus === 2 || blockchainStatus === 3) {
+        return;
+    }
+
+    // If any milestone is already completed or verified by the carrier/shipper, 
+    // do not force-expire the agreement behind their backs.
+    const hasProgressed = milestoneData.some(m => normalizeBool(m.completed) || normalizeBool(m.verified));
+    if (hasProgressed) {
+        return;
+    }
+
+    // Already expired
+    if (blockchainStatus === 4) {
+
+        await syncExpiredAgreementToSupabase();
+
+        return;
+    }
+
+    // -------------------------------------------------
+    // Blockchain expiry
+    // -------------------------------------------------
+
+    if (
+        typeof window.ethereum ===
+        "undefined"
+    ) {
+
+        console.warn(
+            "MetaMask unavailable. Agreement is expired by deadline but blockchain expiry could not be processed."
+        );
+
+        return;
+    }
+
+    try {
+
+        const web3 =
+            new Web3(
+                window.ethereum
+            );
+
+        const contract =
+            new web3.eth.Contract(
+                CONTRACT_ABI,
+                CONTRACT_ADDRESS
+            );
+
+        const accounts =
+            await window.ethereum.request({
+                method:
+                    "eth_requestAccounts"
+            });
+
+        if (
+            !accounts ||
+            accounts.length === 0
+        ) {
+            console.warn(
+                "No wallet connected. Expiry transaction cannot be submitted."
+            );
+
+            return;
+        }
+
+        const account =
+            accounts[0];
+
+        console.log(
+            "Agreement deadline passed. Attempting blockchain expiry..."
+        );
+
+        // -------------------------------------------------
+        // Check current blockchain state again.
+        // -------------------------------------------------
+
+        const chainAgreement =
+            await contract.methods
+                .getAgreementBasic(
+                    Number(agreementId)
+                )
+                .call();
+
+        const currentStatus =
+            Number(
+                chainAgreement.status
+            );
+
+        // Completed / Cancelled
+        if (
+            currentStatus === 2 ||
+            currentStatus === 3
+        ) {
+            return;
+        }
+
+        // Already expired
+        if (
+            currentStatus === 4
+        ) {
+
+            agreementData.blockchain_status =
+                4;
+
+            await syncExpiredAgreementToSupabase();
+
+            return;
+        }
+
+        // -------------------------------------------------
+        // Confirm expiry
+        // -------------------------------------------------
+
+        const confirmed =
+            confirm(
+                "This agreement has passed its deadline.\n\n" +
+                "The remaining escrow will be refunded to the Shipper and the agreement will be marked as Expired.\n\n" +
+                "Continue?"
+            );
+
+        if (!confirmed) {
+            return;
+        }
+
+        // -------------------------------------------------
+        // Execute blockchain expiry
+        // -------------------------------------------------
+
+        const tx =
+            await contract.methods
+                .expireAgreement(
+                    Number(agreementId)
+                )
+                .send({
+                    from:
+                        account
+                });
+
+        console.log(
+            "Agreement expired on blockchain:",
+            tx.transactionHash
+        );
+
+        // -------------------------------------------------
+        // Update Supabase
+        // -------------------------------------------------
+
+        await syncExpiredAgreementToSupabase(
+            tx.transactionHash,
+            account
+        );
+
+        alert(
+            "Agreement expired successfully.\n\n" +
+            "The remaining escrow has been refunded to the Shipper."
+        );
+
+        // Reload page state
+        await loadAgreement();
+
+    } catch (error) {
+
+        console.error(
+            "Agreement expiry failed:",
+            error
+        );
+
+        if (
+            error?.code === 4001
+        ) {
+
+            alert(
+                "Expiry transaction was rejected in MetaMask."
+            );
+
+            return;
+        }
+
+        console.warn(
+            "Could not automatically expire agreement:",
+            error
+        );
+    }
+}
+
+
+// =====================================================
+// SYNC EXPIRED AGREEMENT TO SUPABASE
+// =====================================================
+
+async function syncExpiredAgreementToSupabase(
+    transactionHash = null,
+    actor = null
+) {
+
+    try {
+
+        const remainingWei =
+            agreementData
+                ?.blockchain_escrow_remaining;
+
+        let remainingEth = 0;
+
+        if (
+            remainingWei !==
+            undefined &&
+            remainingWei !==
+            null
+        ) {
+
+            remainingEth =
+                getBlockchainEth(
+                    remainingWei,
+                    0
+                );
+
+        } else {
+
+            remainingEth =
+                Number(
+                    agreementData.escrow_remaining ||
+                    0
+                );
+        }
+
+        // -------------------------------------------------
+        // Update agreement
+        // -------------------------------------------------
+
+        const {
+            error
+        } =
+            await supabaseClient
+                .from("agreements")
+                .update({
+
+                    status:
+                        "Expired",
+
+                    expired_at:
+                        Math.floor(
+                            Date.now() / 1000
+                        ),
+
+                    refunded_amount:
+                        remainingEth,
+
+                    escrow_remaining:
+                        0,
+
+                    escrow_released:
+                        Number(
+                            agreementData.escrow_released ||
+                            0
+                        ) +
+                        remainingEth
+                })
+                .eq(
+                    "agreement_id",
+                    Number(agreementId)
+                );
+
+        if (error) {
+
+            console.error(
+                "Failed to update expired agreement in Supabase:",
+                error
+            );
+
+            return;
+        }
+
+        // -------------------------------------------------
+        // Save transaction
+        // -------------------------------------------------
+
+        if (
+            transactionHash &&
+            actor
+        ) {
+
+            await saveTransaction(
+                transactionHash,
+                "AgreementExpired",
+                actor,
+                {
+                    status:
+                        "Expired",
+
+                    escrow_refunded:
+                        remainingEth,
+
+                    description:
+                        "Agreement expired after the deadline. Remaining escrow was refunded to the Shipper."
+                }
+            );
+        }
+
+        // Update local state
+        agreementData.status =
+            "Expired";
+
+        agreementData.expired_at =
+            Math.floor(
+                Date.now() / 1000
+            );
+
+        agreementData.escrow_remaining =
+            0;
+
+        agreementData.refunded_amount =
+            remainingEth;
+
+        agreementData.blockchain_status =
+            4;
+
+    } catch (error) {
+
+        console.error(
+            "Expired agreement synchronization failed:",
+            error
+        );
+    }
+}
+
+
 // =====================================================
 // LOAD MILESTONES
 // =====================================================
@@ -200,7 +602,7 @@ async function loadMilestones() {
         data || [];
 
     // -------------------------------------------------
-    // Prefer current blockchain state for milestone UI.
+    // Prefer blockchain milestone state
     // -------------------------------------------------
 
     if (
@@ -267,12 +669,14 @@ async function loadMilestones() {
                     milestoneData[i].completed_at =
                         Number(
                             chain.completedAt
-                        ) || null;
+                        ) ||
+                        null;
 
                     milestoneData[i].verified_at =
                         Number(
                             chain.verifiedAt
-                        ) || null;
+                        ) ||
+                        null;
                 }
             }
 
@@ -286,6 +690,7 @@ async function loadMilestones() {
     }
 }
 
+
 // =====================================================
 // RENDER AGREEMENT
 // =====================================================
@@ -294,6 +699,7 @@ function renderAgreement() {
 
     const status =
         agreementData.status ||
+        getStatusFromBlockchain() ||
         "Created";
 
     setText(
@@ -350,7 +756,7 @@ function renderAgreement() {
     );
 
     // -------------------------------------------------
-    // Escrow total
+    // Escrow
     // -------------------------------------------------
 
     const escrowEth =
@@ -382,6 +788,7 @@ function renderAgreement() {
     );
 
     if (deadline) {
+
         updateCountdown(
             deadline
         );
@@ -394,7 +801,7 @@ function renderAgreement() {
     detectNetwork();
 
     // -------------------------------------------------
-    // Etherscan link
+    // Etherscan
     // -------------------------------------------------
 
     const explorer =
@@ -403,6 +810,7 @@ function renderAgreement() {
         );
 
     if (explorer) {
+
         explorer.href =
             `https://etherscan.io/address/${CONTRACT_ADDRESS}`;
     }
@@ -454,26 +862,43 @@ function renderAgreement() {
     );
 
     // -------------------------------------------------
-    // Financial section visibility (Role-Safe Normalization)
+    // Financial section visibility
     // -------------------------------------------------
 
     const financialSection =
-        document.querySelector(".shipment-agreement-card");
+        document.querySelector(
+            ".shipment-agreement-card"
+        );
 
     const role =
-        String(localStorage.getItem("role") || "").toLowerCase();
+        String(
+            localStorage.getItem(
+                "role"
+            ) ||
+            ""
+        ).toLowerCase();
 
     const isCarrier =
         role === "2" ||
         role === "carrier";
 
     if (financialSection) {
-        const subsections = financialSection.querySelectorAll(".detail-subsection");
-        if (subsections.length >= 3) {
+
+        const subsections =
+            financialSection.querySelectorAll(
+                ".detail-subsection"
+            );
+
+        if (
+            subsections.length >=
+            3
+        ) {
+
             subsections[2].style.display =
                 (
                     isCarrier &&
-                    status === "Created"
+                    status ===
+                    "Created"
                 )
                     ? "none"
                     : "block";
@@ -508,6 +933,41 @@ function renderAgreement() {
     );
 }
 
+
+// =====================================================
+// GET STATUS FROM BLOCKCHAIN
+// =====================================================
+
+function getStatusFromBlockchain() {
+
+    const status =
+        Number(
+            agreementData?.blockchain_status
+        );
+
+    switch (status) {
+
+        case 0:
+            return "Created";
+
+        case 1:
+            return "In Progress";
+
+        case 2:
+            return "Completed";
+
+        case 3:
+            return "Cancelled";
+
+        case 4:
+            return "Expired";
+
+        default:
+            return null;
+    }
+}
+
+
 // =====================================================
 // MILESTONES
 // =====================================================
@@ -538,6 +998,7 @@ function renderMilestones() {
         `;
 
         updateOverallProgress();
+
         return;
     }
 
@@ -555,6 +1016,7 @@ function renderMilestones() {
         ) ||
         currentIndex < 0
     ) {
+
         currentIndex =
             findFirstUnpaidMilestone();
     }
@@ -563,12 +1025,18 @@ function renderMilestones() {
         currentIndex >=
         milestoneData.length
     ) {
+
         currentIndex =
             -1;
     }
 
     const role =
-        String(localStorage.getItem("role") || "").toLowerCase();
+        String(
+            localStorage.getItem(
+                "role"
+            ) ||
+            ""
+        ).toLowerCase();
 
     const isCarrier =
         role === "2" ||
@@ -621,10 +1089,22 @@ function renderMilestones() {
                 "Pending";
 
             if (
+                status ===
+                "Expired"
+            ) {
+
+                state =
+                    "expired";
+
+                stateText =
+                    "Expired";
+
+            } else if (
                 completed &&
                 verified &&
                 paid
             ) {
+
                 state =
                     "completed";
 
@@ -635,6 +1115,7 @@ function renderMilestones() {
                 completed &&
                 !verified
             ) {
+
                 state =
                     "active";
 
@@ -642,8 +1123,10 @@ function renderMilestones() {
                     "Awaiting Verification";
 
             } else if (
-                index === currentIndex
+                index ===
+                currentIndex
             ) {
+
                 state =
                     "active";
 
@@ -654,9 +1137,16 @@ function renderMilestones() {
             let action =
                 "";
 
+            // -------------------------------------------------
+            // NEVER show milestone actions after expiry
+            // -------------------------------------------------
+
             if (
-                status === "In Progress" &&
-                index === currentIndex
+                status ===
+                "In Progress" &&
+                !isAgreementExpired() &&
+                index ===
+                currentIndex
             ) {
 
                 if (
@@ -735,8 +1225,8 @@ function renderMilestones() {
 
                         <h3>
                             ${escapeHtml(
-                                checkpoint
-                            )}
+                checkpoint
+            )}
                         </h3>
 
                         <div class="milestone-meta">
@@ -755,10 +1245,25 @@ function renderMilestones() {
 
                         </div>
 
-                        ${
-                            completed &&
-                            !verified
-                                ? `
+                        ${status === "Expired"
+                    ? `
+                                    <small
+                                        style="
+                                            display:block;
+                                            margin-top:6px;
+                                            color:#ef4444;
+                                        "
+                                    >
+                                        Agreement expired. This milestone can no longer be submitted or verified.
+                                    </small>
+                                `
+                    : ""
+                }
+
+                        ${completed &&
+                    !verified &&
+                    status !== "Expired"
+                    ? `
                                     <small
                                         style="
                                             display:block;
@@ -768,15 +1273,14 @@ function renderMilestones() {
                                     >
                                         Carrier submitted completion.
                                     </small>
-                                  `
-                                : ""
-                        }
+                                `
+                    : ""
+                }
 
-                        ${
-                            completed &&
-                            verified &&
-                            paid
-                                ? `
+                        ${completed &&
+                    verified &&
+                    paid
+                    ? `
                                     <small
                                         style="
                                             display:block;
@@ -786,9 +1290,9 @@ function renderMilestones() {
                                     >
                                         ${amount} ETH released to Carrier.
                                     </small>
-                                  `
-                                : ""
-                        }
+                                `
+                    : ""
+                }
 
                         ${action}
 
@@ -815,6 +1319,32 @@ function renderMilestones() {
     updateOverallProgress();
 }
 
+
+// =====================================================
+// CHECK EXPIRY
+// =====================================================
+
+function isAgreementExpired() {
+
+    const deadline =
+        Number(
+            agreementData?.blockchain_deadline ||
+            agreementData?.deadline ||
+            0
+        );
+
+    if (!deadline) {
+        return false;
+    }
+
+    return (
+        Math.floor(
+            Date.now() / 1000
+        ) > deadline
+    );
+}
+
+
 // =====================================================
 // CARRIER SUBMITS COMPLETION
 // =====================================================
@@ -825,10 +1355,26 @@ async function submitMilestoneCompletion(
 
     try {
 
+        // -------------------------------------------------
+        // HARD EXPIRY CHECK
+        // -------------------------------------------------
+
+        if (
+            isAgreementExpired()
+        ) {
+
+            await processAgreementExpiry();
+
+            throw new Error(
+                "This agreement has expired. The remaining escrow must be refunded to the Shipper. Milestone submissions are no longer allowed."
+            );
+        }
+
         if (
             agreementData.status !==
             "In Progress"
         ) {
+
             throw new Error(
                 "The agreement is not In Progress."
             );
@@ -838,6 +1384,7 @@ async function submitMilestoneCompletion(
             typeof window.ethereum ===
             "undefined"
         ) {
+
             throw new Error(
                 "MetaMask is required."
             );
@@ -858,8 +1405,9 @@ async function submitMilestoneCompletion(
         if (
             carrier &&
             account.toLowerCase() !==
-                carrier.toLowerCase()
+            carrier.toLowerCase()
         ) {
+
             throw new Error(
                 "Only the assigned Carrier can submit milestone completion."
             );
@@ -871,6 +1419,7 @@ async function submitMilestoneCompletion(
         if (
             index < 0
         ) {
+
             throw new Error(
                 "There is no pending milestone."
             );
@@ -884,6 +1433,7 @@ async function submitMilestoneCompletion(
                 milestone.completed
             )
         ) {
+
             throw new Error(
                 "This milestone is already awaiting verification or completed."
             );
@@ -899,6 +1449,57 @@ async function submitMilestoneCompletion(
                 CONTRACT_ABI,
                 CONTRACT_ADDRESS
             );
+
+        // -------------------------------------------------
+        // Check blockchain status again
+        // -------------------------------------------------
+
+        const chainAgreement =
+            await contract.methods
+                .getAgreementBasic(
+                    Number(id)
+                )
+                .call();
+
+        const chainStatus =
+            Number(
+                chainAgreement.status
+            );
+
+        if (
+            chainStatus === 4
+        ) {
+
+            await syncExpiredAgreementToSupabase();
+
+            throw new Error(
+                "This agreement has expired. The escrow has been refunded to the Shipper."
+            );
+        }
+
+        // -------------------------------------------------
+        // Check deadline again
+        // -------------------------------------------------
+
+        const chainDeadline =
+            Number(
+                chainAgreement.deadline
+            );
+
+        if (
+            chainDeadline &&
+            Math.floor(
+                Date.now() / 1000
+            ) >
+            chainDeadline
+        ) {
+
+            await processAgreementExpiry();
+
+            throw new Error(
+                "This agreement has expired. Milestone submission is no longer allowed."
+            );
+        }
 
         const confirmed =
             confirm(
@@ -916,6 +1517,7 @@ async function submitMilestoneCompletion(
             );
 
         if (button) {
+
             button.disabled =
                 true;
 
@@ -999,13 +1601,14 @@ async function submitMilestoneCompletion(
                 error?.code === 4001
                     ? "Transaction was rejected in MetaMask."
                     : error?.message ||
-                      String(error)
+                    String(error)
             )
         );
 
         renderMilestones();
     }
 }
+
 
 // =====================================================
 // SHIPPER VERIFIES + RELEASES
@@ -1018,9 +1621,21 @@ async function verifyMilestone(
     try {
 
         if (
+            isAgreementExpired()
+        ) {
+
+            await processAgreementExpiry();
+
+            throw new Error(
+                "This agreement has expired. Milestone verification is no longer allowed."
+            );
+        }
+
+        if (
             agreementData.status !==
             "In Progress"
         ) {
+
             throw new Error(
                 "The agreement is not In Progress."
             );
@@ -1030,6 +1645,7 @@ async function verifyMilestone(
             typeof window.ethereum ===
             "undefined"
         ) {
+
             throw new Error(
                 "MetaMask is required."
             );
@@ -1055,6 +1671,7 @@ async function verifyMilestone(
             account.toLowerCase() !==
             shipper
         ) {
+
             throw new Error(
                 "Only the Shipper can verify a milestone."
             );
@@ -1066,6 +1683,7 @@ async function verifyMilestone(
         if (
             index < 0
         ) {
+
             throw new Error(
                 "There is no milestone awaiting verification."
             );
@@ -1079,6 +1697,7 @@ async function verifyMilestone(
                 milestone.completed
             )
         ) {
+
             throw new Error(
                 "Carrier has not submitted this milestone."
             );
@@ -1092,6 +1711,7 @@ async function verifyMilestone(
                 milestone.paid
             )
         ) {
+
             throw new Error(
                 "This milestone has already been paid."
             );
@@ -1129,6 +1749,7 @@ async function verifyMilestone(
             );
 
         if (button) {
+
             button.disabled =
                 true;
 
@@ -1326,13 +1947,14 @@ async function verifyMilestone(
                 error?.code === 4001
                     ? "Transaction was rejected in MetaMask."
                     : error?.message ||
-                      String(error)
+                    String(error)
             )
         );
 
         renderMilestones();
     }
 }
+
 
 // =====================================================
 // CURRENT MILESTONE
@@ -1352,13 +1974,15 @@ function getCurrentMilestoneIndex() {
         ) &&
         blockchainIndex >= 0 &&
         blockchainIndex <
-            milestoneData.length
+        milestoneData.length
     ) {
+
         return blockchainIndex;
     }
 
     return findFirstUnpaidMilestone();
 }
+
 
 function findFirstUnpaidMilestone() {
 
@@ -1381,6 +2005,7 @@ function findFirstUnpaidMilestone() {
     return -1;
 }
 
+
 // =====================================================
 // CALCULATE PAYOUT DISPLAY
 // =====================================================
@@ -1401,6 +2026,7 @@ function calculateMilestoneAmount(
         100
     ).toFixed(3);
 }
+
 
 // =====================================================
 // OVERALL PROGRESS
@@ -1444,6 +2070,7 @@ function updateOverallProgress() {
                 verified &&
                 paid
             ) {
+
                 completedPercentage +=
                     Number(
                         milestone.percentage ||
@@ -1454,11 +2081,13 @@ function updateOverallProgress() {
     );
 
     if (progressText) {
+
         progressText.innerText =
             `${completedPercentage}%`;
     }
 
     if (progressBar) {
+
         progressBar.style.width =
             `${Math.min(
                 completedPercentage,
@@ -1466,6 +2095,7 @@ function updateOverallProgress() {
             )}%`;
     }
 }
+
 
 // =====================================================
 // LIFECYCLE
@@ -1484,7 +2114,12 @@ function renderLifecycle() {
 
     const status =
         agreementData.status ||
+        getStatusFromBlockchain() ||
         "Created";
+
+    // -------------------------------------------------
+    // CANCELLED
+    // -------------------------------------------------
 
     if (
         status ===
@@ -1497,18 +2132,23 @@ function renderLifecycle() {
                 {
                     label:
                         "Created",
+
                     state:
                         "completed"
                 },
+
                 {
                     label:
                         "Cancelled",
+
                     state:
                         "cancelled"
                 },
+
                 {
                     label:
                         "Refunded",
+
                     state:
                         "refunded"
                 }
@@ -1517,6 +2157,10 @@ function renderLifecycle() {
 
         return;
     }
+
+    // -------------------------------------------------
+    // EXPIRED
+    // -------------------------------------------------
 
     if (
         status ===
@@ -1529,29 +2173,36 @@ function renderLifecycle() {
                 {
                     label:
                         "Created",
+
                     state:
                         "completed"
                 },
+
                 {
                     label:
                         "Accepted",
+
                     state:
                         agreementData.blockchain_carrier &&
-                        !isZeroAddress(
-                            agreementData.blockchain_carrier
-                        )
+                            !isZeroAddress(
+                                agreementData.blockchain_carrier
+                            )
                             ? "completed"
                             : "pending"
                 },
+
                 {
                     label:
                         "Expired",
+
                     state:
                         "expired"
                 },
+
                 {
                     label:
                         "Refunded",
+
                     state:
                         "refunded"
                 }
@@ -1561,16 +2212,23 @@ function renderLifecycle() {
         return;
     }
 
+    // -------------------------------------------------
+    // NORMAL
+    // -------------------------------------------------
+
     const stages = [
         {
             label:
                 "Created",
+
             state:
                 "completed"
         },
+
         {
             label:
                 "Accepted",
+
             state:
                 "pending"
         }
@@ -1585,12 +2243,15 @@ function renderLifecycle() {
             carrier
         )
     ) {
+
         stages[1].state =
             "completed";
+
     } else if (
         status ===
         "Created"
     ) {
+
         stages[1].state =
             "pending";
     }
@@ -1614,8 +2275,10 @@ function renderLifecycle() {
                 );
 
             stages.push({
+
                 label:
                     milestone.checkpoint,
+
                 state:
                     (
                         completed &&
@@ -1633,11 +2296,13 @@ function renderLifecycle() {
     );
 
     stages.push({
+
         label:
             "Completed",
+
         state:
             status ===
-            "Completed"
+                "Completed"
                 ? "completed"
                 : "pending"
     });
@@ -1647,6 +2312,11 @@ function renderLifecycle() {
         stages
     );
 }
+
+
+// =====================================================
+// RENDER LIFECYCLE STAGES
+// =====================================================
 
 function renderLifecycleStages(
     container,
@@ -1663,41 +2333,47 @@ function renderLifecycleStages(
         ) => {
 
             let className =
-                "";
+                "pending";
 
             if (
                 stage.state ===
                 "completed"
             ) {
+
                 className =
                     "completed";
+
             } else if (
                 stage.state ===
                 "active"
             ) {
+
                 className =
                     "active";
+
             } else if (
                 stage.state ===
                 "cancelled"
             ) {
+
                 className =
                     "cancelled";
+
             } else if (
                 stage.state ===
                 "expired"
             ) {
+
                 className =
                     "expired";
+
             } else if (
                 stage.state ===
                 "refunded"
             ) {
+
                 className =
                     "refunded";
-            } else {
-                className =
-                    "pending";
             }
 
             let circle =
@@ -1707,24 +2383,31 @@ function renderLifecycleStages(
                 stage.state ===
                 "completed"
             ) {
+
                 circle =
                     '<i class="fa-solid fa-check"></i>';
+
             } else if (
                 stage.state ===
                 "cancelled"
             ) {
+
                 circle =
                     '<i class="fa-solid fa-xmark"></i>';
+
             } else if (
                 stage.state ===
                 "expired"
             ) {
+
                 circle =
                     '<i class="fa-solid fa-clock"></i>';
+
             } else if (
                 stage.state ===
                 "refunded"
             ) {
+
                 circle =
                     '<i class="fa-solid fa-rotate-left"></i>';
             }
@@ -1738,8 +2421,8 @@ function renderLifecycleStages(
 
                     <span>
                         ${escapeHtml(
-                            stage.label
-                        )}
+                stage.label
+            )}
                     </span>
 
                 </div>
@@ -1751,8 +2434,9 @@ function renderLifecycleStages(
         html;
 }
 
+
 // =====================================================
-// ACTIONS (Role-Safe Cancel Check)
+// ACTIONS
 // =====================================================
 
 function setupActions() {
@@ -1763,7 +2447,12 @@ function setupActions() {
         );
 
     const role =
-        String(localStorage.getItem("role") || "").toLowerCase();
+        String(
+            localStorage.getItem(
+                "role"
+            ) ||
+            ""
+        ).toLowerCase();
 
     const isShipper =
         role === "1" ||
@@ -1773,13 +2462,35 @@ function setupActions() {
         role === "2" ||
         role === "carrier";
 
+    // -------------------------------------------------
+    // EXPIRED
+    // -------------------------------------------------
+
+    if (
+        agreementData.status ===
+        "Expired"
+    ) {
+
+        if (cancelButton) {
+
+            cancelButton.style.display =
+                "none";
+        }
+
+        return;
+    }
+
+    // -------------------------------------------------
+    // CANCEL / ACCEPT
+    // -------------------------------------------------
+
     if (cancelButton) {
 
-        // Only shipper can cancel, and only when Created.
+        // Shipper can cancel Created
         if (
             isShipper &&
             agreementData.status ===
-                "Created"
+            "Created"
         ) {
 
             cancelButton.style.display =
@@ -1787,24 +2498,37 @@ function setupActions() {
 
             cancelButton.disabled =
                 false;
+
+            cancelButton.className =
+                "danger-action-btn";
+
+            cancelButton.innerHTML = `
+                <i class="fa-solid fa-xmark"></i>
+                Cancel Agreement
+            `;
 
             cancelButton.onclick =
                 cancelAgreement;
 
-        } else if (
+        }
+
+        // Carrier can accept Created
+        else if (
             isCarrier &&
             agreementData.status ===
-                "Created"
+            "Created" &&
+            !isAgreementExpired()
         ) {
-            // Show Accept Agreement button in the exact same slot for carriers
+
             cancelButton.style.display =
                 "inline-flex";
 
             cancelButton.disabled =
                 false;
 
-            cancelButton.className = "primary-action-btn"; // Switch style to primary action button
-            
+            cancelButton.className =
+                "primary-action-btn";
+
             cancelButton.innerHTML = `
                 <i class="fa-solid fa-check"></i>
                 Accept Agreement
@@ -1813,7 +2537,10 @@ function setupActions() {
             cancelButton.onclick =
                 acceptAgreementDetailsAction;
 
-        } else {
+        }
+
+        else {
+
             cancelButton.style.display =
                 "none";
         }
@@ -1822,71 +2549,202 @@ function setupActions() {
 
 
 // =====================================================
-// ACCEPT AGREEMENT FROM DETAILS PAGE (CARRIER)
+// ACCEPT AGREEMENT
 // =====================================================
 
 async function acceptAgreementDetailsAction() {
+
     try {
-        if (typeof window.ethereum === "undefined") {
-            throw new Error("MetaMask is required.");
+
+        // -------------------------------------------------
+        // NEVER allow accepting after deadline
+        // -------------------------------------------------
+
+        if (
+            isAgreementExpired()
+        ) {
+
+            await processAgreementExpiry();
+
+            throw new Error(
+                "This agreement has expired. It can no longer be accepted."
+            );
         }
 
-        const accounts = await window.ethereum.request({
-            method: "eth_requestAccounts"
-        });
+        if (
+            typeof window.ethereum ===
+            "undefined"
+        ) {
 
-        if (!accounts || accounts.length === 0) {
-            throw new Error("No wallet connected.");
+            throw new Error(
+                "MetaMask is required."
+            );
         }
 
-        const currentAccount = accounts[0];
-        const web3 = new Web3(window.ethereum);
-        const contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
+        const accounts =
+            await window.ethereum.request({
+                method:
+                    "eth_requestAccounts"
+            });
 
-        const confirmed = confirm(
-            "Accept this logistics agreement?\n\nAfter acceptance, the agreement becomes In Progress."
-        );
+        if (
+            !accounts ||
+            accounts.length === 0
+        ) {
+
+            throw new Error(
+                "No wallet connected."
+            );
+        }
+
+        const currentAccount =
+            accounts[0];
+
+        const web3 =
+            new Web3(
+                window.ethereum
+            );
+
+        const contract =
+            new web3.eth.Contract(
+                CONTRACT_ABI,
+                CONTRACT_ADDRESS
+            );
+
+        // -------------------------------------------------
+        // Check blockchain state
+        // -------------------------------------------------
+
+        const chainAgreement =
+            await contract.methods
+                .getAgreementBasic(
+                    Number(agreementId)
+                )
+                .call();
+
+        const deadline =
+            Number(
+                chainAgreement.deadline
+            );
+
+        if (
+            deadline &&
+            Math.floor(
+                Date.now() / 1000
+            ) >
+            deadline
+        ) {
+
+            await processAgreementExpiry();
+
+            throw new Error(
+                "This agreement has expired and cannot be accepted."
+            );
+        }
+
+        const confirmed =
+            confirm(
+                "Accept this logistics agreement?\n\n" +
+                "After acceptance, the agreement becomes In Progress."
+            );
 
         if (!confirmed) {
             return;
         }
 
-        const tx = await contract.methods.acceptAgreement(Number(agreementId)).send({
-            from: currentAccount
-        });
+        const tx =
+            await contract.methods
+                .acceptAgreement(
+                    Number(agreementId)
+                )
+                .send({
+                    from:
+                        currentAccount
+                });
 
-        const now = Math.floor(Date.now() / 1000);
+        const now =
+            Math.floor(
+                Date.now() / 1000
+            );
 
         await supabaseClient
             .from("agreements")
             .update({
-                status: "In Progress",
-                carrier_address: currentAccount.toLowerCase(),
-                accepted_at: now
+
+                status:
+                    "In Progress",
+
+                carrier_address:
+                    currentAccount.toLowerCase(),
+
+                accepted_at:
+                    now
+
             })
-            .eq("agreement_id", agreementId);
+            .eq(
+                "agreement_id",
+                Number(agreementId)
+            );
 
-        await supabaseClient.from("transactions").insert([{
-            transaction_hash: tx.transactionHash,
-            agreement_id: Number(agreementId),
-            event_type: "AgreementAccepted",
-            actor_address: currentAccount.toLowerCase(),
-            details: {
-                status: "In Progress",
-                description: "Carrier accepted the logistics agreement."
-            }
-        }]);
+        await supabaseClient
+            .from("transactions")
+            .insert([
+                {
 
-        alert("Agreement accepted successfully!\n\nStatus: In Progress");
+                    transaction_hash:
+                        tx.transactionHash,
+
+                    agreement_id:
+                        Number(agreementId),
+
+                    event_type:
+                        "AgreementAccepted",
+
+                    actor_address:
+                        currentAccount.toLowerCase(),
+
+                    details:
+                    {
+                        status:
+                            "In Progress",
+
+                        description:
+                            "Carrier accepted the logistics agreement."
+                    }
+                }
+            ]);
+
+        alert(
+            "Agreement accepted successfully!\n\n" +
+            "Status: In Progress"
+        );
+
         window.location.reload();
 
     } catch (error) {
-        console.error("Acceptance failed:", error);
-        let message = error?.message || String(error);
-        if (error?.code === 4001) {
-            message = "Transaction was rejected in MetaMask.";
+
+        console.error(
+            "Acceptance failed:",
+            error
+        );
+
+        let message =
+            error?.message ||
+            String(error);
+
+        if (
+            error?.code ===
+            4001
+        ) {
+
+            message =
+                "Transaction was rejected in MetaMask.";
         }
-        alert("Failed to accept agreement:\n\n" + message);
+
+        alert(
+            "Failed to accept agreement:\n\n" +
+            message
+        );
     }
 }
 
@@ -1901,22 +2759,48 @@ async function cancelAgreement() {
         agreementData.status !==
         "Created"
     ) {
+
         alert(
             "Only a Created agreement can be cancelled."
         );
+
         return;
     }
 
     const role =
-        String(localStorage.getItem("role") || "").toLowerCase();
+        String(
+            localStorage.getItem(
+                "role"
+            ) ||
+            ""
+        ).toLowerCase();
 
     if (
         role !== "1" &&
         role !== "shipper"
     ) {
+
         alert(
             "Only the Shipper can cancel the agreement."
         );
+
+        return;
+    }
+
+    // -------------------------------------------------
+    // If expired, expiry should be used instead
+    // -------------------------------------------------
+
+    if (
+        isAgreementExpired()
+    ) {
+
+        await processAgreementExpiry();
+
+        alert(
+            "This agreement has expired. It cannot be cancelled. The expiry refund process has been initiated."
+        );
+
         return;
     }
 
@@ -1926,6 +2810,7 @@ async function cancelAgreement() {
             "The complete remaining escrow will be refunded to the Shipper."
         )
     ) {
+
         return;
     }
 
@@ -1935,6 +2820,7 @@ async function cancelAgreement() {
             typeof window.ethereum ===
             "undefined"
         ) {
+
             throw new Error(
                 "MetaMask is required."
             );
@@ -1960,6 +2846,7 @@ async function cancelAgreement() {
             account.toLowerCase() !==
             shipper
         ) {
+
             throw new Error(
                 "Only the Shipper can cancel this agreement."
             );
@@ -1982,6 +2869,7 @@ async function cancelAgreement() {
             );
 
         if (button) {
+
             button.disabled =
                 true;
 
@@ -2009,6 +2897,7 @@ async function cancelAgreement() {
         await supabaseClient
             .from("agreements")
             .update({
+
                 status:
                     "Cancelled",
 
@@ -2025,6 +2914,7 @@ async function cancelAgreement() {
 
                 escrow_remaining:
                     0
+
             })
             .eq(
                 "agreement_id",
@@ -2036,6 +2926,7 @@ async function cancelAgreement() {
             "AgreementCancelled",
             account,
             {
+
                 status:
                     "Cancelled",
 
@@ -2067,7 +2958,7 @@ async function cancelAgreement() {
                 error?.code === 4001
                     ? "Transaction was rejected in MetaMask."
                     : error?.message ||
-                      String(error)
+                    String(error)
             )
         );
 
@@ -2077,6 +2968,7 @@ async function cancelAgreement() {
             );
 
         if (button) {
+
             button.disabled =
                 false;
 
@@ -2085,6 +2977,7 @@ async function cancelAgreement() {
         }
     }
 }
+
 
 // =====================================================
 // SAVE TRANSACTION
@@ -2102,32 +2995,37 @@ async function saveTransaction(
     } =
         await supabaseClient
             .from("transactions")
-            .insert([{
-                transaction_hash:
-                    hash,
+            .insert([
+                {
 
-                agreement_id:
-                    Number(
-                        agreementId
-                    ),
+                    transaction_hash:
+                        hash,
 
-                event_type:
-                    eventType,
+                    agreement_id:
+                        Number(
+                            agreementId
+                        ),
 
-                actor_address:
-                    actor.toLowerCase(),
+                    event_type:
+                        eventType,
 
-                details:
-                    details
-            }]);
+                    actor_address:
+                        actor.toLowerCase(),
+
+                    details:
+                        details
+                }
+            ]);
 
     if (error) {
+
         console.warn(
             "Transaction save failed:",
             error
         );
     }
 }
+
 
 // =====================================================
 // HELPERS
@@ -2150,6 +3048,7 @@ function findMilestoneActionButton(
         );
 }
 
+
 function getCarrierAddressRaw() {
 
     return (
@@ -2158,6 +3057,7 @@ function getCarrierAddressRaw() {
         ""
     );
 }
+
 
 function getCarrierAddress() {
 
@@ -2170,6 +3070,7 @@ function getCarrierAddress() {
             carrier
         )
     ) {
+
         return "Unassigned";
     }
 
@@ -2177,6 +3078,7 @@ function getCarrierAddress() {
         carrier
     );
 }
+
 
 function isZeroAddress(
     address
@@ -2189,6 +3091,7 @@ function isZeroAddress(
     );
 }
 
+
 function normalizeBool(
     value
 ) {
@@ -2200,6 +3103,7 @@ function normalizeBool(
         value === "1"
     );
 }
+
 
 function getBlockchainEth(
     weiValue,
@@ -2214,13 +3118,16 @@ function getBlockchainEth(
     ) {
 
         try {
+
             return Number(
                 Web3.utils.fromWei(
                     weiValue.toString(),
                     "ether"
                 )
             );
+
         } catch (error) {
+
             console.warn(
                 "Wei conversion failed:",
                 error
@@ -2234,6 +3141,7 @@ function getBlockchainEth(
     );
 }
 
+
 function setText(
     id,
     value
@@ -2245,10 +3153,12 @@ function setText(
         );
 
     if (element) {
+
         element.innerText =
             value;
     }
 }
+
 
 function formatDate(
     timestamp
@@ -2266,19 +3176,24 @@ function formatDate(
         {
             year:
                 "numeric",
+
             month:
                 "long",
+
             day:
                 "numeric"
         }
     );
 }
 
+
 // =====================================================
 // STATUS CLASS
 // =====================================================
 
-function getStatusClass(status) {
+function getStatusClass(
+    status
+) {
 
     switch (status) {
 
@@ -2303,8 +3218,12 @@ function getStatusClass(status) {
         default:
             return "status-active";
     }
-
 }
+
+
+// =====================================================
+// COUNTDOWN
+// =====================================================
 
 function updateCountdown(
     deadline
@@ -2324,31 +3243,42 @@ function updateCountdown(
         const difference =
             Number(deadline) -
             Math.floor(
-                Date.now() / 1000
+                Date.now() /
+                1000
             );
 
         if (
-            difference <= 0
+            difference <=
+            0
         ) {
+
             element.innerText =
                 "Expired";
+
+            element.classList.add(
+                "expired"
+            );
+
             return;
         }
 
         const days =
             Math.floor(
-                difference / 86400
+                difference /
+                86400
             );
 
         const hours =
             Math.floor(
-                (difference % 86400) /
+                (difference %
+                    86400) /
                 3600
             );
 
         const minutes =
             Math.floor(
-                (difference % 3600) /
+                (difference %
+                    3600) /
                 60
             );
 
@@ -2364,6 +3294,11 @@ function updateCountdown(
     );
 }
 
+
+// =====================================================
+// NETWORK
+// =====================================================
+
 async function detectNetwork() {
 
     try {
@@ -2372,6 +3307,7 @@ async function detectNetwork() {
             typeof window.ethereum ===
             "undefined"
         ) {
+
             return;
         }
 
@@ -2404,6 +3340,11 @@ async function detectNetwork() {
     }
 }
 
+
+// =====================================================
+// SHORTEN ADDRESS
+// =====================================================
+
 function shortenAddress(
     address
 ) {
@@ -2413,8 +3354,10 @@ function shortenAddress(
     }
 
     if (
-        address.length < 12
+        address.length <
+        12
     ) {
+
         return address;
     }
 
@@ -2425,10 +3368,16 @@ function shortenAddress(
         ) +
         "..." +
         address.substring(
-            address.length - 4
+            address.length -
+            4
         )
     );
 }
+
+
+// =====================================================
+// ESCAPE HTML
+// =====================================================
 
 function escapeHtml(
     value
@@ -2438,6 +3387,7 @@ function escapeHtml(
         value === null ||
         value === undefined
     ) {
+
         return "";
     }
 
@@ -2464,6 +3414,11 @@ function escapeHtml(
         );
 }
 
+
+// =====================================================
+// ERROR
+// =====================================================
+
 function showError(
     message
 ) {
@@ -2474,6 +3429,7 @@ function showError(
         );
 
     if (loading) {
+
         loading.style.display =
             "none";
     }

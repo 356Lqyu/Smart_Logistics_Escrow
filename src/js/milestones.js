@@ -490,7 +490,8 @@ function renderAgreements() {
                 !Number.isInteger(
                     activeIndex
                 ) ||
-                activeIndex < 0
+                activeIndex < 0 ||
+                activeIndex >= milestones.length
             ) {
                 activeIndex = -1;
                 for (let i = 0; i < milestones.length; i++) {

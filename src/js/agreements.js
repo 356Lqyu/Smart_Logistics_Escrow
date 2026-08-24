@@ -1,69 +1,47 @@
+// =====================================================
+// AGREEMENTS PAGE
+// =====================================================
+
+let allAgreements = [];
+let filteredAgreements = [];
+
+
+// =====================================================
+// INITIALIZE
+// =====================================================
+
 document.addEventListener(
     "DOMContentLoaded",
     async () => {
 
-        const filterButtons =
-            document.querySelectorAll(
-                ".filter-btn"
+        try {
+
+            await loadAgreements();
+
+            await processExpiredAgreements();
+
+            await loadAgreements();
+
+            setupFilters();
+            setupSearch();
+
+            renderAgreements();
+
+        } catch (error) {
+
+            console.error(
+                "Agreements page failed:",
+                error
             );
 
-        filterButtons.forEach(btn => {
-            btn.addEventListener(
-                "click",
-                () => {
-                    filterButtons.forEach(
-                        b =>
-                            b.classList.remove(
-                                "active"
-                            )
-                    );
-
-                    btn.classList.add(
-                        "active"
-                    );
-
-                    filterTableRows(
-                        btn.getAttribute(
-                            "data-filter"
-                        )
-                    );
-                }
-            );
-        });
-
-        const tableSearchInput =
-            document.getElementById(
-                "table-search-input"
-            );
-
-        if (tableSearchInput) {
-            tableSearchInput.addEventListener(
-                "input",
-                event => {
-                    const query =
-                        event.target.value
-                            .toLowerCase()
-                            .trim();
-
-                    document
-                        .querySelectorAll(
-                            "#agreements-table-body tr"
-                        )
-                        .forEach(row => {
-                            row.style.display =
-                                row.innerText
-                                    .toLowerCase()
-                                    .includes(query)
-                                    ? ""
-                                    : "none";
-                        });
-                }
+            showAgreementsError(
+                error.message ||
+                String(error)
             );
         }
-
-        await loadAgreements();
     }
 );
+
 
 // =====================================================
 // LOAD AGREEMENTS
@@ -71,335 +49,74 @@ document.addEventListener(
 
 async function loadAgreements() {
 
-    const tableBody =
-        document.getElementById(
-            "agreements-table-body"
-        );
+    const currentWallet = localStorage.getItem("wallet");
+    const userRole = localStorage.getItem("role");
 
-    if (!tableBody) {
-        return;
-    }
-
-    tableBody.innerHTML = `
-        <tr>
-            <td colspan="9"
-                style="text-align:center;color:#8d99ae;padding:30px;">
-                <i class="fa-solid fa-spinner fa-spin"></i>
-                Loading agreements...
-            </td>
-        </tr>
-    `;
-
-    try {
-
-        const currentWallet =
-            localStorage.getItem(
-                "wallet"
-            );
-
-        const userRole =
-            localStorage.getItem(
-                "role"
-            );
-
-        let query =
-            supabaseClient
-                .from("agreements")
-                .select(`
-                    agreement_id,
-                    reference_no,
-                    shipper_address,
-                    carrier_address,
-                    shipment_details,
-                    payload_value,
-                    escrow_amount,
-                    escrow_released,
-                    escrow_remaining,
-                    deadline,
-                    created_time,
-                    priority,
-                    status,
-                    current_milestone,
-                    accepted_at,
-                    completed_at,
-                    cancelled_at,
-                    expired_at,
-                    refunded_amount
-                `);
-
-        if (currentWallet) {
-            const walletLower = currentWallet.toLowerCase();
-
-            if (userRole === "1" || userRole === "Shipper") {
-                query = query.eq("shipper_address", walletLower);
-            } else if (userRole === "2" || userRole === "Carrier") {
-                // Fetch candidate rows (Created jobs or any assigned rows)
-                query = query.or(`status.eq.Created,carrier_address.eq.${walletLower}`);
-            }
-        }
-
-        const {
-            data: rawAgreements,
-            error
-        } =
-            await query.order(
+    const {
+        data: rawAgreements,
+        error
+    } =
+        await supabaseClient
+            .from("agreements")
+            .select("*")
+            .order(
                 "agreement_id",
                 {
-                    ascending: false
+                    ascending:
+                        false
                 }
             );
 
-        if (error) {
-            throw error;
-        }
-
-        // Strict post-filtering to guarantee carriers ONLY see:
-        // 1. Status 'Created'
-        // 2. Status 'In Progress' where carrier_address exactly matches the logged-in wallet
-        let agreements = rawAgreements;
-        const roleStr = String(userRole || "").toLowerCase();
-        const isCarrierUser = (roleStr === "2" || roleStr === "carrier");
-        const isShipperUser = (roleStr === "1" || roleStr === "shipper");
-
-        if (isShipperUser && currentWallet) {
-            const walletLower = currentWallet.toLowerCase();
-            agreements = (rawAgreements || []).filter(a => 
-                a.shipper_address && a.shipper_address.toLowerCase() === walletLower
-            );
-        } else if (isCarrierUser && currentWallet) {
-            const walletLower = currentWallet.toLowerCase();
-            agreements = (rawAgreements || []).filter(a => {
-                const status = String(a.status || "").toLowerCase();
-                if (status === "created") {
-                    return true;
-                }
-                if (status === "in progress") {
-                    return a.carrier_address && a.carrier_address.toLowerCase() === walletLower;
-                }
-                // Optionally filter out other statuses if carriers shouldn't see them here, 
-                // or keep them if you want completed/cancelled to show based on participation.
-                return a.carrier_address && a.carrier_address.toLowerCase() === walletLower;
-            });
-        }
-
-        if (
-            !agreements ||
-            agreements.length === 0
-        ) {
-            tableBody.innerHTML = `
-                <tr>
-                    <td colspan="9"
-                        style="text-align:center;color:#8d99ae;padding:30px;">
-                        No agreements found.
-                    </td>
-                </tr>
-            `;
-            return;
-        }
-
-        tableBody.innerHTML = "";
-
-
-        agreements.forEach(
-            rawData => {
-
-                const statusText =
-                    rawData.status ||
-                    "Created";
-
-                const isCreated =
-                    statusText ===
-                    "Created";
-
-                const shipperAddr =
-                    formatAddress(
-                        rawData.shipper_address
-                    );
-
-                const carrierAddr =
-                    rawData.carrier_address
-                        ? formatAddress(
-                            rawData.carrier_address
-                        )
-                        : "Unassigned";
-
-                const escrowAmount =
-                    Number(
-                        rawData.escrow_amount ||
-                        0
-                    ).toFixed(3);
-
-                const deadlineText =
-                    formatTimestamp(
-                        rawData.deadline
-                    );
-
-                const priority =
-                    rawData.priority ||
-                    "Normal";
-
-                const payload =
-                    rawData.shipment_details ||
-                    `Shipment #${rawData.agreement_id}`;
-
-                // =================================================
-                // ACTION BUTTONS
-                // =================================================
-
-                let actionButtons = `
-                    <button
-                        class="view-btn"
-                        onclick="viewAgreementDetails(${rawData.agreement_id})"
-                    >
-                        <i class="fa-regular fa-eye"></i>
-                        View
-                    </button>
-                `;
-
-                if (
-                    isCarrierUser &&
-                    isCreated
-                ) {
-                    actionButtons += `
-                        <button
-                            class="primary-action-btn"
-                            style="
-                                margin-left:5px;
-                                padding:6px 10px;
-                                font-size:11px;
-                            "
-                            onclick="acceptAgreementAction(${rawData.agreement_id})"
-                        >
-                            <i class="fa-solid fa-check"></i>
-                            Accept
-                        </button>
-                    `;
-                }
-
-                const row =
-                    document.createElement(
-                        "tr"
-                    );
-
-                row.innerHTML = `
-                    <td class="ref-col">
-                        ${escapeHtml(
-                    rawData.reference_no
-                )}
-                    </td>
-
-                    <td>
-                        ${shipperAddr}
-                    </td>
-
-                    <td>
-                        ${carrierAddr ===
-                        "Unassigned"
-                        ? `
-                                    <span class="text-muted">
-                                        Unassigned
-                                    </span>
-                                  `
-                        : carrierAddr
-                    }
-                    </td>
-
-                    <td title="${escapeHtml(payload)}">
-                        ${escapeHtml(payload)}
-                    </td>
-
-                    <td>
-                        <span class="priority-badge">
-                            ${escapeHtml(
-                        priority
-                    ).toUpperCase()}
-                        </span>
-                    </td>
-
-                    <td class="eth-val">
-                        <i class="fa-brands fa-ethereum"></i>
-                        ${escrowAmount}
-                    </td>
-
-                    <td>
-                        ${deadlineText}
-                    </td>
-
-                    <td>
-                        <span class="status-badge ${getStatusClass(statusText)}">
-                            <span class="status-dot"></span>
-                            ${escapeHtml(statusText)}
-                        </span>
-                    </td>
-
-                    <td>
-                        ${actionButtons}
-                    </td>
-                `;
-
-                tableBody.appendChild(
-                    row
-                );
-            }
-        );
-
-    } catch (error) {
-
-        console.error(
-            "Failed to fetch agreements:",
-            error
-        );
-
-        tableBody.innerHTML = `
-            <tr>
-                <td colspan="9"
-                    style="text-align:center;color:#ef4444;padding:30px;">
-                    Error loading agreements:
-                    ${escapeHtml(
-            error.message
-        )}
-                </td>
-            </tr>
-        `;
+    if (error) {
+        throw error;
     }
-}
 
-// =====================================================
-// CARRIER ACCEPT
-// =====================================================
+    // -------------------------------------------------
+    // Strict Role-Based Post-Filtering
+    // -------------------------------------------------
+    let agreements = rawAgreements || [];
+    const roleStr = String(userRole || "").toLowerCase();
+    const isCarrierUser = (roleStr === "2" || roleStr === "carrier");
+    const isShipperUser = (roleStr === "1" || roleStr === "shipper");
 
-async function acceptAgreementAction(
-    agreementId
-) {
-
-    try {
-
-        if (
-            typeof window.ethereum ===
-            "undefined"
-        ) {
-            throw new Error(
-                "MetaMask is required."
-            );
+    const newAgreementBtn = document.getElementById("new-agreement-btn");
+    if (newAgreementBtn) {
+        if (isCarrierUser) {
+            newAgreementBtn.style.display = "none"; // Hide button for carriers
+        } else {
+            newAgreementBtn.style.display = "flex"; // Show for shippers
         }
+    }
 
-        const accounts =
-            await window.ethereum.request({
-                method:
-                    "eth_requestAccounts"
-            });
+    if (isShipperUser && currentWallet) {
+        const walletLower = currentWallet.toLowerCase();
+        agreements = agreements.filter(a =>
+            a.shipper_address && a.shipper_address.toLowerCase() === walletLower
+        );
+    } else if (isCarrierUser && currentWallet) {
+        const walletLower = currentWallet.toLowerCase();
+        agreements = agreements.filter(a => {
+            const status = String(a.status || "").toLowerCase();
+            if (status === "created") {
+                return true;
+            }
+            if (status === "in progress") {
+                return a.carrier_address && a.carrier_address.toLowerCase() === walletLower;
+            }
+            return a.carrier_address && a.carrier_address.toLowerCase() === walletLower;
+        });
+    }
 
-        if (
-            !accounts ||
-            accounts.length === 0
-        ) {
-            throw new Error(
-                "No wallet connected."
-            );
-        }
+    allAgreements = agreements;
 
-        const currentAccount =
-            accounts[0];
+    // -------------------------------------------------
+    // Load blockchain state
+    // -------------------------------------------------
+
+    if (
+        typeof window.ethereum !==
+        "undefined"
+    ) {
 
         const web3 =
             new Web3(
@@ -412,134 +129,1110 @@ async function acceptAgreementAction(
                 CONTRACT_ADDRESS
             );
 
-        const chainId =
+        for (
+            let i = 0;
+            i < allAgreements.length;
+            i++
+        ) {
+
+            const agreement =
+                allAgreements[i];
+
+            try {
+
+                const chainAgreement =
+                    await contract.methods
+                        .getAgreementBasic(
+                            Number(
+                                agreement.agreement_id
+                            )
+                        )
+                        .call();
+
+                agreement.blockchain_escrow =
+                    chainAgreement.escrowAmount;
+
+                agreement.blockchain_escrow_remaining =
+                    chainAgreement.escrowRemaining;
+
+                agreement.blockchain_shipper =
+                    chainAgreement.shipper;
+
+                agreement.blockchain_carrier =
+                    chainAgreement.carrier;
+
+                agreement.blockchain_status =
+                    Number(
+                        chainAgreement.status
+                    );
+
+                agreement.blockchain_current_milestone =
+                    Number(
+                        chainAgreement.currentMilestone
+                    );
+
+                agreement.blockchain_deadline =
+                    Number(
+                        chainAgreement.deadline
+                    );
+
+            } catch (error) {
+
+                console.warn(
+                    `Could not load blockchain agreement ${agreement.agreement_id}:`,
+                    error
+                );
+            }
+        }
+    }
+}
+
+
+// =====================================================
+// PROCESS EXPIRED AGREEMENTS
+// =====================================================
+//
+// This is intentionally called from the agreements page.
+//
+// Therefore:
+//
+// - Carrier opens Agreements page
+// - Expired agreement is detected
+// - expireAgreement() is called
+// - Smart contract refunds Shipper
+// - Supabase status becomes Expired
+//
+// =====================================================
+
+async function processExpiredAgreements() {
+
+    if (
+        typeof window.ethereum ===
+        "undefined"
+    ) {
+
+        console.warn(
+            "MetaMask unavailable. Cannot process blockchain expiry."
+        );
+
+        return;
+    }
+
+    const web3 =
+        new Web3(
+            window.ethereum
+        );
+
+    const contract =
+        new web3.eth.Contract(
+            CONTRACT_ABI,
+            CONTRACT_ADDRESS
+        );
+
+    const now =
+        Math.floor(
+            Date.now() / 1000
+        );
+
+    for (
+        const agreement of allAgreements
+    ) {
+
+        const deadline =
             Number(
-                await web3.eth.getChainId()
+                agreement.blockchain_deadline ||
+                agreement.deadline ||
+                0
             );
+
+        if (!deadline) {
+            continue;
+        }
+
+        // Not expired
+        if (
+            now <=
+            deadline
+        ) {
+            continue;
+        }
+
+        const blockchainStatus =
+            Number(
+                agreement.blockchain_status
+            );
+
+        // -------------------------------------------------
+        // Completed
+        // -------------------------------------------------
 
         if (
-            chainId !== 1337 &&
-            chainId !== 5777
+            blockchainStatus ===
+            2
         ) {
-            throw new Error(
-                "Please connect MetaMask to Ganache."
-            );
+            continue;
         }
 
-        const confirmed =
-            confirm(
-                "Accept this logistics agreement?\n\n" +
-                "After acceptance, the agreement becomes In Progress."
-            );
+        // -------------------------------------------------
+        // Cancelled
+        // -------------------------------------------------
 
-        if (!confirmed) {
-            return;
+        if (
+            blockchainStatus ===
+            3
+        ) {
+            continue;
         }
 
-        const tx =
-            await contract.methods
-                .acceptAgreement(
-                    Number(agreementId)
-                )
-                .send({
-                    from:
-                        currentAccount
+        // -------------------------------------------------
+        // Already expired
+        // -------------------------------------------------
+
+        if (
+            blockchainStatus ===
+            4
+        ) {
+
+            await syncExpiredAgreement(
+                agreement,
+                null,
+                null
+            );
+
+            continue;
+        }
+
+        // -------------------------------------------------
+        // Need to expire
+        // -------------------------------------------------
+
+        try {
+
+            const accounts =
+                await window.ethereum.request({
+                    method:
+                        "eth_requestAccounts"
                 });
 
-        const now =
-            Math.floor(
-                Date.now() / 1000
+            if (
+                !accounts ||
+                accounts.length ===
+                0
+            ) {
+
+                console.warn(
+                    "No wallet connected. Cannot expire agreement."
+                );
+
+                continue;
+            }
+
+            const account =
+                accounts[0];
+
+            // -------------------------------------------------
+            // Re-check blockchain state
+            // -------------------------------------------------
+
+            const chainAgreement =
+                await contract.methods
+                    .getAgreementBasic(
+                        Number(
+                            agreement.agreement_id
+                        )
+                    )
+                    .call();
+
+            const currentStatus =
+                Number(
+                    chainAgreement.status
+                );
+
+            if (
+                currentStatus === 2 ||
+                currentStatus === 3
+            ) {
+                continue;
+            }
+
+            if (
+                currentStatus === 4
+            ) {
+
+                agreement.blockchain_status =
+                    4;
+
+                await syncExpiredAgreement(
+                    agreement,
+                    null,
+                    null
+                );
+
+                continue;
+            }
+
+            const chainDeadline =
+                Number(
+                    chainAgreement.deadline
+                );
+
+            if (
+                now <=
+                chainDeadline
+            ) {
+                continue;
+            }
+
+            // -------------------------------------------------
+            // Expiry transaction
+            // -------------------------------------------------
+
+            const confirmed =
+                confirm(
+                    `Agreement ${agreement.reference_no} has expired.\n\n` +
+                    "The remaining escrow will be refunded to the Shipper.\n\n" +
+                    "Process expiry now?"
+                );
+
+            if (!confirmed) {
+                continue;
+            }
+
+            const tx =
+                await contract.methods
+                    .expireAgreement(
+                        Number(
+                            agreement.agreement_id
+                        )
+                    )
+                    .send({
+                        from:
+                            account
+                    });
+
+            console.log(
+                `Agreement ${agreement.agreement_id} expired:`,
+                tx.transactionHash
+            );
+
+            agreement.blockchain_status =
+                4;
+
+            agreement.blockchain_escrow_remaining =
+                "0";
+
+            await syncExpiredAgreement(
+                agreement,
+                tx.transactionHash,
+                account
+            );
+
+        } catch (error) {
+
+            console.error(
+                `Could not expire agreement ${agreement.agreement_id}:`,
+                error
+            );
+
+            if (
+                error?.code ===
+                4001
+            ) {
+
+                alert(
+                    `Expiry transaction for ${agreement.reference_no} was rejected in MetaMask.`
+                );
+            }
+        }
+    }
+}
+
+
+// =====================================================
+// SYNC EXPIRED AGREEMENT
+// =====================================================
+
+async function syncExpiredAgreement(
+    agreement,
+    transactionHash,
+    actor
+) {
+
+    try {
+
+        const remaining =
+            getBlockchainEth(
+                agreement.blockchain_escrow_remaining,
+                agreement.escrow_remaining
             );
 
         const {
-            error:
-            supabaseError
+            error
         } =
             await supabaseClient
                 .from("agreements")
                 .update({
+
                     status:
-                        "In Progress",
+                        "Expired",
 
-                    carrier_address:
-                        currentAccount.toLowerCase(),
+                    expired_at:
+                        Math.floor(
+                            Date.now() / 1000
+                        ),
 
-                    accepted_at:
-                        now
+                    refunded_amount:
+                        remaining,
+
+                    escrow_remaining:
+                        0,
+
+                    escrow_released:
+                        Number(
+                            agreement.escrow_released ||
+                            0
+                        ) +
+                        remaining
+
                 })
                 .eq(
                     "agreement_id",
-                    agreementId
+                    Number(
+                        agreement.agreement_id
+                    )
                 );
 
-        if (supabaseError) {
+        if (error) {
+
             console.error(
-                "Supabase acceptance update failed:",
-                supabaseError
+                "Failed to synchronize expired agreement:",
+                error
             );
+
+            return;
         }
 
-        await supabaseClient
-            .from("transactions")
-            .insert([{
-                transaction_hash:
-                    tx.transactionHash,
+        agreement.status =
+            "Expired";
 
-                agreement_id:
-                    Number(agreementId),
+        agreement.expired_at =
+            Math.floor(
+                Date.now() / 1000
+            );
 
-                event_type:
-                    "AgreementAccepted",
+        agreement.escrow_remaining =
+            0;
 
-                actor_address:
-                    currentAccount.toLowerCase(),
+        agreement.refunded_amount =
+            remaining;
 
-                details: {
-                    status:
-                        "In Progress",
+        // -------------------------------------------------
+        // Transaction record
+        // -------------------------------------------------
 
-                    description:
-                        "Carrier accepted the logistics agreement."
-                }
-            }]);
+        if (
+            transactionHash &&
+            actor
+        ) {
 
-        alert(
-            "Agreement accepted successfully.\n\n" +
-            "Status: In Progress"
-        );
+            await supabaseClient
+                .from("transactions")
+                .insert([
+                    {
 
-        window.location.reload();
+                        transaction_hash:
+                            transactionHash,
+
+                        agreement_id:
+                            Number(
+                                agreement.agreement_id
+                            ),
+
+                        event_type:
+                            "AgreementExpired",
+
+                        actor_address:
+                            actor.toLowerCase(),
+
+                        details:
+                        {
+
+                            status:
+                                "Expired",
+
+                            escrow_refunded:
+                                remaining,
+
+                            description:
+                                "Agreement expired after the deadline. Remaining escrow was refunded to the Shipper."
+                        }
+                    }
+                ]);
+        }
 
     } catch (error) {
 
         console.error(
-            "Acceptance failed:",
+            "Expired agreement synchronization failed:",
             error
-        );
-
-        let message =
-            error?.message ||
-            String(error);
-
-        if (
-            error?.code === 4001
-        ) {
-            message =
-                "Transaction was rejected in MetaMask.";
-        }
-
-        alert(
-            "Failed to accept agreement:\n\n" +
-            message
         );
     }
 }
 
+
 // =====================================================
-// STATUS
+// FILTERS
 // =====================================================
 
-function getStatusClass(status) {
+function setupFilters() {
+
+    document
+        .querySelectorAll(
+            ".filter-btn"
+        )
+        .forEach(
+            button => {
+
+                button.addEventListener(
+                    "click",
+                    () => {
+
+                        document
+                            .querySelectorAll(
+                                ".filter-btn"
+                            )
+                            .forEach(
+                                btn =>
+                                    btn.classList.remove(
+                                        "active"
+                                    )
+                            );
+
+                        button.classList.add(
+                            "active"
+                        );
+
+                        renderAgreements();
+                    }
+                );
+            }
+        );
+}
+
+
+// =====================================================
+// SEARCH
+// =====================================================
+
+function setupSearch() {
+
+    const searchInputs = [
+        document.getElementById(
+            "search-input"
+        ),
+
+        document.getElementById(
+            "table-search-input"
+        )
+    ];
+
+    searchInputs.forEach(
+        input => {
+
+            if (!input) {
+                return;
+            }
+
+            input.addEventListener(
+                "input",
+                renderAgreements
+            );
+        }
+    );
+}
+
+
+// =====================================================
+// RENDER
+// =====================================================
+
+function renderAgreements() {
+
+    const tbody =
+        document.getElementById(
+            "agreements-table-body"
+        );
+
+    if (!tbody) {
+        return;
+    }
+
+    const activeFilter =
+        document.querySelector(
+            ".filter-btn.active"
+        )?.dataset.filter ||
+        "all";
+
+    const searchValue =
+        (
+            document.getElementById(
+                "table-search-input"
+            )?.value ||
+            document.getElementById(
+                "search-input"
+            )?.value ||
+            ""
+        )
+            .trim()
+            .toLowerCase();
+
+    filteredAgreements =
+        allAgreements.filter(
+            agreement => {
+
+                const status =
+                    getEffectiveStatus(
+                        agreement
+                    );
+
+                const reference =
+                    String(
+                        agreement.reference_no ||
+                        ""
+                    ).toLowerCase();
+
+                const payload =
+                    String(
+                        agreement.payload_value ||
+                        ""
+                    ).toLowerCase();
+
+                const searchMatch =
+                    !searchValue ||
+                    reference.includes(
+                        searchValue
+                    ) ||
+                    payload.includes(
+                        searchValue
+                    );
+
+                const filterMatch =
+                    activeFilter ===
+                    "all" ||
+                    status.toLowerCase() ===
+                    activeFilter.toLowerCase();
+
+                return (
+                    searchMatch &&
+                    filterMatch
+                );
+            }
+        );
+
+    tbody.innerHTML =
+        "";
+
+    if (
+        filteredAgreements.length ===
+        0
+    ) {
+
+        tbody.innerHTML = `
+            <tr>
+                <td
+                    colspan="9"
+                    style="
+                        text-align:center;
+                        color:#8d99ae;
+                        padding:30px;
+                    "
+                >
+                    No agreements found.
+                </td>
+            </tr>
+        `;
+
+        return;
+    }
+
+    filteredAgreements.forEach(
+        agreement => {
+
+            const status =
+                getEffectiveStatus(
+                    agreement
+                );
+
+            const shipper =
+                agreement.blockchain_shipper ||
+                agreement.shipper_address;
+
+            const carrier =
+                agreement.blockchain_carrier ||
+                agreement.carrier_address;
+
+            const escrow =
+                getBlockchainEth(
+                    agreement.blockchain_escrow,
+                    agreement.escrow_amount
+                );
+
+            const deadline =
+                Number(
+                    agreement.blockchain_deadline ||
+                    agreement.deadline
+                );
+
+            // =================================================
+            // ACTION BUTTONS DEFINITION
+            // =================================================
+
+            const userRole = localStorage.getItem("role") || "";
+            const currentWallet = (localStorage.getItem("wallet") || "").toLowerCase();
+
+            const isCarrierUser = (userRole === "2" || userRole.toLowerCase() === "carrier");
+            const isShipperUser = (userRole === "1" || userRole.toLowerCase() === "shipper");
+
+            const isCreated = (status === "Created");
+            const isOwnerShipper = shipper && shipper.toLowerCase() === currentWallet;
+
+            let actionButtons = `
+                <button
+                    class="view-btn"
+                    onclick="viewAgreement(${Number(agreement.agreement_id)})"
+                >
+                    <i class="fa-regular fa-eye"></i>
+                    View
+                </button>
+            `;
+
+            // Carrier Accept button
+            if (isCarrierUser && isCreated) {
+                actionButtons += `
+                    <button
+                        class="accept-btn"
+                        style="margin-left: 5px;"
+                        onclick="acceptAgreementAction(${Number(agreement.agreement_id)})"
+                    >
+                        <i class="fa-solid fa-check"></i>
+                        Accept
+                    </button>
+                `;
+            }
+
+            // Shipper Cancel button (Only for created agreements they own)
+            if (isShipperUser && isCreated && isOwnerShipper) {
+                actionButtons += `
+                    <button
+                        class="cancel-btn"
+                        style="margin-left: 5px;"
+                        onclick="cancelAgreementAction(${Number(agreement.agreement_id)})"
+                    >
+                        <i class="fa-solid fa-xmark"></i>
+                        Cancel
+                    </button>
+                `;
+            }
+
+            const row =
+                document.createElement(
+                    "tr"
+                );
+
+            row.innerHTML = `
+                <td>
+                    ${escapeHtml(
+                agreement.reference_no
+            )}
+                </td>
+
+                <td>
+                    ${shortenAddress(
+                shipper
+            )}
+                </td>
+
+                <td>
+                    ${shortenAddress(
+                carrier
+            )}
+                </td>
+
+                <td>
+                    $${Number(
+                agreement.payload_value ||
+                0
+            ).toLocaleString(
+                undefined,
+                {
+                    minimumFractionDigits:
+                        2,
+                    maximumFractionDigits:
+                        2
+                }
+            )}
+                </td>
+
+                <td>
+                    ${escapeHtml(
+                agreement.priority ||
+                "Normal"
+            )}
+                </td>
+
+                <td>
+                    ${escrow.toFixed(
+                3
+            )} ETH
+                </td>
+
+                <td>
+                    ${formatDate(
+                deadline
+            )}
+                </td>
+
+                <td>
+                    <span
+                        class="status-badge ${getStatusClass(
+                status
+            )}"
+                    >
+                        <span class="status-dot"></span>
+                        ${escapeHtml(
+                status
+            )}
+                    </span>
+                </td>
+
+                 <td>
+                    ${actionButtons}
+                </td>
+            `;
+
+            tbody.appendChild(
+                row
+            );
+        }
+    );
+}
+
+
+async function acceptAgreementAction(agreementId) {
+    try {
+        if (typeof window.ethereum === "undefined") {
+            throw new Error("MetaMask is required.");
+        }
+
+        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+        const currentAccount = accounts[0].toLowerCase();
+
+        // Find the agreement in local state to check its shipper
+        const targetAgreement = allAgreements.find(a => Number(a.agreement_id) === Number(agreementId));
+        const shipperAddress = (targetAgreement?.blockchain_shipper || targetAgreement?.shipper_address || "").toLowerCase();
+
+        if (shipperAddress && currentAccount === shipperAddress) {
+            alert("Action Denied: Shippers cannot accept their own logistics agreements as carriers.");
+            return;
+        }
+
+        const web3 = new Web3(window.ethereum);
+        const contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
+
+        const confirmed = confirm("Accept this logistics agreement?\n\nAfter acceptance, the agreement becomes In Progress.");
+        if (!confirmed) return;
+
+        const tx = await contract.methods.acceptAgreement(Number(agreementId)).send({
+            from: currentAccount
+        });
+
+        const now = Math.floor(Date.now() / 1000);
+
+        await supabaseClient
+            .from("agreements")
+            .update({
+                status: "In Progress",
+                carrier_address: currentAccount,
+                accepted_at: now
+            })
+            .eq("agreement_id", agreementId);
+
+        await supabaseClient.from("transactions").insert([{
+            transaction_hash: tx.transactionHash,
+            agreement_id: Number(agreementId),
+            event_type: "AgreementAccepted",
+            actor_address: currentAccount,
+            details: {
+                status: "In Progress",
+                description: "Carrier accepted the logistics agreement."
+            }
+        }]);
+
+        alert("Agreement accepted successfully.\n\nStatus: In Progress");
+        window.location.reload();
+
+    } catch (error) {
+        console.error("Acceptance failed:", error);
+        let message = error?.message || String(error);
+        if (error?.code === 4001) {
+            message = "Transaction was rejected in MetaMask.";
+        }
+        alert("Failed to accept agreement:\n\n" + message);
+    }
+}
+
+// =====================================================
+// SHIPPER CANCEL AGREEMENT FROM LISTING PAGE
+// =====================================================
+
+async function cancelAgreementAction(agreementId) {
+    if (typeof window.ethereum === "undefined") {
+        alert("MetaMask is required.");
+        return;
+    }
+
+    if (!confirm("Cancel this agreement?\n\nThe complete remaining escrow will be refunded to the Shipper.")) {
+        return;
+    }
+
+    try {
+        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+        const account = accounts[0];
+
+        const web3 = new Web3(window.ethereum);
+        const contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
+
+        const tx = await contract.methods.cancelAgreement(Number(agreementId)).send({
+            from: account
+        });
+
+        const targetAgreement = allAgreements.find(a => Number(a.agreement_id) === Number(agreementId));
+        const refund = Number(targetAgreement?.escrow_remaining || targetAgreement?.escrow_amount || 0);
+
+        await supabaseClient
+            .from("agreements")
+            .update({
+                status: "Cancelled",
+                cancelled_at: Math.floor(Date.now() / 1000),
+                refunded_amount: refund,
+                escrow_released: refund,
+                escrow_remaining: 0
+            })
+            .eq("agreement_id", Number(agreementId));
+
+        await supabaseClient
+            .from("transactions")
+            .insert([{
+                transaction_hash: tx.transactionHash,
+                agreement_id: Number(agreementId),
+                event_type: "AgreementCancelled",
+                actor_address: account.toLowerCase(),
+                details: {
+                    status: "Cancelled",
+                    escrow_refunded: refund,
+                    description: "Agreement cancelled and escrow refunded to shipper."
+                }
+            }]);
+
+        alert("Agreement cancelled successfully.\n\nThe escrow has been refunded to the Shipper.");
+        window.location.reload();
+
+    } catch (error) {
+        console.error("Cancellation failed:", error);
+        let message = error?.message || String(error);
+        if (error?.code === 4001) {
+            message = "Transaction was rejected in MetaMask.";
+        }
+        alert("Cancellation failed:\n\n" + message);
+    }
+}
+
+// =====================================================
+// EFFECTIVE STATUS
+// =====================================================
+
+function getEffectiveStatus(
+    agreement
+) {
+
+    // -------------------------------------------------
+    // Blockchain is authoritative
+    // -------------------------------------------------
+
+    const blockchainStatus =
+        Number(
+            agreement.blockchain_status
+        );
+
+    switch (
+    blockchainStatus
+    ) {
+
+        case 0:
+            return "Created";
+
+        case 1:
+            return "In Progress";
+
+        case 2:
+            return "Completed";
+
+        case 3:
+            return "Cancelled";
+
+        case 4:
+            return "Expired";
+    }
+
+    // -------------------------------------------------
+    // Fallback deadline check
+    // -------------------------------------------------
+
+    const deadline =
+        Number(
+            agreement.blockchain_deadline ||
+            agreement.deadline ||
+            0
+        );
+
+    if (
+        deadline &&
+        Math.floor(
+            Date.now() / 1000
+        ) >
+        deadline &&
+        agreement.status !==
+        "Completed" &&
+        agreement.status !==
+        "Cancelled"
+    ) {
+
+        return "Expired";
+    }
+
+    return (
+        agreement.status ||
+        "Created"
+    );
+}
+
+
+// =====================================================
+// VIEW AGREEMENT
+// =====================================================
+
+function viewAgreement(
+    id
+) {
+
+    window.location.href =
+        `agreementDetails.html?id=${Number(id)}`;
+}
+
+
+// =====================================================
+// HELPERS
+// =====================================================
+
+function getBlockchainEth(
+    weiValue,
+    fallbackEth
+) {
+
+    if (
+        weiValue !==
+        undefined &&
+        weiValue !==
+        null
+    ) {
+
+        try {
+
+            return Number(
+                Web3.utils.fromWei(
+                    weiValue.toString(),
+                    "ether"
+                )
+            );
+
+        } catch (error) {
+
+            console.warn(
+                "Wei conversion failed:",
+                error
+            );
+        }
+    }
+
+    return Number(
+        fallbackEth ||
+        0
+    );
+}
+
+
+function shortenAddress(
+    address
+) {
+
+    if (!address ||
+        address.trim() === "" ||
+        address.toLowerCase() === "0x0000000000000000000000000000000000000000") {
+        return '<span class="text-muted" style="font-style: italic;">Unassigned</span>';
+    }
+
+    if (
+        address.length <
+        12
+    ) {
+
+        return address;
+    }
+
+    return (
+        address.substring(
+            0,
+            6
+        ) +
+        "..." +
+        address.substring(
+            address.length -
+            4
+        )
+    );
+}
+
+
+function formatDate(
+    timestamp
+) {
+
+    if (!timestamp) {
+        return "-";
+    }
+
+    return new Date(
+        Number(timestamp) *
+        1000
+    ).toLocaleDateString(
+        "en-US",
+        {
+            year:
+                "numeric",
+
+            month:
+                "long",
+
+            day:
+                "numeric"
+        }
+    );
+}
+
+
+function getStatusClass(
+    status
+) {
 
     switch (status) {
 
@@ -563,170 +1256,16 @@ function getStatusClass(status) {
     }
 }
 
-// =====================================================
-// ADDRESS
-// =====================================================
 
-function formatAddress(address) {
-
-    if (!address) {
-        return "Unknown";
-    }
-
-    if (
-        address.length < 12
-    ) {
-        return escapeHtml(
-            address
-        );
-    }
-
-    return (
-        escapeHtml(
-            address.substring(
-                0,
-                6
-            )
-        ) +
-        "..." +
-        escapeHtml(
-            address.substring(
-                address.length - 4
-            )
-        )
-    );
-}
-
-// =====================================================
-// DATE
-// =====================================================
-
-function formatTimestamp(timestamp) {
-
-    if (!timestamp) {
-        return "—";
-    }
-
-    const date =
-        new Date(
-            Number(timestamp) *
-            1000
-        );
-
-    if (
-        isNaN(
-            date.getTime()
-        )
-    ) {
-        return "—";
-    }
-
-    return date.toLocaleDateString(
-        undefined,
-        {
-            year:
-                "numeric",
-            month:
-                "short",
-            day:
-                "numeric"
-        }
-    );
-}
-
-// =====================================================
-// FILTER
-// =====================================================
-
-function filterTableRows(
-    filter
+function escapeHtml(
+    value
 ) {
-
-    const wanted =
-        (
-            filter ||
-            "all"
-        )
-            .toLowerCase();
-
-    document
-        .querySelectorAll(
-            "#agreements-table-body tr"
-        )
-        .forEach(row => {
-
-            const badge =
-                row.querySelector(
-                    ".status-badge"
-                );
-
-            if (!badge) {
-                return;
-            }
-
-            const status =
-                badge.innerText
-                    .trim()
-                    .toLowerCase();
-
-            if (
-                wanted ===
-                "all"
-            ) {
-                row.style.display =
-                    "";
-            }
-            else if (
-                wanted ===
-                "available"
-            ) {
-                row.style.display =
-                    status ===
-                        "created"
-                        ? ""
-                        : "none";
-            }
-            else if (
-                wanted ===
-                "active"
-            ) {
-                row.style.display =
-                    status ===
-                        "in progress"
-                        ? ""
-                        : "none";
-            }
-            else {
-                row.style.display =
-                    status ===
-                        wanted
-                        ? ""
-                        : "none";
-            }
-        });
-}
-
-// =====================================================
-// VIEW
-// =====================================================
-
-function viewAgreementDetails(
-    agreementId
-) {
-    window.location.href =
-        `agreementDetails.html?id=${agreementId}`;
-}
-
-// =====================================================
-// ESCAPE
-// =====================================================
-
-function escapeHtml(value) {
 
     if (
         value === null ||
         value === undefined
     ) {
+
         return "";
     }
 
@@ -751,4 +1290,37 @@ function escapeHtml(value) {
             /'/g,
             "&#039;"
         );
+}
+
+
+function showAgreementsError(
+    message
+) {
+
+    const tbody =
+        document.getElementById(
+            "agreements-table-body"
+        );
+
+    if (!tbody) {
+        return;
+    }
+
+    tbody.innerHTML = `
+        <tr>
+            <td
+                colspan="9"
+                style="
+                    text-align:center;
+                    color:#ef4444;
+                    padding:30px;
+                "
+            >
+                <i class="fa-solid fa-circle-exclamation"></i>
+                ${escapeHtml(
+        message
+    )}
+            </td>
+        </tr>
+    `;
 }
