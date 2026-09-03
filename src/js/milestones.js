@@ -161,6 +161,8 @@ async function loadInProgressAgreements() {
                     priority,
                     status,
                     current_milestone,
+                    extension_requested_deadline,
+                    extension_request_reason,
                     created_time,
                     accepted_at,
                     completed_at,
@@ -434,6 +436,8 @@ async function loadInProgressAgreements() {
 
 function renderAgreements() {
 
+    renderVerificationReminderBar();
+
     const container =
         document.getElementById(
             "milestones-page-container"
@@ -441,9 +445,7 @@ function renderAgreements() {
 
 
     if (!container) {
-
         return;
-
     }
 
 
@@ -474,32 +476,12 @@ function renderAgreements() {
 
             milestones.forEach(
                 milestone => {
+                    const completed = normalizeBool(milestone.completed);
+                    const verified = normalizeBool(milestone.verified);
+                    const paid = normalizeBool(milestone.paid);
 
-                    const completed =
-                        normalizeBool(
-                            milestone.completed
-                        );
-
-                    const verified =
-                        normalizeBool(
-                            milestone.verified
-                        );
-
-                    const paid =
-                        normalizeBool(
-                            milestone.paid
-                        );
-
-                    if (
-                        completed &&
-                        verified &&
-                        paid
-                    ) {
-                        completedPercentage +=
-                            Number(
-                                milestone.percentage ||
-                                0
-                            );
+                    if (completed && verified && paid) {
+                        completedPercentage += Number(milestone.percentage || 0);
                     }
                 }
             );
@@ -565,181 +547,119 @@ function renderAgreements() {
                 }
             }
 
+            // Deadline and Extension checks
+            const deadline = Number(agreement.blockchain_deadline || agreement.deadline || 0);
+            const now = Math.floor(Date.now() / 1000);
+            const timeRemaining = deadline - now;
+            const ONE_DAY_IN_SECONDS = 86400;
+            const pendingExtension =
+                agreement.extension_requested_deadline !== null &&
+                agreement.extension_requested_deadline !== undefined &&
+                String(agreement.extension_requested_deadline).trim() !== "";
 
-            const card =
-                document.createElement(
-                    "div"
-                );
+            const canRequestExtension =
+                milestoneRole === "carrier" &&
+                Number.isFinite(deadline) &&
+                timeRemaining > 0 &&
+                timeRemaining <= ONE_DAY_IN_SECONDS &&
+                !pendingExtension;
 
+            let extensionActionHtml = "";
+            if (canRequestExtension) {
+                extensionActionHtml = `
+                    <button type="button" class="primary-action-btn" style="margin-top: 18px; padding: 8px 14px; font-size: 12px;" onclick="event.stopPropagation(); openMilestoneExtensionModal(${agreementId}, ${deadline});">
+                        <i class="fa-solid fa-hourglass-half"></i> Request Extension
+                    </button>
+                `;
+            }
 
-            card.className =
-                "details-card";
+            let shipperApprovalHtml = "";
+            if (milestoneRole === "shipper" && pendingExtension) {
+                shipperApprovalHtml = `
+                    <div style="margin-top: 15px; padding: 12px; background: #fffbeb00; border: 1px solid #4d64fc; border-radius: 8px;" onclick="event.stopPropagation();">
+                        <div style="font-weight: bold; color: #3b82f6; margin-bottom: 6px;">
+                            <i class="fa-solid fa-clock-rotate-left"></i> Deadline Extension Requested
+                        </div>
+                        <p style="font-size: 13px; margin: 4px 0; color: #ffffff;"><strong>Requested Deadline&nbsp:</strong> ${formatDate(agreement.extension_requested_deadline)}</p>
+                        <p style="font-size: 13px; margin: 4px 0; color: #eff1f4;"><strong>Reason&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp:</strong> ${escapeHtml(agreement.extension_request_reason || "No reason provided.")}</p>
+                        <div style="margin-top: 15px; display: flex; gap: 8px;">
+                            <button type="button" class="primary-action-btn" style="padding: 6px 12px; font-size: 12px; background: #059669;" onclick="approveMilestoneExtension(${agreementId}, ${agreement.extension_requested_deadline})">
+                                Approve Extension
+                            </button>
+                            <button type="button" class="danger-action-btn" style="padding: 6px 12px; font-size: 12px; background: #dc2626;" onclick="rejectMilestoneExtension(${agreementId})">
+                                Reject Extension
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
 
-
-            card.style.marginBottom =
-                "20px";
-
+            const card = document.createElement("div");
+            card.className = "details-card";
+            card.style.marginBottom = "20px";
 
             card.innerHTML = `
-
                 <!-- AGREEMENT HEADER -->
-
-                <div
-                    onclick="
-                        toggleAgreementCard(
-                            ${agreementId}
-                        )
-                    "
-                    style="
-                        display:flex;
-                        justify-content:space-between;
-                        align-items:center;
-                        cursor:pointer;
-                    "
-                >
-
+                <div onclick="toggleAgreementCard(${agreementId})" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
                     <div>
-
-                        <div
-                            style="
-                                display:flex;
-                                align-items:center;
-                                gap:12px;
-                                margin-bottom:6px;
-                                flex-wrap:wrap;
-                            "
-                        >
-
-                            <h3
-                                style="
-                                    margin:0;
-                                    color:#4f91ff;
-                                    font-family:monospace;
-                                    font-size:17px;
-                                    font-weight:700;
-                                "
-                            >
-                                ${escapeHtml(
-                agreement.reference_no ||
-                "Agreement #" +
-                agreementId
-            )}
+                        <div style="display:flex; align-items:center; gap:12px; margin-bottom:6px; flex-wrap:wrap;">
+                            <h3 style="margin:0; color:#4f91ff; font-family:monospace; font-size:17px; font-weight:700;">
+                                ${escapeHtml(agreement.reference_no || "Agreement #" + agreementId)}
                             </h3>
-
-
-                            <span
-                                class="status-badge status-active"
-                            >
+                            <span class="status-badge status-active">
                                 <span class="status-dot"></span>
                                 In Progress
                             </span>
-
                             ${extraBadgeHtml}
-
                         </div>
-
-
-                        <div
-                            style="
-                                color:#9bb0cc;
-                                font-size:14px;
-                            "
-                        >
-
-                            ${escapeHtml(
-                agreement.shipment_details ||
-                "Shipment"
-            )}
-
+                        <div style="color:#8d99ae; font-size:12px;">
+                            <i class="fa-regular fa-calendar" style="margin-right: 4px; margin-bottom: 10px;"></i> Deadline: <strong style="color:#e2e8f0;">${formatDate(deadline)}</strong>
                         </div>
-
+                        <div style="color:#9bb0cc; font-size:14px; margin-bottom: 4px;">
+                            ${escapeHtml(agreement.shipment_details || "Shipment")}
+                        </div>
                     </div>
-
-
-                    <i
-                        class="fa-solid
-                        ${isExpanded
-                    ? "fa-chevron-up"
-                    : "fa-chevron-down"
-                }"
-                        style="
-                            color:#6683aa;
-                            font-size:15px;
-                        "
-                    ></i>
-
+                    <i class="fa-solid ${isExpanded ? "fa-chevron-up" : "fa-chevron-down"}" style="color:#6683aa; font-size:15px;"></i>
                 </div>
 
-
                 <!-- PROGRESS -->
-
-                <div
-                    style="
-                        margin-top:22px;
-                    "
-                >
-
-                    <div
-                        class="overall-progress-header"
-                    >
-
-                        <span>
-                            Overall Completion
-                        </span>
-
-                        <strong>
-                            ${completedPercentage}%
-                        </strong>
-
+                <div style="margin-top:12px;">
+                    <div class="overall-progress-header">
+                        <span>Overall Completion</span>
+                        <strong>${completedPercentage}%</strong>
                     </div>
-
-
-                    <div
-                        class="progress-track"
-                    >
-
-                        <div
-                            class="progress-fill"
-                            style="width:${Math.min(completedPercentage, 100)}%;"
-                        ></div>
-
+                    <div class="progress-track">
+                        <div class="progress-fill" style="width:${Math.min(completedPercentage, 100)}%;"></div>
                     </div>
-
                 </div>
 
 
                 <!-- MILESTONES -->
-
-                <div
-                    id="milestones-${agreementId}"
-                    style="
-                        display:
-                            ${isExpanded
-                    ? "block"
-                    : "none"
-                };
-                        margin-top:20px;
-                    "
-                >
-
-                    ${renderMilestoneList(
-                    agreement,
-                    activeIndex
-                )}
-
+                <div id="milestones-${agreementId}" style="display:${isExpanded ? "block" : "none"}; margin-top:20px;">
+                    ${renderMilestoneList(agreement, activeIndex)}
                 </div>
+
+                ${extensionActionHtml}
+                ${shipperApprovalHtml}
 
             `;
 
-
-            container.appendChild(
-                card
-            );
+            container.appendChild(card);
 
         }
     );
 
 }
+
+function checkReminderWindow(milestone) {
+    if (!milestone.completed_at || milestone.verified) return false;
+    const FIVE_MINUTES = 300; // 5 minutes in seconds
+    const submittedTime = new Date(milestone.completed_at).getTime() / 1000;
+    const now = Math.floor(Date.now() / 1000);
+
+    return now > (submittedTime + FIVE_MINUTES);
+}
+
 
 
 // =====================================================
@@ -791,6 +711,73 @@ function renderMilestoneList(
 
 }
 
+// =====================================================
+// VERIFICATION PENDING REMINDER BAR
+// =====================================================
+
+function renderVerificationReminderBar() {
+    const bar = document.getElementById("verification-reminder-bar");
+    const detail = document.getElementById("verification-bar-details");
+
+    if (!bar || !detail || milestoneRole !== "shipper") {
+        if (bar) bar.style.display = "none";
+        return;
+    }
+
+    let targetMilestoneInfo = null;
+    const FIVE_MINUTES = 300; // 5 minutes in seconds
+    const now = Math.floor(Date.now() / 1000);
+
+    for (const agreement of milestoneAgreements) {
+        if (!agreement.milestones) continue;
+
+        for (const milestone of agreement.milestones) {
+            const completed = normalizeBool(milestone.completed);
+            const verified = normalizeBool(milestone.verified);
+
+            if (completed && !verified && milestone.completed_at) {
+                const submittedTime = new Date(milestone.completed_at).getTime() / 1000;
+                if (now > (submittedTime + FIVE_MINUTES)) {
+                    targetMilestoneInfo = {
+                        agreementId: agreement.agreement_id,
+                        reference: agreement.reference_no,
+                        checkpoint: milestone.checkpoint || `Milestone ${(milestone.milestone_index || 0) + 1}`
+                    };
+                    break;
+                }
+            }
+        }
+        if (targetMilestoneInfo) break;
+    }
+
+    if (!targetMilestoneInfo) {
+        bar.style.display = "none";
+        return;
+    }
+
+    detail.innerHTML = `
+        Verification pending over 5 minutes. Please review and verify milestone <strong>"${escapeHtml(targetMilestoneInfo.checkpoint)}"</strong> for agreement #${escapeHtml(targetMilestoneInfo.reference)}.
+        <button type="button" class="primary-action-btn" style="display: inline-flex; margin-top: 8px; padding: 6px 12px; font-size: 12px; background: #059669;" onclick="jumpToAgreementCard(${targetMilestoneInfo.agreementId})">
+            <i class="fa-solid fa-arrow-right"></i> Go & Review
+        </button>
+    `;
+    bar.style.display = "block";
+}
+
+
+// Function to expand card and scroll to it
+function jumpToAgreementCard(agreementId) {
+    expandedAgreements.add(Number(agreementId));
+    renderAgreements();
+
+    // Smooth scroll to the specific agreement card after rendering
+    setTimeout(() => {
+        const cardElement = document.getElementById(`milestones-${agreementId}`)?.closest(".details-card");
+        if (cardElement) {
+            cardElement.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+    }, 100);
+}
 
 // =====================================================
 // RENDER SINGLE MILESTONE
@@ -868,7 +855,7 @@ function renderMilestone(
         state = "completed";
         stateText = "Completed & Paid";
     } else if (milestone.isRejected) {
-        state = "cancelled"; // Uses red/danger theme matching rejection
+        state = "cancelled";
         stateText = "Rejected";
     } else if (completed && !verified) {
         state = "active";
@@ -876,6 +863,15 @@ function renderMilestone(
     } else if (milestoneIndex === activeIndex) {
         state = "active";
         stateText = "Pending";
+    }
+
+    let reminderHtml = "";
+    if (completed && !verified && checkReminderWindow(milestone)) {
+        reminderHtml = `
+            <div style="margin-top: 8px; padding: 8px 12px; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 6px; color: #fbbf24; font-size: 12px;">
+                <i class="fa-solid fa-triangle-exclamation"></i> Verification pending over 5 minutes. Please review and verify this milestone.
+            </div>
+        `;
     }
 
 
@@ -902,7 +898,6 @@ function renderMilestone(
             </button>
         `;
     } else if (completed || verified) {
-        // Allows BOTH Carrier and Shipper to view details of submitted/verified milestones anytime
         actionHtml = `
             <button
                 type="button"
@@ -1039,6 +1034,7 @@ function renderMilestone(
             : ""
         }
 
+                    ${reminderHtml}
                     ${actionHtml}
 
                 </div>
@@ -1058,7 +1054,6 @@ function renderMilestone(
         </div>
 
     `;
-
 }
 
 
@@ -1727,6 +1722,187 @@ function showPageError(
 
     `;
 
+}
+
+function openMilestoneExtensionModal(agreementId, currentDeadline) {
+    let modal = document.getElementById("extension-request-modal");
+
+    if (!modal) {
+        modal = document.createElement("div");
+        modal.id = "extension-request-modal";
+        modal.className = "profile-modal";
+        document.body.appendChild(modal);
+    }
+
+    const toLocalDateTimeValue = timestamp => {
+        const date = new Date(timestamp * 1000);
+        return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+            .toISOString()
+            .slice(0, 16);
+    };
+
+    modal.innerHTML = `
+        <div class="profile-modal-card" role="dialog" aria-modal="true" aria-labelledby="extension-modal-title">
+            <h3 id="extension-modal-title"><i class="fa-solid fa-clock"></i> Request Deadline Extension</h3>
+            <label>
+                New Date & Time (up to 10 days after current deadline)
+                <input type="datetime-local" id="ext-date-input"
+                    min="${toLocalDateTimeValue(currentDeadline)}"
+                    max="${toLocalDateTimeValue(currentDeadline + (10 * 86400))}" required>
+            </label>
+            <label style="margin-top: 12px;">
+                Reason for Extension
+                <input type="text" id="ext-reason-input" placeholder="e.g. Customs delay, bad weather" maxlength="200">
+            </label>
+            <p id="ext-modal-message" class="profile-modal-note" role="alert"></p>
+            <div class="profile-modal-actions">
+                <button type="button" class="profile-cancel-btn" id="cancel-ext-btn">Cancel</button>
+                <button type="button" class="profile-save-btn" id="submit-ext-btn">Submit Request</button>
+            </div>
+        </div>
+    `;
+
+    document.getElementById("cancel-ext-btn").onclick = () => { modal.hidden = true; };
+    document.getElementById("submit-ext-btn").onclick = () => submitMilestoneExtensionRequest(agreementId, currentDeadline);
+
+    modal.hidden = false;
+}
+
+async function submitMilestoneExtensionRequest(agreementId, currentDeadline) {
+    const dateInput = document.getElementById("ext-date-input")?.value;
+    const reasonInput = document.getElementById("ext-reason-input")?.value.trim() || "";
+    const messageEl = document.getElementById("ext-modal-message");
+
+    if (!dateInput) {
+        if (messageEl) messageEl.innerText = "Please select a valid extension date and time.";
+        return;
+    }
+
+    const selectedTimestamp = Math.floor(new Date(dateInput).getTime() / 1000);
+    const maxAllowedTimestamp = currentDeadline + (10 * 24 * 3600);
+
+    if (selectedTimestamp <= currentDeadline) {
+        if (messageEl) messageEl.innerText = "New deadline must be after the current deadline.";
+        return;
+    }
+
+    if (selectedTimestamp > maxAllowedTimestamp) {
+        if (messageEl) messageEl.innerText = "Extension cannot exceed 10 days beyond current deadline.";
+        return;
+    }
+
+    try {
+        if (messageEl) messageEl.innerText = "Submitting request...";
+
+        const { error } = await supabaseClient
+            .from("agreements")
+            .update({
+                extension_requested_deadline: selectedTimestamp,
+                extension_request_reason: reasonInput
+            })
+            .eq("agreement_id", Number(agreementId));
+
+        if (error) throw error;
+
+        await supabaseClient.from("transactions").insert([{
+            transaction_hash: "N/A-" + Date.now(),
+            agreement_id: Number(agreementId),
+            event_type: "DeadlineExtensionRequested",
+            actor_address: milestoneWallet.toLowerCase(),
+            details: {
+                requested_deadline: selectedTimestamp,
+                reason: reasonInput,
+                description: "Carrier requested deadline extension."
+            }
+        }]);
+
+        alert("Extension request submitted successfully to Shipper.");
+        window.location.reload();
+    } catch (err) {
+        console.error("Extension request error:", err);
+        if (messageEl) messageEl.innerText = "Failed: " + (err.message || err);
+    }
+}
+
+async function approveMilestoneExtension(agreementId, requestedDeadline) {
+    try {
+        if (typeof window.ethereum === "undefined") throw new Error("MetaMask is required.");
+
+        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+        const account = accounts[0];
+
+        const web3 = new Web3(window.ethereum);
+        const contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
+
+        const tx = await contract.methods
+            .extendDeadline(Number(agreementId), requestedDeadline)
+            .send({ from: account });
+
+        const { error } = await supabaseClient
+            .from("agreements")
+            .update({
+                deadline: requestedDeadline,
+                extension_requested_deadline: null,
+                extension_request_reason: null
+            })
+            .eq("agreement_id", Number(agreementId));
+
+        if (error) throw error;
+
+        await supabaseClient.from("transactions").insert([{
+            transaction_hash: tx.transactionHash,
+            agreement_id: Number(agreementId),
+            event_type: "DeadlineExtended",
+            actor_address: account.toLowerCase(),
+            details: {
+                new_deadline: requestedDeadline,
+                description: "Shipper approved deadline extension."
+            }
+        }]);
+
+        alert("Deadline extended successfully!");
+        window.location.reload();
+    } catch (err) {
+        console.error("Extension approval failed:", err);
+        alert("Failed to approve extension: " + (err.message || err));
+    }
+}
+
+async function rejectMilestoneExtension(agreementId) {
+    try {
+        const { error } = await supabaseClient
+            .from("agreements")
+            .update({
+                extension_requested_deadline: null,
+                extension_request_reason: null
+            })
+            .eq("agreement_id", Number(agreementId));
+
+        if (error) throw error;
+
+        await supabaseClient.from("transactions").insert([{
+            transaction_hash: "N/A-" + Date.now(),
+            agreement_id: Number(agreementId),
+            event_type: "DeadlineExtensionRejected",
+            actor_address: milestoneWallet.toLowerCase(),
+            details: { description: "Shipper rejected deadline extension request." }
+        }]);
+
+        alert("Extension request rejected.");
+        window.location.reload();
+    } catch (err) {
+        console.error("Rejection failed:", err);
+        alert("Failed to reject extension: " + (err.message || err));
+    }
+}
+
+function formatDate(timestamp) {
+    if (!timestamp) return "-";
+    return new Date(Number(timestamp) * 1000).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+    });
 }
 
 

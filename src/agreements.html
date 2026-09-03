@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/agreement.css">
+    <link rel="stylesheet" href="css/profile.css">
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 
@@ -21,7 +23,7 @@
         <header class="top-navbar">
             <div class="page-title-block">
                 <h1 id="page-heading">Agreements</h1>
-            <div class="network-stats">
+                <div class="network-stats">
                     <span>Chain ID: <strong id="chain-id">—</strong></span>
                     <span class="dot"></span>
                     <span>Gas: <strong id="gas-price">—</strong></span>
@@ -31,12 +33,6 @@
             </div>
 
             <div class="top-nav-right">
-                <div class="search-box">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="text" id="search-input" placeholder="Search agreements...">
-                </div>
-
-
                 <div class="wallet-badge">
                     <span class="wallet-glow-dot"></span>
                     <span id="top-wallet-address">Connecting...</span>
@@ -47,6 +43,34 @@
 
         <!-- Agreements body content section-->
         <div class="dashboard-body-placeholder">
+            <div id="extension-notification-bar" class="profile-identity-card"
+                style="display: none; margin-bottom: 20px; border-color: rgba(245, 158, 11, 0.4); background: linear-gradient(180deg, #1e2538 0%, #111827 100%);">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div class="profile-stat-icon gold"
+                            style="width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: rgba(245, 158, 11, 0.15); color: #fbbf24;">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                        </div>
+                        <div>
+                            <h3 style="color: #fff; font-size: 16px; margin-bottom: 2px;">Deadline Extension Requested
+                            </h3>
+                            <p id="extension-bar-details" style="color: #8d99ae; font-size: 13px; margin: 0;">Carrier
+                                requested an extension for agreement #<span id="ext-bar-ref">---</span>.</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="button" class="primary-action-btn" id="bar-approve-ext-btn"
+                            style="padding: 8px 14px; font-size: 13px; background: #059669;">
+                            <i class="fa-solid fa-check"></i> Approve
+                        </button>
+                        <button type="button" class="cancel-btn" id="bar-reject-ext-btn"
+                            style="padding: 8px 14px; font-size: 13px;">
+                            <i class="fa-solid fa-xmark"></i> Reject
+                        </button>
+                    </div>
+                </div>
+            </div>
 
             <!-- Bar: Search Input, Filter Tabs, and New Agreement Button -->
             <div class="agreements-controls">
@@ -59,10 +83,6 @@
 
                     <button class="filter-btn active" data-filter="all">
                         All
-                    </button>
-
-                    <button class="filter-btn" data-filter="created">
-                        Created
                     </button>
 
                     <button class="filter-btn" data-filter="in progress">
@@ -83,7 +103,8 @@
 
                 </div>
 
-                <button id="new-agreement-btn" class="primary-action-btn" onclick="window.location.href='createAgreement.html'">
+                <button id="new-agreement-btn" class="primary-action-btn"
+                    onclick="window.location.href='createAgreement.html'">
                     <i class="fa-solid fa-circle-plus"></i> New Agreement
                 </button>
             </div>

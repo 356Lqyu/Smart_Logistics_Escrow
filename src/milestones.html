@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/milestone.css">
+    <link rel="stylesheet" href="css/profile.css">
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 
@@ -21,8 +23,8 @@
     <main class="main-content">
         <header class="top-navbar">
             <div class="page-title-block">
-                <h1 id="page-heading">Milestone Management</h1>
-            <div class="network-stats">
+                <h1 id="page-heading">Milestone</h1>
+                <div class="network-stats">
                     <span>Chain ID: <strong id="chain-id">—</strong></span>
                     <span class="dot"></span>
                     <span>Gas: <strong id="gas-price">—</strong></span>
@@ -32,12 +34,6 @@
             </div>
 
             <div class="top-nav-right">
-                <div class="search-box">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="text" id="search-input" placeholder="Search agreements...">
-                </div>
-
-
                 <div class="wallet-badge">
                     <span class="wallet-glow-dot"></span>
                     <span id="top-wallet-address">Connecting...</span>
@@ -47,6 +43,25 @@
         </header>
 
         <div class="dashboard-body-placeholder">
+            <!-- Verification Pending Reminder Bar -->
+            <div id="verification-reminder-bar" class="profile-identity-card"
+                style="display: none; margin-bottom: 20px; border-color: rgba(245, 158, 11, 0.4); background: linear-gradient(180deg, #1e2538 0%, #111827 100%);">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div class="profile-stat-icon gold"
+                            style="width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: rgba(245, 158, 11, 0.15); color: #fbbf24;">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                        <div>
+                            <h3 style="color: #fff; font-size: 16px; margin-bottom: 2px;">Verification Pending Reminder
+                            </h3>
+                            <p id="verification-bar-details" style="color: #8d99ae; font-size: 13px; margin: 0;">
+                                Verification pending over 5 minutes for milestone...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div id="milestones-page-container">
                 <div style="text-align: center; color: #8d99ae; padding: 40px;">
                     <i class="fa-solid fa-spinner fa-spin fa-2x"></i>

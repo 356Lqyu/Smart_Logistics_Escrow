@@ -4,6 +4,7 @@ let submissionEvidence;
 let submissionAgreementId;
 let submissionMilestoneIndex;
 let submissionMode;
+let submissionSource;
 let rejectionReason = null;
 
 document.addEventListener("DOMContentLoaded", initialiseSubmissionPage);
@@ -14,6 +15,8 @@ async function initialiseSubmissionPage() {
         submissionAgreementId = Number(params.get("agreementId"));
         submissionMilestoneIndex = Number(params.get("milestoneIndex"));
         submissionMode = params.get("mode") === "review" ? "review" : "submit";
+        submissionSource = params.get("from") === "agreement-details" ? "agreement-details" : "milestones";
+        configureBackLink();
 
         if (!Number.isInteger(submissionAgreementId) || !Number.isInteger(submissionMilestoneIndex)) {
             throw new Error("A valid agreement and milestone are required.");
@@ -68,6 +71,17 @@ async function initialiseSubmissionPage() {
                 <br><br>
                 <a href="milestones.html" class="view-btn">Back to Milestones</a>
             </div>`;
+    }
+}
+
+function configureBackLink() {
+    const backLink = document.getElementById("submission-back-link");
+    const backLabel = document.getElementById("submission-back-label");
+    if (!backLink || !backLabel) return;
+
+    if (submissionSource === "agreement-details") {
+        backLink.href = `agreementDetails.html?id=${encodeURIComponent(submissionAgreementId)}`;
+        backLabel.textContent = "Back to Agreement Details";
     }
 }
 

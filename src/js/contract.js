@@ -1,5 +1,5 @@
 const CONTRACT_ADDRESS =
-    "0xD59a961481B79cf2ed8092C7280FA8933440338D";
+    "0x9D26f92dC19c93ADA8fDc1D7Aeb06f0cf3cF5b5F";
 
 
 const CONTRACT_ABI = [
@@ -90,6 +90,31 @@ const CONTRACT_ABI = [
         }
       ],
       "name": "AgreementExpired",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "agreementId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "newDeadline",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "shipper",
+          "type": "address"
+        }
+      ],
+      "name": "DeadlineExtended",
       "type": "event"
     },
     {
@@ -627,6 +652,24 @@ const CONTRACT_ABI = [
           "type": "uint256"
         },
         {
+          "internalType": "uint256",
+          "name": "milestoneIndex",
+          "type": "uint256"
+        }
+      ],
+      "name": "autoVerifyMilestone",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "agreementId",
+          "type": "uint256"
+        },
+        {
           "internalType": "string",
           "name": "reason",
           "type": "string"
@@ -659,6 +702,24 @@ const CONTRACT_ABI = [
         }
       ],
       "name": "expireAgreement",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "agreementId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "newDeadline",
+          "type": "uint256"
+        }
+      ],
+      "name": "extendDeadline",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"

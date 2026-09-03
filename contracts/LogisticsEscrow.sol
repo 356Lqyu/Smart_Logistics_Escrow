@@ -158,6 +158,12 @@ contract LogisticsEscrow {
         uint amount
     );
 
+    event DeadlineExtended(
+        uint indexed agreementId,
+        uint newDeadline,
+        address indexed shipper
+    );
+
     // =====================================================
     // USER REGISTRATION
     // =====================================================
@@ -954,4 +960,31 @@ contract LogisticsEscrow {
             agreementId
         );
     }
+
+    function extendDeadline(
+        uint agreementId,
+        uint newDeadline
+    ) 
+        external 
+    {
+        Agreement storage agreement = agreements[agreementId];
+
+        require(agreement.agreementId != 0, "Agreement does not exist");
+        require(msg.sender == agreement.shipper, "Only the shipper can extend deadline");
+        require(
+            agreement.status == AgreementStatus.Created || 
+            agreement.status == AgreementStatus.InProgress, 
+            "Cannot extend deadline for this agreement status"
+        );
+        require(newDeadline > agreement.deadline, "New deadline must be greater than current deadline");
+
+        agreement.deadline = newDeadline;
+
+        emit DeadlineExtended(
+            agreementId,
+            newDeadline,
+            msg.sender
+        );
+    }
+
 }

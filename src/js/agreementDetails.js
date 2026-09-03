@@ -807,7 +807,7 @@ function renderAgreement() {
 
     setText(
         "agreement-deadline",
-        formatDate(
+        formatDateTime(
             deadline
         )
     );
@@ -1811,7 +1811,9 @@ async function verifyMilestone(
             index ===
             milestoneData.length - 1;
 
-        await supabaseClient
+        const {
+            error: agreementUpdateError
+        } = await supabaseClient
             .from("agreements")
             .update({
                 escrow_released:
@@ -2428,133 +2430,294 @@ function renderLifecycleStages(
 
 function setupActions() {
 
-    const cancelButton =
-        document.getElementById(
-            "cancel-btn"
-        );
-
-    const role =
-        String(
-            localStorage.getItem(
-                "role"
-            ) ||
-            ""
-        ).toLowerCase();
-
-    const isShipper =
-        role === "1" ||
-        role === "shipper";
-
-    const isCarrier =
-        role === "2" ||
-        role === "carrier";
+    const cancelButton = document.getElementById("cancel-btn");
+    const role = String(localStorage.getItem("role") || "")
+        .toLowerCase()
+        .trim();
+    const status = String(agreementData?.status || "")
+        .toLowerCase()
+        .trim();
+    const isShipper = role === "1" || role === "shipper";
+    const isCarrier = role === "2" || role === "carrier";
+    const isActiveAgreement =
+        status === "in progress" ||
+        status === "active" ||
+        Number(agreementData?.blockchain_status) === 1;
 
     // -------------------------------------------------
     // EXPIRED
     // -------------------------------------------------
 
-    if (
-        agreementData.status ===
-        "Expired"
-    ) {
-
+    if (status === "expired") {
         if (cancelButton) {
-
-            cancelButton.style.display =
-                "none";
+            cancelButton.style.display = "none";
         }
 
+        removeExtensionRequestButton();
         return;
     }
 
-    // -------------------------------------------------
-    // CANCEL / ACCEPT
-    // -------------------------------------------------
-
+    // 2. Handle Cancel / Accept Buttons
     if (cancelButton) {
-
-        // An expired agreement must be confirmed by its Shipper. This applies
-        // both before acceptance (Created) and after acceptance (In Progress).
-        if (
-            isShipper &&
-            isAgreementExpired() &&
-            (
-                agreementData.status === "Created" ||
-                agreementData.status === "In Progress"
-            )
-        ) {
-
+        if (isShipper && isAgreementExpired() && (status === "created" || isActiveAgreement)) {
             cancelButton.style.display = "inline-flex";
             cancelButton.disabled = false;
             cancelButton.className = "danger-action-btn";
-            cancelButton.innerHTML = `
-                <i class="fa-solid fa-clock"></i>
-                Confirm Expiry & Refund
-            `;
+            cancelButton.innerHTML = `<i class="fa-solid fa-clock"></i> Confirm Expiry & Refund`;
             cancelButton.onclick = processAgreementExpiry;
+        } else if (isShipper && status === "created") {
+            cancelButton.style.display = "inline-flex";
+            cancelButton.disabled = false;
+            cancelButton.className = "danger-action-btn";
+            cancelButton.innerHTML = `<i class="fa-solid fa-xmark"></i> Cancel Agreement`;
+            cancelButton.onclick = cancelAgreement;
+        } else if (isCarrier && status === "created" && !isAgreementExpired()) {
+            cancelButton.style.display = "inline-flex";
+            cancelButton.disabled = false;
+            cancelButton.className = "primary-action-btn";
+            cancelButton.innerHTML = `<i class="fa-solid fa-check"></i> Accept Agreement`;
+            cancelButton.onclick = acceptAgreementDetailsAction;
+        } else {
+            cancelButton.style.display = "none";
         }
+    }
 
-        // Shipper can cancel Created
-        else if (
-            isShipper &&
-            agreementData.status ===
-            "Created"
-        ) {
+    // 3. Deadline Extension Request Trigger (Within 1 Day / 86400 Seconds)
+    const deadline = Number(
+        agreementData.blockchain_deadline ||
+        agreementData.deadline
+    );
+    const now = Math.floor(Date.now() / 1000);
+    const timeRemaining = deadline - now;
+    const ONE_DAY_IN_SECONDS = 86400;
+    const pendingExtension =
+        agreementData.extension_requested_deadline !== null &&
+        agreementData.extension_requested_deadline !== undefined &&
+        String(agreementData.extension_requested_deadline).trim() !== "";
 
-            cancelButton.style.display =
-                "inline-flex";
+    const canRequestExtension =
+        isCarrier &&
+        isActiveAgreement &&
+        Number.isFinite(deadline) &&
+        timeRemaining > 0 &&
+        timeRemaining <= ONE_DAY_IN_SECONDS &&
+        !pendingExtension;
 
-            cancelButton.disabled =
-                false;
+    if (canRequestExtension) {
+        showExtensionRequestButton();
+    } else {
+        removeExtensionRequestButton();
+    }
 
-            cancelButton.className =
-                "danger-action-btn";
-
-            cancelButton.innerHTML = `
-                <i class="fa-solid fa-xmark"></i>
-                Cancel Agreement
-            `;
-
-            cancelButton.onclick =
-                cancelAgreement;
-
-        }
-
-        // Carrier can accept Created
-        else if (
-            isCarrier &&
-            agreementData.status ===
-            "Created" &&
-            !isAgreementExpired()
-        ) {
-
-            cancelButton.style.display =
-                "inline-flex";
-
-            cancelButton.disabled =
-                false;
-
-            cancelButton.className =
-                "primary-action-btn";
-
-            cancelButton.innerHTML = `
-                <i class="fa-solid fa-check"></i>
-                Accept Agreement
-            `;
-
-            cancelButton.onclick =
-                acceptAgreementDetailsAction;
-
-        }
-
-        else {
-
-            cancelButton.style.display =
-                "none";
-        }
+    if (isShipper && pendingExtension) {
+        showShipperExtensionApprovalUI(
+            agreementData.extension_request_reason,
+            agreementData.extension_requested_deadline
+        );
     }
 }
 
+
+// =====================================================
+// EXTENSION UI RENDERERS
+// =====================================================
+
+function showExtensionRequestButton() {
+    const actionContainer = document.querySelector(".agreement-actions");
+
+    if (!actionContainer || document.getElementById("request-extension-btn")) {
+        return;
+    }
+
+    const btn = document.createElement("button");
+    btn.id = "request-extension-btn";
+    btn.type = "button";
+    btn.className = "primary-action-btn";
+    btn.innerHTML = `<i class="fa-solid fa-hourglass-half"></i> Request Extension`;
+    btn.onclick = openExtensionModal;
+
+    actionContainer.appendChild(btn);
+}
+
+function removeExtensionRequestButton() {
+    document.getElementById("request-extension-btn")?.remove();
+}
+
+function showShipperExtensionApprovalUI(reason, requestedDeadline) {
+    const container = document.querySelector(".agreement-actions");
+
+    if (!container) {
+        return;
+    }
+
+    // Avoid duplicate approval cards
+    if (document.getElementById("extension-approval-card")) return;
+
+    const card = document.createElement("div");
+    card.id = "extension-approval-card";
+    card.style.cssText = "margin-top: 15px; padding: 12px; background: #fffbebfb; border: 1px solid #fcd34d; border-radius: 8px;";
+    card.innerHTML = `
+        <div style="font-weight: bold; color: #b45309; margin-bottom: 6px;">
+            <i class="fa-solid fa-clock-rotate-left"></i> Deadline Extension Requested
+        </div>
+        <p style="font-size: 13px; margin: 4px 0;"><strong>Requested Deadline:</strong> ${formatDate(requestedDeadline)}</p>
+        <p style="font-size: 13px; margin: 4px 0;"><strong>Reason:</strong> ${escapeHtml(reason || "No reason provided.")}</p>
+        <div style="margin-top: 10px; display: flex; gap: 8px;">
+            <button type="button" class="primary-action-btn" onclick="approveDeadlineExtension(${agreementId})">
+                Approve Extension
+            </button>
+            <button type="button" class="danger-action-btn" onclick="rejectDeadlineExtension(${agreementId})">
+                Reject Extension
+            </button>
+        </div>
+    `;
+
+    container.appendChild(card);
+}
+
+function openExtensionModal() {
+    let modal = document.getElementById("extension-request-modal");
+
+    if (!modal) {
+        modal = document.createElement("div");
+        modal.id = "extension-request-modal";
+        modal.className = "profile-modal";
+        document.body.appendChild(modal);
+    }
+
+    const currentDeadline = Number(
+        agreementData.blockchain_deadline ||
+        agreementData.deadline
+    );
+
+    if (!Number.isFinite(currentDeadline)) {
+        alert("The current agreement deadline is invalid.");
+        return;
+    }
+
+    const toLocalDateTimeValue = timestamp => {
+        const date = new Date(timestamp * 1000);
+        return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+            .toISOString()
+            .slice(0, 16);
+    };
+
+    modal.innerHTML = `
+        <div class="profile-modal-card" role="dialog" aria-modal="true" aria-labelledby="extension-modal-title">
+            <h3 id="extension-modal-title"><i class="fa-solid fa-clock"></i> Request Deadline Extension</h3>
+            <label>
+                New Date & Time (up to 10 days after the current deadline)
+                <input type="datetime-local" id="ext-date-input"
+                    min="${toLocalDateTimeValue(currentDeadline)}"
+                    max="${toLocalDateTimeValue(currentDeadline + (10 * 86400))}" required>
+            </label>
+            <label style="margin-top: 12px;">
+                Reason for Extension
+                <input type="text" id="ext-reason-input" placeholder="e.g. Customs delay, bad weather" maxlength="200">
+            </label>
+            <p id="ext-modal-message" class="profile-modal-note" role="alert"></p>
+            <div class="profile-modal-actions">
+                <button type="button" class="profile-cancel-btn" id="cancel-ext-btn">Cancel</button>
+                <button type="button" class="profile-save-btn" id="submit-ext-btn">Submit Request</button>
+            </div>
+        </div>
+    `;
+
+    document.getElementById("cancel-ext-btn").onclick = () => {
+        modal.hidden = true;
+    };
+    document.getElementById("submit-ext-btn").onclick = submitDeadlineExtensionRequest;
+
+    modal.hidden = false;
+}
+
+async function submitDeadlineExtensionRequest() {
+    const dateInput = document.getElementById("ext-date-input")?.value;
+    const reasonInput = document.getElementById("ext-reason-input")?.value.trim() || "";
+    const messageEl = document.getElementById("ext-modal-message");
+
+    const role = String(localStorage.getItem("role") || "")
+        .toLowerCase()
+        .trim();
+    const status = String(agreementData?.status || "")
+        .toLowerCase()
+        .trim();
+    const isActiveAgreement =
+        status === "in progress" ||
+        status === "active" ||
+        Number(agreementData?.blockchain_status) === 1;
+
+    if (!dateInput) {
+        if (messageEl) messageEl.innerText = "Please select a valid extension date and time.";
+        return;
+    }
+
+    const selectedTimestamp = Math.floor(new Date(dateInput).getTime() / 1000);
+    const currentDeadline = Number(agreementData.blockchain_deadline || agreementData.deadline);
+    const maxAllowedTimestamp = currentDeadline + (10 * 24 * 3600); // 10 days max
+    const hasPendingExtension =
+        agreementData.extension_requested_deadline !== null &&
+        agreementData.extension_requested_deadline !== undefined &&
+        String(agreementData.extension_requested_deadline).trim() !== "";
+
+    if (
+        (role !== "2" && role !== "carrier") ||
+        !isActiveAgreement ||
+        hasPendingExtension
+    ) {
+        if (messageEl) messageEl.innerText = "This extension request is no longer available.";
+        return;
+    }
+
+    if (selectedTimestamp <= currentDeadline) {
+        if (messageEl) messageEl.innerText = "The new deadline must be after the current deadline.";
+        return;
+    }
+
+    if (selectedTimestamp > maxAllowedTimestamp) {
+        if (messageEl) messageEl.innerText = "Extension cannot exceed 10 days beyond current deadline.";
+        return;
+    }
+
+    try {
+        if (messageEl) messageEl.innerText = "Submitting request...";
+
+        const { data, error } = await supabaseClient
+            .from("agreements")
+            .update({
+                extension_requested_deadline: selectedTimestamp,
+                extension_request_reason: reasonInput
+            })
+            .eq("agreement_id", Number(agreementId))
+            .is("extension_requested_deadline", null)
+            .select("agreement_id");
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+            throw new Error(
+                "An extension request already exists for this agreement."
+            );
+        }
+
+        await saveTransaction(
+            "N/A-" + Date.now(),
+            "DeadlineExtensionRequested",
+            localStorage.getItem("wallet") || "",
+            {
+                requested_deadline: selectedTimestamp,
+                reason: reasonInput,
+                description: "Carrier requested deadline extension."
+            }
+        );
+
+        alert("Extension request submitted successfully to Shipper.");
+        window.location.reload();
+    } catch (err) {
+        console.error("Extension request error:", err);
+        if (messageEl) messageEl.innerText = "Failed: " + (err.message || err);
+    }
+}
 
 // =====================================================
 // ACCEPT AGREEMENT
@@ -2693,6 +2856,13 @@ async function acceptAgreementDetailsAction() {
                 "agreement_id",
                 Number(agreementId)
             );
+
+        if (agreementUpdateError) {
+            throw new Error(
+                "Agreement was accepted on-chain, but its status could not be saved: " +
+                agreementUpdateError.message
+            );
+        }
 
         await supabaseClient
             .from("transactions")
@@ -2986,6 +3156,130 @@ async function cancelAgreement() {
     }
 }
 
+// Request extend agreement deadline
+async function requestDeadlineExtension(agreementId) {
+    try {
+        const newDeadlineDate = prompt("Enter new deadline date (YYYY-MM-DD):");
+        if (!newDeadlineDate) return;
+
+        const newDeadlineTimestamp = Math.floor(new Date(newDeadlineDate).getTime() / 1000);
+        const currentDeadline = Number(agreementData.blockchain_deadline || agreementData.deadline);
+
+        if (isNaN(newDeadlineTimestamp) || newDeadlineTimestamp <= currentDeadline) {
+            alert("New deadline must be a valid future date beyond the current deadline.");
+            return;
+        }
+
+        const reason = prompt("Enter reason for delay (optional):") || "";
+
+        const { error } = await supabaseClient
+            .from("agreements")
+            .update({
+                extension_requested_deadline: newDeadlineTimestamp,
+                extension_request_reason: reason
+            })
+            .eq("agreement_id", Number(agreementId));
+
+        if (error) throw error;
+
+        await saveTransaction(
+            "N/A-" + Date.now(),
+            "DeadlineExtensionRequested",
+            localStorage.getItem("wallet"),
+            {
+                requested_deadline: newDeadlineTimestamp,
+                reason: reason,
+                description: "Carrier requested deadline extension."
+            }
+        );
+
+        alert("Extension request submitted to Shipper.");
+        window.location.reload();
+    } catch (err) {
+        console.error("Extension request failed:", err);
+        alert("Failed to submit extension request: " + (err.message || err));
+    }
+}
+
+// shipper approve the deadline extension
+async function approveDeadlineExtension(agreementId) {
+    try {
+        if (typeof window.ethereum === "undefined") throw new Error("MetaMask is required.");
+
+        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+        const account = accounts[0];
+
+        const shipper = (agreementData.blockchain_shipper || agreementData.shipper_address || "").toLowerCase();
+        if (account.toLowerCase() !== shipper) {
+            throw new Error("Only the Shipper can approve deadline extensions.");
+        }
+
+        const newDeadline = Number(agreementData.extension_requested_deadline);
+        if (!newDeadline) throw new Error("No pending extension request found.");
+
+        const web3 = new Web3(window.ethereum);
+        const contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
+
+        const tx = await contract.methods
+            .extendDeadline(Number(agreementId), newDeadline)
+            .send({ from: account });
+
+        const { error } = await supabaseClient
+            .from("agreements")
+            .update({
+                deadline: newDeadline,
+                extension_requested_deadline: null,
+                extension_request_reason: null
+            })
+            .eq("agreement_id", Number(agreementId));
+
+        if (error) throw error;
+
+        await saveTransaction(
+            tx.transactionHash,
+            "DeadlineExtended",
+            account,
+            {
+                new_deadline: newDeadline,
+                description: "Shipper approved deadline extension."
+            }
+        );
+
+        alert("Deadline extended successfully!");
+        window.location.reload();
+    } catch (err) {
+        console.error("Extension approval failed:", err);
+        alert("Failed to approve extension: " + (err.message || err));
+    }
+}
+
+// shipper reject the deadline extension
+async function rejectDeadlineExtension(agreementId) {
+    try {
+        const { error } = await supabaseClient
+            .from("agreements")
+            .update({
+                extension_requested_deadline: null,
+                extension_request_reason: null
+            })
+            .eq("agreement_id", Number(agreementId));
+
+        if (error) throw error;
+
+        await saveTransaction(
+            "N/A-" + Date.now(),
+            "DeadlineExtensionRejected",
+            localStorage.getItem("wallet"),
+            { description: "Shipper rejected deadline extension request." }
+        );
+
+        alert("Extension request rejected.");
+        window.location.reload();
+    } catch (err) {
+        console.error("Rejection failed:", err);
+        alert("Failed to reject extension: " + (err.message || err));
+    }
+}
 
 // =====================================================
 // SAVE TRANSACTION
@@ -3230,7 +3524,30 @@ function getStatusClass(
 
 
 function openMilestoneSubmission(agreementId, milestoneIndex, mode) {
-    window.location.href = `milestoneSubmission.html?agreementId=${Number(agreementId)}&milestoneIndex=${Number(milestoneIndex)}&mode=${encodeURIComponent(mode)}`;
+    window.location.href = `milestoneSubmission.html?agreementId=${Number(agreementId)}&milestoneIndex=${Number(milestoneIndex)}&mode=${encodeURIComponent(mode)}&from=agreement-details`;
+}
+
+function formatDateTime(
+    timestamp
+) {
+
+    if (!timestamp) {
+        return "-";
+    }
+
+    return new Date(
+        Number(timestamp) *
+        1000
+    ).toLocaleString(
+        "en-US",
+        {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit"
+        }
+    );
 }
 
 
