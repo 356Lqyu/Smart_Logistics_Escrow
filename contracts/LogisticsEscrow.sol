@@ -133,6 +133,13 @@ contract LogisticsEscrow {
         uint amount
     );
 
+    event MilestoneRejected(
+        uint indexed agreementId,
+        uint indexed milestoneIndex,
+        address indexed shipper,
+        string reason
+    );
+
     event AgreementCompleted(
         uint indexed agreementId
     );
@@ -310,8 +317,15 @@ contract LogisticsEscrow {
         );
 
         require(
-            checkpoints.length > 0,
-            "At least one milestone required"
+            checkpoints.length == 3,
+            "Exactly three milestones required"
+        );
+
+        require(
+            percentages[0] == 30 &&
+            percentages[1] == 30 &&
+            percentages[2] == 40,
+            "Milestones must be 30%, 30%, 40%"
         );
 
         require(
@@ -774,6 +788,38 @@ contract LogisticsEscrow {
         }
     }
 
+    function rejectMilestone(
+        uint agreementId,
+        string memory reason
+    )
+        external
+    {
+        Agreement storage agreement = agreements[agreementId];
+
+        require(agreement.agreementId != 0, "Agreement does not exist");
+        require(agreement.status == AgreementStatus.InProgress, "Agreement is not in progress");
+        require(msg.sender == agreement.shipper, "Only the shipper can reject milestones");
+        require(block.timestamp <= agreement.deadline, "Agreement deadline has passed");
+
+        uint index = agreement.currentMilestone;
+        Milestone storage milestone = agreementMilestones[agreementId][index];
+
+        require(milestone.completed, "Milestone has not been submitted");
+        require(!milestone.verified, "Milestone already verified");
+        require(!milestone.paid, "Milestone already paid");
+
+        // Reset completion status so carrier can re-submit
+        milestone.completed = false;
+        milestone.completedAt = 0;
+
+        emit MilestoneRejected(
+            agreementId,
+            index,
+            msg.sender,
+            reason
+        );
+    }
+
     // =====================================================
     // CANCEL
     //
@@ -841,8 +887,8 @@ contract LogisticsEscrow {
     // =====================================================
     // EXPIRE
     //
-    // Can be called after deadline.
-    // Remaining escrow is refunded to shipper.
+    // Only the shipper may confirm expiry after the deadline.
+    // Remaining escrow is refunded to that shipper.
     // =====================================================
 
     function expireAgreement(
@@ -856,6 +902,11 @@ contract LogisticsEscrow {
         require(
             agreement.agreementId != 0,
             "Agreement does not exist"
+        );
+
+        require(
+            msg.sender == agreement.shipper,
+            "Only the shipper can expire agreement"
         );
 
         require(

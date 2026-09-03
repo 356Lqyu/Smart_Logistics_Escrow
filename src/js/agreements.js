@@ -98,7 +98,9 @@ async function loadAgreements() {
         agreements = agreements.filter(a => {
             const status = String(a.status || "").toLowerCase();
             if (status === "created") {
-                return true;
+                // Do not offer a carrier an agreement whose deadline has
+                // already passed but is still awaiting shipper-confirmed expiry.
+                return !isAgreementPastDeadline(a);
             }
             if (status === "in progress") {
                 return a.carrier_address && a.carrier_address.toLowerCase() === walletLower;
@@ -185,6 +187,30 @@ async function loadAgreements() {
             }
         }
     }
+
+    // Re-check after the on-chain deadline has been loaded, since blockchain
+    // state is authoritative for carrier-visible Created agreements.
+    if (isCarrierUser) {
+        allAgreements = allAgreements.filter(
+            agreement => !(
+                getEffectiveStatus(agreement) === "Created" &&
+                isAgreementPastDeadline(agreement)
+            )
+        );
+    }
+}
+
+
+function isAgreementPastDeadline(agreement) {
+
+    const deadline = Number(
+        agreement?.blockchain_deadline ||
+        agreement?.deadline ||
+        0
+    );
+
+    return deadline > 0 &&
+        Math.floor(Date.now() / 1000) > deadline;
 }
 
 
@@ -196,9 +222,9 @@ async function loadAgreements() {
 //
 // Therefore:
 //
-// - Carrier opens Agreements page
-// - Expired agreement is detected
-// - expireAgreement() is called
+// - Shipper opens Agreements page
+// - Expired agreement is detected and the Shipper is asked to confirm
+// - expireAgreement() is called by the Shipper
 // - Smart contract refunds Shipper
 // - Supabase status becomes Expired
 //
@@ -383,6 +409,15 @@ async function processExpiredAgreements() {
                 continue;
             }
 
+            // Expiry is a shipper-confirmed transaction. A carrier can see
+            // the expired agreement, but must never be asked to sign it.
+            if (
+                account.toLowerCase() !==
+                chainAgreement.shipper.toLowerCase()
+            ) {
+                continue;
+            }
+
             // -------------------------------------------------
             // Expiry transaction
             // -------------------------------------------------
@@ -390,13 +425,21 @@ async function processExpiredAgreements() {
             const confirmed =
                 confirm(
                     `Agreement ${agreement.reference_no} has expired.\n\n` +
-                    "The remaining escrow will be refunded to the Shipper.\n\n" +
+                    "As the Shipper, confirm the expiry transaction to refund the remaining escrow to your wallet.\n\n" +
                     "Process expiry now?"
                 );
 
             if (!confirmed) {
                 continue;
             }
+
+            // Capture the remaining escrow before expireAgreement() clears it
+            // on-chain. This is the exact amount refunded to the Shipper.
+            const refundedAmount =
+                getBlockchainEth(
+                    chainAgreement.escrowRemaining,
+                    agreement.escrow_remaining
+                );
 
             const tx =
                 await contract.methods
@@ -418,13 +461,11 @@ async function processExpiredAgreements() {
             agreement.blockchain_status =
                 4;
 
-            agreement.blockchain_escrow_remaining =
-                "0";
-
             await syncExpiredAgreement(
                 agreement,
                 tx.transactionHash,
-                account
+                account,
+                refundedAmount
             );
 
         } catch (error) {
@@ -455,12 +496,14 @@ async function processExpiredAgreements() {
 async function syncExpiredAgreement(
     agreement,
     transactionHash,
-    actor
+    actor,
+    refundedAmount = null
 ) {
 
     try {
 
         const remaining =
+            refundedAmount ??
             getBlockchainEth(
                 agreement.blockchain_escrow_remaining,
                 agreement.escrow_remaining
@@ -724,7 +767,12 @@ function renderAgreements() {
 
                 return (
                     searchMatch &&
-                    filterMatch
+                    filterMatch &&
+                    !(
+                        String(localStorage.getItem("role") || "").toLowerCase() === "carrier" &&
+                        status === "Created" &&
+                        isAgreementPastDeadline(agreement)
+                    )
                 );
             }
         );
@@ -807,7 +855,11 @@ function renderAgreements() {
             `;
 
             // Carrier Accept button
-            if (isCarrierUser && isCreated) {
+            if (
+                isCarrierUser &&
+                isCreated &&
+                !isAgreementPastDeadline(agreement)
+            ) {
                 actionButtons += `
                     <button
                         class="accept-btn"
@@ -930,6 +982,12 @@ async function acceptAgreementAction(agreementId) {
         // Find the agreement in local state to check its shipper
         const targetAgreement = allAgreements.find(a => Number(a.agreement_id) === Number(agreementId));
         const shipperAddress = (targetAgreement?.blockchain_shipper || targetAgreement?.shipper_address || "").toLowerCase();
+
+        if (isAgreementPastDeadline(targetAgreement)) {
+            throw new Error(
+                "This agreement has passed its deadline and is awaiting the Shipper's expiry confirmation."
+            );
+        }
 
         if (shipperAddress && currentAccount === shipperAddress) {
             alert("Action Denied: Shippers cannot accept their own logistics agreements as carriers.");

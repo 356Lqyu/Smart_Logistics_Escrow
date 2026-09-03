@@ -198,6 +198,18 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (isCarrier) {
 
+            // Carrier dashboard lives in its own page.
+            // Keep other HTML pages unchanged.
+            const currentPage =
+                window.location.pathname
+                    .split("/")
+                    .pop();
+
+            if (currentPage === "dashboard.html") {
+                window.location.replace("carrierDashboard.html");
+                return;
+            }
+
             roleNameEl.innerText =
                 "Carrier";
 
@@ -210,14 +222,16 @@ document.addEventListener("DOMContentLoaded", async () => {
                 '<i class="fa-solid fa-truck-fast"></i>';
 
 
-            searchInputEl.placeholder =
-                "Search available jobs...";
+            if (searchInputEl) {
+                searchInputEl.placeholder =
+                    "Search available jobs...";
+            }
 
 
             menuListEl.innerHTML = `
 
                 <li>
-                    <a href="dashboard.html?role=carrier">
+                    <a href="carrierDashboard.html">
                         <i data-lucide="layout-dashboard"></i>
                         Dashboard
                     </a>
@@ -239,21 +253,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 <li>
                     <a href="transactionHistory.html?role=carrier">
-                        <i data-lucide="rotate-ccw"></i>
+                        <i data-lucide="history"></i>
                         Transaction History
                     </a>
                 </li>
 
-                
                 <li>
-                    <a href="#">
-                        <i data-lucide="coins"></i>
-                        LogiTrust Tokens
-                    </a>
-                </li>
-
-                <li>
-                    <a href="#">
+                    <a href="profile.html">
                         <i data-lucide="user-round"></i>
                         Profile
                     </a>
@@ -318,13 +324,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 <li>
                     <a href="transactionHistory.html?role=shipper">
-                        <i data-lucide="rotate-ccw"></i>
+                        <i data-lucide="history"></i>
                         Transaction History
                     </a>
                 </li>
 
                 <li>
-                    <a href="#">
+                    <a href="profile.html">
                         <i data-lucide="user-round"></i>
                         Profile
                     </a>
@@ -396,6 +402,94 @@ document.addEventListener("DOMContentLoaded", async () => {
             chainIdEl.innerText =
                 chainId;
 
+        }
+
+        const networkLabel =
+            document.getElementById(
+                "sidebar-network-label"
+            );
+
+        if (networkLabel) {
+            networkLabel.innerText =
+                (
+                    chainId === 1337 ||
+                    chainId === 5777
+                )
+                    ? "LOCAL GANACHE"
+                    : `CHAIN ${chainId}`;
+        }
+
+        // Top wallet badge (shared across shipper pages)
+        const topWalletBadge =
+            document.getElementById(
+                "top-wallet-address"
+            );
+
+        if (topWalletBadge) {
+            topWalletBadge.innerText =
+                shortAddress;
+            topWalletBadge.title =
+                currentAccount;
+        }
+
+        // Extra network stats when elements exist
+        try {
+            const gasWei =
+                await web3.eth.getGasPrice();
+            const gwei =
+                Number(
+                    web3.utils.fromWei(
+                        gasWei,
+                        "gwei"
+                    )
+                ).toFixed(0);
+            const gasEl =
+                document.getElementById(
+                    "gas-price"
+                );
+            if (gasEl) {
+                gasEl.innerText =
+                    `${gwei} Gwei`;
+            }
+        } catch (_) {}
+
+        try {
+            const priceRes =
+                await fetch(
+                    "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd"
+                );
+            const priceData =
+                await priceRes.json();
+            const usd =
+                priceData?.ethereum?.usd;
+            const ethEl =
+                document.getElementById(
+                    "eth-price"
+                );
+            if (ethEl && usd) {
+                ethEl.innerText =
+                    `$${Number(usd).toLocaleString()}`;
+            }
+        } catch (_) {}
+
+
+        // Carrier cannot open create agreement
+        const pageName =
+            window.location.pathname
+                .split("/")
+                .pop();
+
+        if (
+            isCarrier &&
+            pageName === "createAgreement.html"
+        ) {
+            alert(
+                "Only Shippers can create and fund agreements."
+            );
+            window.location.replace(
+                "carrierDashboard.html"
+            );
+            return;
         }
 
 

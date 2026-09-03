@@ -5,6 +5,7 @@
 let agreementId = null;
 let agreementData = null;
 let milestoneData = [];
+let rejectionTransactionsMap = {};
 
 
 // =====================================================
@@ -235,13 +236,6 @@ async function processAgreementExpiry() {
         return;
     }
 
-    // If any milestone is already completed or verified by the carrier/shipper, 
-    // do not force-expire the agreement behind their backs.
-    const hasProgressed = milestoneData.some(m => normalizeBool(m.completed) || normalizeBool(m.verified));
-    if (hasProgressed) {
-        return;
-    }
-
     // Already expired
     if (blockchainStatus === 4) {
 
@@ -319,6 +313,15 @@ async function processAgreementExpiry() {
                 chainAgreement.status
             );
 
+        // Only the agreement owner can confirm expiry and receive the refund.
+        // Carriers are informed through the disabled milestone controls instead.
+        if (
+            account.toLowerCase() !==
+            chainAgreement.shipper.toLowerCase()
+        ) {
+            return;
+        }
+
         // Completed / Cancelled
         if (
             currentStatus === 2 ||
@@ -347,7 +350,7 @@ async function processAgreementExpiry() {
         const confirmed =
             confirm(
                 "This agreement has passed its deadline.\n\n" +
-                "The remaining escrow will be refunded to the Shipper and the agreement will be marked as Expired.\n\n" +
+                "You are the Shipper. Confirm the expiry transaction to refund the remaining escrow to your wallet and mark this agreement as Expired.\n\n" +
                 "Continue?"
             );
 
@@ -600,6 +603,28 @@ async function loadMilestones() {
 
     milestoneData =
         data || [];
+
+    const { data: rejectionTransactions } = await supabaseClient
+        .from("transactions")
+        .select("agreement_id, details")
+        .eq("agreement_id", Number(agreementId))
+        .eq("event_type", "MilestoneRejected")
+        .order("created_at", { ascending: false });
+
+    milestoneData.forEach(milestone => {
+        milestone.isRejected = false;
+        milestone.rejectionReason = null;
+
+        if (rejectionTransactions) {
+            const match = rejectionTransactions.find(tx =>
+                Number(tx.details?.milestone_index) === Number(milestone.milestone_index)
+            );
+            if (match && !normalizeBool(milestone.completed)) {
+                milestone.isRejected = true;
+                milestone.rejectionReason = match.details.reason;
+            }
+        }
+    });
 
     // -------------------------------------------------
     // Prefer blockchain milestone state
@@ -1082,119 +1107,86 @@ function renderMilestones() {
                     percentage
                 );
 
-            let state =
-                "pending";
+            let state = "pending";
+            let stateText = "Pending";
 
-            let stateText =
-                "Pending";
-
-            if (
-                status ===
-                "Expired"
-            ) {
-
-                state =
-                    "expired";
-
-                stateText =
-                    "Expired";
-
-            } else if (
-                completed &&
-                verified &&
-                paid
-            ) {
-
-                state =
-                    "completed";
-
-                stateText =
-                    "Completed & Paid";
-
-            } else if (
-                completed &&
-                !verified
-            ) {
-
-                state =
-                    "active";
-
-                stateText =
-                    "Awaiting Verification";
-
-            } else if (
-                index ===
-                currentIndex
-            ) {
-
-                state =
-                    "active";
-
-                stateText =
-                    "Pending";
+            if (status === "Expired") {
+                state = "expired";
+                stateText = "Expired";
+            } else if (completed && verified && paid) {
+                state = "completed";
+                stateText = "Completed & Paid";
+            } else if (milestone.isRejected) {
+                state = "cancelled";
+                stateText = "Rejected";
+            } else if (completed && !verified) {
+                state = "active";
+                stateText = "Awaiting Verification";
+            } else if (index === currentIndex) {
+                state = "active";
+                stateText = "Pending";
             }
 
-            let action =
-                "";
+            let action = "";
 
             // -------------------------------------------------
-            // NEVER show milestone actions after expiry
+            // Priority check for rejections
             // -------------------------------------------------
-
-            if (
-                status ===
-                "In Progress" &&
+            if (milestone.isRejected) {
+                action = `
+                    <button
+                        type="button"
+                        class="danger-action-btn"
+                        style="margin-top: 12px; padding: 8px 14px; font-size: 12px; background: #ef4444;"
+                        onclick="openMilestoneSubmission(${agreementId}, ${index}, 'submit')"
+                    >
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        View Rejection Reason & Re-submit
+                    </button>
+                `;
+            } else if (completed || verified) {
+                action = `
+                    <button
+                        type="button"
+                        class="view-btn"
+                        style="margin-top: 12px; padding: 6px 12px; font-size: 12px;"
+                        onclick="openMilestoneSubmission(${agreementId}, ${index}, 'review')"
+                    >
+                        <i class="fa-solid fa-eye"></i>
+                        View Submission Details
+                    </button>
+                `;
+            } else if (
+                status === "In Progress" &&
                 !isAgreementExpired() &&
-                index ===
-                currentIndex
+                index === currentIndex
             ) {
-
-                if (
-                    isCarrier &&
-                    !completed &&
-                    !verified &&
-                    !paid
-                ) {
-
+                if (isCarrier && !completed && !verified && !paid) {
                     action = `
                         <button
                             type="button"
                             class="primary-action-btn"
-                            style="
-                                margin-top:12px;
-                                padding:8px 14px;
-                                font-size:12px;
-                            "
-                            onclick="submitMilestoneCompletion(${Number(agreementId)})"
+                            style="margin-top: 12px; padding: 8px 14px; font-size: 12px;"
+                            onclick="openMilestoneSubmission(${agreementId}, ${index}, 'submit')"
                         >
                             <i class="fa-solid fa-upload"></i>
                             Submit Completion
                         </button>
                     `;
-
-                } else if (
-                    isShipper &&
-                    completed &&
-                    !verified &&
-                    !paid
-                ) {
-
-                    action = `
-                        <button
-                            type="button"
-                            class="primary-action-btn"
-                            style="
-                                margin-top:12px;
-                                padding:8px 14px;
-                                font-size:12px;
-                            "
-                            onclick="verifyMilestone(${Number(agreementId)})"
-                        >
-                            <i class="fa-solid fa-check-double"></i>
-                            Verify & Release Payment
-                        </button>
-                    `;
+                } else if (isShipper && completed && !verified && !paid) {
+                    action = "";
                 }
+            }
+            else if (
+                status === "In Progress" &&
+                isAgreementExpired() &&
+                isCarrier &&
+                index === currentIndex &&
+                !completed &&
+                !verified &&
+                !paid
+            ) {
+                action = "";
             }
 
             const item =
@@ -2274,23 +2266,18 @@ function renderLifecycle() {
                     milestone.paid
                 );
 
+            let stageState = "pending";
+            if (completed && verified && paid) {
+                stageState = "completed";
+            } else if (milestone.isRejected) {
+                stageState = "cancelled"; // triggers red color theme
+            } else if (completed) {
+                stageState = "active";
+            }
+
             stages.push({
-
-                label:
-                    milestone.checkpoint,
-
-                state:
-                    (
-                        completed &&
-                        verified &&
-                        paid
-                    )
-                        ? "completed"
-                        : (
-                            completed
-                                ? "active"
-                                : "pending"
-                        )
+                label: milestone.checkpoint,
+                state: stageState
             });
         }
     );
@@ -2486,8 +2473,29 @@ function setupActions() {
 
     if (cancelButton) {
 
-        // Shipper can cancel Created
+        // An expired agreement must be confirmed by its Shipper. This applies
+        // both before acceptance (Created) and after acceptance (In Progress).
         if (
+            isShipper &&
+            isAgreementExpired() &&
+            (
+                agreementData.status === "Created" ||
+                agreementData.status === "In Progress"
+            )
+        ) {
+
+            cancelButton.style.display = "inline-flex";
+            cancelButton.disabled = false;
+            cancelButton.className = "danger-action-btn";
+            cancelButton.innerHTML = `
+                <i class="fa-solid fa-clock"></i>
+                Confirm Expiry & Refund
+            `;
+            cancelButton.onclick = processAgreementExpiry;
+        }
+
+        // Shipper can cancel Created
+        else if (
             isShipper &&
             agreementData.status ===
             "Created"
@@ -3218,6 +3226,11 @@ function getStatusClass(
         default:
             return "status-active";
     }
+}
+
+
+function openMilestoneSubmission(agreementId, milestoneIndex, mode) {
+    window.location.href = `milestoneSubmission.html?agreementId=${Number(agreementId)}&milestoneIndex=${Number(milestoneIndex)}&mode=${encodeURIComponent(mode)}`;
 }
 
 

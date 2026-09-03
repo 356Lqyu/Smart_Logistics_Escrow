@@ -735,6 +735,15 @@ body {
     font-weight: 600;
 }
 
+#deadline {
+    background-color: #1f2937;
+    color: white;
+}
+
+#deadline::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
+}
 
 /* =====================================================
    ROUTE
@@ -962,9 +971,15 @@ body {
             transition: width 0.2s ease-in-out;
         }
 
+        .milestone-pct {
+            appearance: textfield;
+            -moz-appearance: textfield;
+        }
+
         .milestone-pct::-webkit-inner-spin-button,
         .milestone-pct::-webkit-outer-spin-button {
-            opacity: 1;
+            -webkit-appearance: none;
+            margin: 0;
         }
 
 .ca-inline-ca91ed77 {
@@ -1021,6 +1036,12 @@ body {
     border-radius: 8px;
     color: #fff;
     outline: none;
+}
+
+.escrow-amount-error {
+    color: #f87171;
+    font-size: 12px;
+    margin: 6px 0 0;
 }
 
 .ca-inline-1e1541ba {
@@ -1746,6 +1767,20 @@ body {
     border-color: rgba(148, 163, 184, 0.25);
 }
 
+.transaction-status.submitted,
+.status-submitted {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.08);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+}
+
+.transaction-status.verified,
+.status-verified {
+    color: #34d399;
+    background: rgba(52, 211, 153, 0.08);
+    border: 1px solid rgba(52, 211, 153, 0.25);
+}
+
 /* =========================================
    FUND ESCROW BUTTON
 ========================================= */
@@ -1953,7 +1988,7 @@ body {
 
 .transaction-stats-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 20px;
     margin-bottom: 26px;
 }
@@ -2690,6 +2725,10 @@ body {
     .transaction-history-page {
         padding-left: 15px;
         padding-right: 15px;
+    }
+
+    .transaction-stats-grid {
+        grid-template-columns: 1fr;
     }
 
     .transaction-stat-card {
