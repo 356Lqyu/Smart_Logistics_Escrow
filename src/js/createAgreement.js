@@ -2,6 +2,19 @@
 // CREATE AGREEMENT PAGE
 // =====================================================
 
+const FIXED_MILESTONE_PERCENTAGES = [30, 30, 40];
+const MINIMUM_ESCROW_BY_PRIORITY = {
+    0: 5,
+    1: 10,
+    2: 15
+};
+
+const PRIORITY_LABELS = [
+    "Normal",
+    "Express",
+    "Urgent"
+];
+
 document.addEventListener("DOMContentLoaded", () => {
     updateMilestones();
 
@@ -13,62 +26,162 @@ document.addEventListener("DOMContentLoaded", () => {
             "submit",
             handleCreateAgreement
         );
+
+        form.addEventListener(
+            "input",
+            updateMilestones
+        );
+
+        form.addEventListener(
+            "change",
+            updateMilestones
+        );
     }
 
-    [
-        "m1_pct",
-        "m2_pct",
-        "m3_pct",
-        "escrowAmount"
-    ].forEach(id => {
-        const element =
-            document.getElementById(id);
+    const escrowInput =
+        document.getElementById("escrowAmount");
 
-        if (element) {
-            element.addEventListener(
-                "input",
-                updateMilestones
-            );
-        }
-    });
+    if (escrowInput) {
+        escrowInput.addEventListener(
+            "input",
+            validateEscrowAmount
+        );
+    }
+
+    const priorityInput =
+        document.getElementById("priority");
+
+    if (priorityInput) {
+        priorityInput.addEventListener(
+            "change",
+            validateEscrowAmount
+        );
+    }
+
+    const deadlineInput =
+        document.getElementById("deadline");
+
+    if (deadlineInput) {
+        deadlineInput.addEventListener(
+            "input",
+            validateDeadline
+        );
+
+        deadlineInput.addEventListener(
+            "change",
+            validateDeadline
+        );
+    }
+
+    validateEscrowAmount();
 });
+
+function getMinimumEscrowAmount() {
+    const priority = Number(
+        document.getElementById("priority")?.value
+    );
+
+    return MINIMUM_ESCROW_BY_PRIORITY[priority] ??
+        MINIMUM_ESCROW_BY_PRIORITY[0];
+}
+
+function validateEscrowAmount() {
+    const escrowInput =
+        document.getElementById("escrowAmount");
+
+    const errorMessage =
+        document.getElementById("escrowAmountError");
+
+    if (!escrowInput) {
+        return true;
+    }
+
+    const escrowAmount =
+        parseFloat(escrowInput.value);
+
+    const minimumEscrowAmount =
+        getMinimumEscrowAmount();
+
+    const priority = Number(
+        document.getElementById("priority")?.value
+    );
+
+    const priorityLabel =
+        PRIORITY_LABELS[priority] || "Normal";
+
+    escrowInput.min = minimumEscrowAmount;
+    escrowInput.placeholder = `${minimumEscrowAmount} ETH min`;
+
+    const isBelowMinimum =
+        escrowInput.value !== "" &&
+        Number.isFinite(escrowAmount) &&
+        escrowAmount < minimumEscrowAmount;
+
+    escrowInput.setCustomValidity(
+        isBelowMinimum
+            ? `The minimum total escrow amount for ${priorityLabel} delivery is ${minimumEscrowAmount} ETH.`
+            : ""
+    );
+
+    if (errorMessage) {
+        errorMessage.textContent =
+            `The minimum total escrow amount for ${priorityLabel} delivery is ${minimumEscrowAmount} ETH.`;
+        errorMessage.hidden = !isBelowMinimum;
+    }
+
+    updateMilestones();
+    return !isBelowMinimum;
+}
+
+function validateDeadline() {
+    const deadlineInput =
+        document.getElementById("deadline");
+
+    const errorMessage =
+        document.getElementById("deadlineError");
+
+    if (!deadlineInput) {
+        return true;
+    }
+
+    const deadlineTimestamp =
+        new Date(deadlineInput.value).getTime();
+
+    const isPastDeadline =
+        deadlineInput.value !== "" &&
+        Number.isFinite(deadlineTimestamp) &&
+        deadlineTimestamp <= Date.now();
+
+    deadlineInput.setCustomValidity(
+        isPastDeadline
+            ? "The delivery deadline must be in the future."
+            : ""
+    );
+
+    if (errorMessage) {
+        errorMessage.hidden = !isPastDeadline;
+    }
+
+    updateMilestones();
+    return !isPastDeadline;
+}
 
 // =====================================================
 // MILESTONE PREVIEW
 // =====================================================
 
 function updateMilestones() {
-    const p1 =
-        parseInt(
-            document.getElementById("m1_pct")?.value
-        ) || 0;
+    const [p1, p2, p3] = FIXED_MILESTONE_PERCENTAGES;
 
-    const p2 =
-        parseInt(
-            document.getElementById("m2_pct")?.value
-        ) || 0;
-
-    const p3 =
-        parseInt(
-            document.getElementById("m3_pct")?.value
-        ) || 0;
+    ["m1_pct", "m2_pct", "m3_pct"].forEach((id, index) => {
+        const input = document.getElementById(id);
+        if (input) {
+            input.value = FIXED_MILESTONE_PERCENTAGES[index];
+        }
+    });
 
     const total =
         p1 + p2 + p3;
-
-    [
-        ["m1_bar", p1],
-        ["m2_bar", p2],
-        ["m3_bar", p3]
-    ].forEach(([id, value]) => {
-        const bar =
-            document.getElementById(id);
-
-        if (bar) {
-            bar.style.width =
-                `${Math.min(Math.max(value, 0), 100)}%`;
-        }
-    });
 
     const totalBadge =
         document.getElementById("totalBadge");
@@ -84,11 +197,38 @@ function updateMilestones() {
             `${total}% / 100%`;
     }
 
-    const valid =
+    const milestonePercentagesAreValid =
         p1 > 0 &&
         p2 > 0 &&
         p3 > 0 &&
         total === 100;
+
+    const form =
+        document.getElementById("createAgreementForm");
+
+    const payloadValue = Number(
+        document.getElementById("payloadValue")?.value
+    );
+
+    const escrowAmount = Number(
+        document.getElementById("escrowAmount")?.value
+    );
+
+    const deadlineValue =
+        document.getElementById("deadline")?.value;
+
+    const deadlineIsInFuture =
+        deadlineValue &&
+        new Date(deadlineValue).getTime() > Date.now();
+
+    const valid =
+        milestonePercentagesAreValid &&
+        Boolean(form?.checkValidity()) &&
+        Number.isFinite(payloadValue) &&
+        payloadValue > 0 &&
+        Number.isFinite(escrowAmount) &&
+        escrowAmount >= getMinimumEscrowAmount() &&
+        deadlineIsInFuture;
 
     if (warning) {
         warning.style.display =
@@ -97,6 +237,7 @@ function updateMilestones() {
 
     if (submitBtn) {
         submitBtn.disabled = !valid;
+        submitBtn.setAttribute("aria-disabled", String(!valid));
         submitBtn.style.opacity =
             valid ? "1" : "0.5";
         submitBtn.style.cursor =
@@ -138,38 +279,7 @@ async function handleCreateAgreement(event) {
         document.getElementById("submitBtn");
 
     try {
-        const p1 =
-            parseInt(
-                document.getElementById("m1_pct")?.value
-            ) || 0;
-
-        const p2 =
-            parseInt(
-                document.getElementById("m2_pct")?.value
-            ) || 0;
-
-        const p3 =
-            parseInt(
-                document.getElementById("m3_pct")?.value
-            ) || 0;
-
-        if (
-            p1 <= 0 ||
-            p2 <= 0 ||
-            p3 <= 0
-        ) {
-            throw new Error(
-                "Each milestone percentage must be greater than 0."
-            );
-        }
-
-        if (
-            p1 + p2 + p3 !== 100
-        ) {
-            throw new Error(
-                "Milestone percentages must equal 100%."
-            );
-        }
+        const [p1, p2, p3] = FIXED_MILESTONE_PERCENTAGES;
 
         if (
             typeof window.ethereum ===
@@ -291,10 +401,12 @@ async function handleCreateAgreement(event) {
 
         if (
             !Number.isFinite(escrowAmount) ||
-            escrowAmount < 0.01
+            escrowAmount < getMinimumEscrowAmount()
         ) {
             throw new Error(
-                "Minimum escrow amount is 0.01 ETH."
+                `Minimum total escrow amount for ${
+                    PRIORITY_LABELS[priority]
+                } delivery is ${getMinimumEscrowAmount()} ETH.`
             );
         }
 
@@ -643,9 +755,10 @@ async function handleCreateAgreement(event) {
         );
 
         if (submitBtn) {
-            submitBtn.disabled = false;
             submitBtn.innerHTML =
                 '<i class="fa-solid fa-circle-plus"></i> Create Agreement';
         }
+
+        updateMilestones();
     }
 }

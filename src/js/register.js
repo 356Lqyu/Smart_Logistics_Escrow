@@ -458,7 +458,7 @@ async function registerUser() {
             error: supabaseError
         } = await supabaseClient
             .from("users")
-            .insert([
+            .upsert([
                 {
                     wallet_address:
                         account.toLowerCase(),

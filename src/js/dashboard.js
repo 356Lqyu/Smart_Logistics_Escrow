@@ -355,7 +355,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                         ?.split("?")[0];
 
 
-                if (linkPage === currentPage) {
+                if (
+                    linkPage === currentPage || 
+                    (currentPage.startsWith("milestoneSubmission") && linkPage === "milestones.html") ||
+                    (currentPage.startsWith("agreementDetails") && linkPage === "agreements.html")
+                ) {
                     link.classList.add("active");
                 }
 

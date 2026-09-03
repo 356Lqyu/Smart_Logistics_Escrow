@@ -163,8 +163,13 @@
                                 Total Escrow Amount (ETH)
                             </label>
 
-                            <input type="number" step="0.001" id="escrowAmount" placeholder="0.01 ETH min" required
-                                oninput="updateMilestones()" class="ca-inline-6637f260">
+                            <input type="number" min="10" step="0.001" id="escrowAmount" placeholder="10 ETH min" required
+                                class="ca-inline-6637f260"
+                                aria-describedby="escrowAmountError">
+
+                            <p id="escrowAmountError" class="escrow-amount-error" role="alert" hidden>
+                                The minimum total escrow amount for Express delivery is 10 ETH.
+                            </p>
 
                         </div>
 
@@ -177,7 +182,12 @@
                                 Delivery Deadline
                             </label>
 
-                            <input type="datetime-local" id="deadline" required class="ca-inline-6637f260">
+                            <input type="datetime-local" id="deadline" required class="ca-inline-6637f260"
+                                aria-describedby="deadlineError">
+
+                            <p id="deadlineError" class="escrow-amount-error" role="alert" hidden>
+                                The delivery deadline must be in the future.
+                            </p>
 
                         </div>
 
@@ -206,20 +216,8 @@
                                 </h3>
 
                                 <span id="totalBadge" class="ca-inline-925999f1">
-                                    100% / 100%
+                                    Fixed: 30% / 30% / 40%
                                 </span>
-
-                            </div>
-
-
-                            <!-- Validation -->
-
-                            <div id="validationWarning" class="ca-inline-136a3bb7">
-
-                                <i class="fa-solid fa-triangle-exclamation"></i>
-
-                                Milestone percentages must sum to
-                                exactly 100%.
 
                             </div>
 
@@ -247,18 +245,11 @@
                                     <div class="ca-inline-b512c985">
 
                                         <input type="number" id="m1_pct" class="milestone-pct ca-inline-c8a3e897"
-                                            value="30" min="0" max="100" onchange="updateMilestones()"
-                                            oninput="updateMilestones()">
+                                            value="30" readonly aria-readonly="true" title="Fixed at 30%">
 
                                         <span class="ca-inline-b2b3efa2">
                                             %
                                         </span>
-
-                                        <div class="pct-track">
-
-                                            <div id="m1_bar" class="pct-fill ca-inline-fcb9f755"></div>
-
-                                        </div>
 
                                     </div>
 
@@ -283,18 +274,11 @@
                                     <div class="ca-inline-b512c985">
 
                                         <input type="number" id="m2_pct" class="milestone-pct ca-inline-c8a3e897"
-                                            value="30" min="0" max="100" onchange="updateMilestones()"
-                                            oninput="updateMilestones()">
+                                            value="30" readonly aria-readonly="true" title="Fixed at 30%">
 
                                         <span class="ca-inline-b2b3efa2">
                                             %
                                         </span>
-
-                                        <div class="pct-track">
-
-                                            <div id="m2_bar" class="pct-fill ca-inline-fcb9f755"></div>
-
-                                        </div>
 
                                     </div>
 
@@ -319,18 +303,11 @@
                                     <div class="ca-inline-b512c985">
 
                                         <input type="number" id="m3_pct" class="milestone-pct ca-inline-c8a3e897"
-                                            value="40" min="0" max="100" onchange="updateMilestones()"
-                                            oninput="updateMilestones()">
+                                            value="40" readonly aria-readonly="true" title="Fixed at 40%">
 
                                         <span class="ca-inline-b2b3efa2">
                                             %
                                         </span>
-
-                                        <div class="pct-track">
-
-                                            <div id="m3_bar" class="pct-fill ca-inline-5172a7c4"></div>
-
-                                        </div>
 
                                     </div>
 
@@ -424,7 +401,7 @@
                         </button>
 
 
-                        <button type="submit" id="submitBtn" class="primary-action-btn">
+                        <button type="submit" id="submitBtn" class="primary-action-btn" disabled aria-disabled="true">
 
                             <i class="fa-solid fa-circle-plus"></i>
 

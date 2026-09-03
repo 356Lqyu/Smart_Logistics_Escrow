@@ -484,92 +484,8 @@ function buildLedgerEvents() {
         }
     );
 
-
     // =================================================
-    // MILESTONE EVENTS
-    // =================================================
-
-    allMilestones.forEach(
-        milestone => {
-
-            const agreement =
-                findAgreement(
-                    milestone.agreement_id
-                );
-
-
-            // -----------------------------------------
-            // COMPLETED
-            // -----------------------------------------
-
-            if (
-                milestone.completed &&
-                milestone.completed_at
-            ) {
-
-                events.push({
-
-                    type:
-                        "milestone",
-
-                    date:
-                        milestone.completed_at,
-
-                    agreement:
-                        agreement,
-
-                    transaction:
-                        null,
-
-                    milestone:
-                        milestone,
-
-                    milestoneAction:
-                        "Completed"
-
-                });
-
-            }
-
-
-            // -----------------------------------------
-            // VERIFIED
-            // -----------------------------------------
-
-            if (
-                milestone.verified &&
-                milestone.verified_at
-            ) {
-
-                events.push({
-
-                    type:
-                        "milestone",
-
-                    date:
-                        milestone.verified_at,
-
-                    agreement:
-                        agreement,
-
-                    transaction:
-                        null,
-
-                    milestone:
-                        milestone,
-
-                    milestoneAction:
-                        "Verified"
-
-                });
-
-            }
-
-        }
-    );
-
-    // =================================================
-    // 3. CANCELLED AGREEMENTS
+    // 2. CANCELLED AGREEMENTS
     // =================================================
 
     allAgreements.forEach(
@@ -810,7 +726,7 @@ function renderTransactionRow(row, event) {
     const reference = agreement ? agreement.reference_no : `Agreement #${transaction.agreement_id}`;
     
     let type = transaction.event_type || "Transaction";
-    const amount = extractTransactionAmount(transaction);
+    const amount = extractTransactionAmount(transaction, agreement);
     const status = getTransactionStatus(type);
 
     // Extract milestone index / checkpoint info from transaction details if available
@@ -1102,7 +1018,7 @@ function findAgreement(
 // EXTRACT TRANSACTION AMOUNT (ROLE-AWARE)
 // =====================================================
 
-function extractTransactionAmount(transaction) {
+function extractTransactionAmount(transaction, agreement = null) {
     const details = transaction.details;
     const eventType = transaction.event_type;
 
@@ -1123,9 +1039,28 @@ function extractTransactionAmount(transaction) {
         } else if (details.escrow_refunded !== undefined) {
             amount = Number(details.escrow_refunded);
             isIncoming = true; 
-        } else if (eventType === "MilestonePaid" || eventType === "MilestonePayout") {
+
+            // Older expiry records stored 0 after the balance had already
+            // been cleared. Reconstruct the remaining escrow for display.
+            if (
+                eventType === "AgreementExpired" &&
+                amount === 0 &&
+                agreement
+            ) {
+                amount = Math.max(
+                    0,
+                    Number(agreement.escrow_amount || 0) -
+                    Number(agreement.escrow_released || 0)
+                );
+            }
+        } else if (
+            eventType === "MilestonePaid" ||
+            eventType === "MilestonePayout" ||
+            eventType === "MilestoneVerified"
+        ) {
             amount = Number(details.amount || 0);
-            isIncoming = true; 
+            const userRole = String(localStorage.getItem("role") || "").toLowerCase();
+            isIncoming = userRole === "carrier" || userRole === "2";
         }
 
         if (amount !== null && !isNaN(amount)) {
@@ -1212,11 +1147,28 @@ function getTransactionStatus(
 
     if (
         type.includes(
+            "submit"
+        )
+    ) {
+
+        return "Submitted";
+
+    }
+
+
+    if (
+        type.includes(
+            "verified"
+        ) ||
+        type.includes(
+            "payout"
+        ) ||
+        type.includes(
             "release"
         )
     ) {
 
-        return "Released";
+        return "Verified";
 
     }
 
@@ -1241,6 +1193,13 @@ function getStatusClass(
         case "Funded":
             return "status-funded";
 
+        case "Submitted":
+            return "status-submitted";
+
+        case "Verified":
+        case "Released":
+            return "status-verified";
+
         case "Completed":
             return "status-completed";
 
@@ -1253,8 +1212,8 @@ function getStatusClass(
         case "Expired":
             return "status-expired";
 
-        case "Released":
-            return "status-released";
+        default:
+            return "status-active";
 
     }
 

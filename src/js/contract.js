@@ -1,5 +1,5 @@
 const CONTRACT_ADDRESS =
-    "0x8d3a726587CB65b4408E2c415173eca6431aa8c4";
+    "0xD59a961481B79cf2ed8092C7280FA8933440338D";
 
 
 const CONTRACT_ABI = [
@@ -190,6 +190,37 @@ const CONTRACT_ABI = [
         }
       ],
       "name": "MilestonePayout",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "agreementId",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "milestoneIndex",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "shipper",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "reason",
+          "type": "string"
+        }
+      ],
+      "name": "MilestoneRejected",
       "type": "event"
     },
     {
@@ -584,6 +615,24 @@ const CONTRACT_ABI = [
         }
       ],
       "name": "verifyMilestone",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "agreementId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "string",
+          "name": "reason",
+          "type": "string"
+        }
+      ],
+      "name": "rejectMilestone",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"

@@ -273,6 +273,30 @@ async function loadInProgressAgreements() {
                     }
                 );
 
+        // After loading milestoneRows, query latest rejections
+        const { data: rejectionTransactions } = await supabaseClient
+            .from("transactions")
+            .select("agreement_id, details")
+            .in("agreement_id", agreementIds)
+            .eq("event_type", "MilestoneRejected")
+            .order("created_at", { ascending: false });
+
+        milestoneRows.forEach(milestone => {
+            milestone.isRejected = false;
+            milestone.rejectionReason = null;
+
+            if (rejectionTransactions) {
+                const match = rejectionTransactions.find(tx =>
+                    Number(tx.agreement_id) === Number(milestone.agreement_id) &&
+                    Number(tx.details?.milestone_index) === Number(milestone.milestone_index)
+                );
+                if (match && !normalizeBool(milestone.completed)) {
+                    milestone.isRejected = true;
+                    milestone.rejectionReason = match.details.reason;
+                }
+            }
+        });
+
 
         if (milestoneError) {
 
@@ -289,7 +313,7 @@ async function loadInProgressAgreements() {
                 for (let agreement of milestoneAgreements) {
                     const agreementIdNum = Number(agreement.agreement_id);
                     const chainAgreement = await contract.methods.getAgreementBasic(agreementIdNum).call();
-                    
+
                     agreement.blockchain_escrow = chainAgreement.escrowAmount;
                     agreement.blockchain_escrow_remaining = chainAgreement.escrowRemaining;
                     agreement.blockchain_shipper = chainAgreement.shipper;
@@ -334,7 +358,7 @@ async function loadInProgressAgreements() {
 
                 if (
                     !milestoneMap[
-                        agreementId
+                    agreementId
                     ]
                 ) {
 
@@ -366,7 +390,7 @@ async function loadInProgressAgreements() {
 
                 agreement.milestones =
                     milestoneMap[
-                        agreementId
+                    agreementId
                     ] || [];
 
             }
@@ -391,9 +415,9 @@ async function loadInProgressAgreements() {
 
                 Error loading milestones:
                 ${escapeHtml(
-                    error?.message ||
-                    String(error)
-                )}
+            error?.message ||
+            String(error)
+        )}
 
             </div>
 
@@ -511,26 +535,33 @@ function renderAgreements() {
 
             if (milestoneRole === "shipper" && isCurrentCompleted && !isCurrentVerified) {
                 extraBadgeHtml = `
-                    <span class="status-badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">
-                        <span class="status-dot" style="background-color: #f59e0b;"></span>
-                        Awaiting Verification
-                    </span>
-                `;
+        <span class="status-badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">
+            <span class="status-dot" style="background-color: #f59e0b;"></span>
+            Awaiting Verification
+        </span>
+    `;
             } else if (milestoneRole === "carrier") {
-                if (isCurrentCompleted && !isCurrentVerified) {
+                if (currentMilestone && currentMilestone.isRejected) {
                     extraBadgeHtml = `
-                        <span class="status-badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">
-                            <span class="status-dot" style="background-color: #f59e0b;"></span>
-                            Awaiting Verification
-                        </span>
-                    `;
-                } else if (!isCurrentCompleted) {
+            <span class="status-badge" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);">
+                <span class="status-dot" style="background-color: #ef4444;"></span>
+                Milestone Submission Rejected
+            </span>
+        `;
+                } else if (isCurrentCompleted && !isCurrentVerified) {
                     extraBadgeHtml = `
-                        <span class="status-badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3);">
-                            <span class="status-dot" style="background-color: #3b82f6;"></span>
-                            Submit Completion Required
-                        </span>
-                    `;
+            <span class="status-badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">
+                <span class="status-dot" style="background-color: #f59e0b;"></span>
+                Awaiting Verification
+            </span>
+        `;
+                } else {
+                    extraBadgeHtml = `
+            <span class="status-badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3);">
+                <span class="status-dot" style="background-color: #3b82f6;"></span>
+                Pending Submission
+            </span>
+        `;
                 }
             }
 
@@ -589,10 +620,10 @@ function renderAgreements() {
                                 "
                             >
                                 ${escapeHtml(
-                                    agreement.reference_no ||
-                                    "Agreement #" +
-                                    agreementId
-                                )}
+                agreement.reference_no ||
+                "Agreement #" +
+                agreementId
+            )}
                             </h3>
 
 
@@ -616,9 +647,9 @@ function renderAgreements() {
                         >
 
                             ${escapeHtml(
-                                agreement.shipment_details ||
-                                "Shipment"
-                            )}
+                agreement.shipment_details ||
+                "Shipment"
+            )}
 
                         </div>
 
@@ -627,11 +658,10 @@ function renderAgreements() {
 
                     <i
                         class="fa-solid
-                        ${
-                            isExpanded
-                                ? "fa-chevron-up"
-                                : "fa-chevron-down"
-                        }"
+                        ${isExpanded
+                    ? "fa-chevron-up"
+                    : "fa-chevron-down"
+                }"
                         style="
                             color:#6683aa;
                             font-size:15px;
@@ -684,19 +714,18 @@ function renderAgreements() {
                     id="milestones-${agreementId}"
                     style="
                         display:
-                            ${
-                                isExpanded
-                                    ? "block"
-                                    : "none"
-                            };
+                            ${isExpanded
+                    ? "block"
+                    : "none"
+                };
                         margin-top:20px;
                     "
                 >
 
                     ${renderMilestoneList(
-                        agreement,
-                        activeIndex
-                    )}
+                    agreement,
+                    activeIndex
+                )}
 
                 </div>
 
@@ -747,14 +776,14 @@ function renderMilestoneList(
         <div class="milestones-container">
 
             ${milestones.map(
-                (milestone, index) =>
-                    renderMilestone(
-                        agreement,
-                        milestone,
-                        index,
-                        activeIndex
-                    )
-            ).join("")}
+        (milestone, index) =>
+            renderMilestone(
+                agreement,
+                milestone,
+                index,
+                activeIndex
+            )
+    ).join("")}
 
         </div>
 
@@ -809,6 +838,14 @@ function renderMilestone(
         milestone.checkpoint ||
         `Milestone ${milestoneIndex + 1}`;
 
+    const deadline = Number(
+        agreement.blockchain_deadline ||
+        agreement.deadline ||
+        0
+    );
+    const deadlinePassed = deadline > 0 &&
+        Math.floor(Date.now() / 1000) > deadline;
+
 
     const escrowEth =
         agreement.blockchain_escrow
@@ -824,108 +861,104 @@ function renderMilestone(
         ).toFixed(3);
 
 
-    let state =
-        "pending";
+    let state = "pending";
+    let stateText = "Pending";
 
-    let stateText =
-        "Pending";
-
-
-    if (
-        completed &&
-        verified &&
-        paid
-    ) {
-        state =
-            "completed";
-
-        stateText =
-            "Completed & Paid";
-
-    } else if (
-        completed &&
-        !verified
-    ) {
-        state =
-            "active";
-
-        stateText =
-            "Awaiting Verification";
-
-    } else if (
-        milestoneIndex === activeIndex
-    ) {
-        state =
-            "active";
-
-        stateText =
-            "Pending";
+    if (completed && verified && paid) {
+        state = "completed";
+        stateText = "Completed & Paid";
+    } else if (milestone.isRejected) {
+        state = "cancelled"; // Uses red/danger theme matching rejection
+        stateText = "Rejected";
+    } else if (completed && !verified) {
+        state = "active";
+        stateText = "Awaiting Verification";
+    } else if (milestoneIndex === activeIndex) {
+        state = "active";
+        stateText = "Pending";
     }
 
 
     let actionHtml = "";
     const isCurrentActive = (milestoneIndex === activeIndex);
 
-
-    if (
-        milestoneRole === "carrier"
-    ) {
-
-        if (
-            !completed &&
-            isCurrentActive
-        ) {
-
-            actionHtml = `
-                <button
-                    type="button"
-                    class="primary-action-btn"
-                    style="margin-top: 12px; padding: 8px 14px; font-size: 12px;"
-                    onclick="
-                        event.stopPropagation();
-                        submitMilestone(
-                            ${agreementId},
-                            ${milestoneIndex}
-                        );
-                    "
-                >
-                    <i class="fa-solid fa-upload"></i>
-                    Submit Completion
-                </button>
-            `;
-
-        }
-
-    } else if (
-        milestoneRole === "shipper"
-    ) {
-
-        if (
-            completed &&
-            !verified &&
-            isCurrentActive
-        ) {
-
-            actionHtml = `
-                <button
-                    type="button"
-                    class="primary-action-btn"
-                    style="margin-top: 12px; padding: 8px 14px; font-size: 12px;"
-                    onclick="
-                        event.stopPropagation();
-                        verifyMilestone(
-                            ${agreementId},
-                            ${milestoneIndex}
-                        );
-                    "
-                >
-                    <i class="fa-solid fa-check-double"></i>
-                    Verify & Release Payment
-                </button>
-            `;
-
-        }
-
+    if (milestone.isRejected) {
+        actionHtml = `
+            <button
+                type="button"
+                class="danger-action-btn"
+                style="margin-top: 12px; padding: 8px 14px; font-size: 12px; background: #ef4444;"
+                onclick="
+                    event.stopPropagation();
+                    openMilestoneSubmission(
+                        ${agreementId},
+                        ${milestoneIndex},
+                        'submit'
+                    );
+                "
+            >
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                View Rejection Reason & Re-submit
+            </button>
+        `;
+    } else if (completed || verified) {
+        // Allows BOTH Carrier and Shipper to view details of submitted/verified milestones anytime
+        actionHtml = `
+            <button
+                type="button"
+                class="view-btn"
+                style="margin-top: 12px; padding: 6px 12px; font-size: 12px;"
+                onclick="
+                    event.stopPropagation();
+                    openMilestoneSubmission(
+                        ${agreementId},
+                        ${milestoneIndex},
+                        'review'
+                    );
+                "
+            >
+                <i class="fa-solid fa-eye"></i>
+                View Submission Details
+            </button>
+        `;
+    } else if (milestoneRole === "carrier" && !completed && isCurrentActive) {
+        actionHtml = `
+            <button
+                type="button"
+                class="primary-action-btn"
+                style="margin-top: 12px; padding: 8px 14px; font-size: 12px;"
+                onclick="
+                    event.stopPropagation();
+                    openMilestoneSubmission(
+                        ${agreementId},
+                        ${milestoneIndex},
+                        'submit'
+                    );
+                "
+            >
+                <i class="fa-solid fa-upload"></i>
+                Submit Completion
+            </button>
+        `;
+    } else if (milestoneRole === "shipper" && completed && !verified && isCurrentActive) {
+        actionHtml = `
+            <button
+                type="button"
+                class="primary-action-btn"
+                style="margin-top: 12px; padding: 8px 14px; font-size: 12px;"
+                onclick="
+                    event.stopPropagation();
+                    openMilestoneSubmission(
+                        ${agreementId},
+                        ${milestoneIndex},
+                        'review'
+                    );
+                "
+            >
+                <i class="fa-solid fa-file-circle-check"></i>
+                Review Submission
+            </button>
+        `;
     }
 
 
@@ -953,8 +986,8 @@ function renderMilestone(
 
                     <h3>
                         ${escapeHtml(
-                            checkpoint
-                        )}
+        checkpoint
+    )}
                     </h3>
 
                     <div class="milestone-meta">
@@ -973,10 +1006,9 @@ function renderMilestone(
 
                     </div>
 
-                    ${
-                        completed &&
-                        !verified
-                            ? `
+                    ${completed &&
+            !verified
+            ? `
                                 <small
                                     style="
                                         display:block;
@@ -987,14 +1019,13 @@ function renderMilestone(
                                     Carrier submitted completion.
                                 </small>
                               `
-                            : ""
-                    }
+            : ""
+        }
 
-                    ${
-                        completed &&
-                        verified &&
-                        paid
-                            ? `
+                    ${completed &&
+            verified &&
+            paid
+            ? `
                                 <small
                                     style="
                                         display:block;
@@ -1005,8 +1036,8 @@ function renderMilestone(
                                     ${amount} ETH released to Carrier.
                                 </small>
                               `
-                            : ""
-                    }
+            : ""
+        }
 
                     ${actionHtml}
 
@@ -1069,6 +1100,15 @@ function toggleAgreementCard(
 // SUBMIT MILESTONE
 // =====================================================
 
+function openMilestoneSubmission(
+    agreementId,
+    milestoneIndex,
+    mode
+) {
+    window.location.href =
+        `milestoneSubmission.html?agreementId=${Number(agreementId)}&milestoneIndex=${Number(milestoneIndex)}&mode=${encodeURIComponent(mode)}`;
+}
+
 async function submitMilestone(
     agreementId,
     milestoneIndex
@@ -1101,6 +1141,18 @@ async function submitMilestone(
             milestoneAgreements.find(
                 a => Number(a.agreement_id) === Number(agreementId)
             );
+
+        const deadline = Number(
+            agreement?.blockchain_deadline || agreement?.deadline || 0
+        );
+        if (
+            deadline > 0 &&
+            Math.floor(Date.now() / 1000) > deadline
+        ) {
+            throw new Error(
+                "The deadline has passed. Milestone submission is disabled while the Shipper confirms the expiry refund."
+            );
+        }
 
 
         const carrierAddress = agreement.blockchain_carrier || agreement.carrier_address;
@@ -1228,7 +1280,7 @@ async function submitMilestone(
                 error?.code === 4001
                     ? "Transaction was rejected in MetaMask."
                     : error?.message ||
-                      String(error)
+                    String(error)
             )
         );
 
@@ -1582,7 +1634,7 @@ async function verifyMilestone(
                 error?.code === 4001
                     ? "Transaction was rejected in MetaMask."
                     : error?.message ||
-                      String(error)
+                    String(error)
             )
         );
 
@@ -1668,8 +1720,8 @@ function showPageError(
 
             Error loading milestones:
             ${escapeHtml(
-                message
-            )}
+        message
+    )}
 
         </div>
 
