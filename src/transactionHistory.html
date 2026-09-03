@@ -4,31 +4,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>Transaction History - LogisticsEscrow</title>
-
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
     <link rel="stylesheet" href="css/dashboard.css">
-
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 
 <body>
-
-    <!-- =========================
-         SIDEBAR
-    ========================== -->
-
     <aside id="sidebar-container" class="sidebar"></aside>
-
-
-    <!-- =====================================================
-         MAIN CONTENT
-    ====================================================== -->
-
     <main class="main-content">
 
         <!-- Top Bar -->
@@ -45,56 +29,23 @@
             </div>
         </header>
 
-
-        <!-- =================================================
-             PAGE CONTENT
-        ================================================== -->
-
         <div class="dashboard-body-placeholder transaction-history-page">
-
-
-            <!-- =================================================
-                 STATISTICS
-            ================================================== -->
-
+            <!-- STATISTICS -->
             <section class="transaction-stats-grid">
 
-
                 <!-- ESCROW BALANCE -->
-
                 <div class="transaction-stat-card">
-
                     <div class="stat-card-content">
-
-                        <span class="stat-label">
-                            ESCROW BALANCE
-                        </span>
-
+                        <span class="stat-label">ESCROW BALANCE</span>
                         <div class="stat-value-row">
-
-                            <span class="eth-symbol">
-                                ◆
-                            </span>
-
-                            <strong id="escrow-balance">
-                                
-                            </strong>
-
+                            <span class="eth-symbol">◆</span>
+                            <strong id="escrow-balance"></strong>
                         </div>
-
-                        <span class="stat-change positive">
-                            ↗ +1.2 ETH
-                        </span>
-
+                        <span class="stat-change positive">↗ +1.2 ETH</span>
                     </div>
-
-
                     <div class="stat-icon escrow-icon">
-
                         <i class="fa-brands fa-ethereum"></i>
-
                     </div>
-
                 </div>
 
 
@@ -207,9 +158,7 @@
 
 
 
-            <!-- =================================================
-                 TRANSACTION LEDGER
-            ================================================== -->
+            <!-- TRANSACTION LEDGER -->
 
             <section class="transaction-ledger-card">
 
@@ -222,9 +171,7 @@
 
 
 
-                <!-- =================================================
-                     FILTER AREA
-                ================================================== -->
+                <!-- FILTER AREA -->
 
                 <div class="transaction-filter-bar">
 
@@ -284,9 +231,7 @@
 
 
 
-                <!-- =================================================
-                     LEDGER TABLE
-                ================================================== -->
+                <!-- LEDGER TABLE -->
 
                 <div id="transaction-ledger-content" class="transaction-table-wrapper">
 
