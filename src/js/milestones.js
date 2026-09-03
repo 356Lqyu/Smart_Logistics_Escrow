@@ -436,6 +436,8 @@ async function loadInProgressAgreements() {
 
 function renderAgreements() {
 
+    renderVerificationReminderBar();
+
     const container =
         document.getElementById(
             "milestones-page-container"
@@ -649,6 +651,16 @@ function renderAgreements() {
 
 }
 
+function checkReminderWindow(milestone) {
+    if (!milestone.completed_at || milestone.verified) return false;
+    const FIVE_MINUTES = 300; // 5 minutes in seconds
+    const submittedTime = new Date(milestone.completed_at).getTime() / 1000;
+    const now = Math.floor(Date.now() / 1000);
+
+    return now > (submittedTime + FIVE_MINUTES);
+}
+
+
 
 // =====================================================
 // RENDER MILESTONE LIST
@@ -699,6 +711,73 @@ function renderMilestoneList(
 
 }
 
+// =====================================================
+// VERIFICATION PENDING REMINDER BAR
+// =====================================================
+
+function renderVerificationReminderBar() {
+    const bar = document.getElementById("verification-reminder-bar");
+    const detail = document.getElementById("verification-bar-details");
+
+    if (!bar || !detail || milestoneRole !== "shipper") {
+        if (bar) bar.style.display = "none";
+        return;
+    }
+
+    let targetMilestoneInfo = null;
+    const FIVE_MINUTES = 300; // 5 minutes in seconds
+    const now = Math.floor(Date.now() / 1000);
+
+    for (const agreement of milestoneAgreements) {
+        if (!agreement.milestones) continue;
+
+        for (const milestone of agreement.milestones) {
+            const completed = normalizeBool(milestone.completed);
+            const verified = normalizeBool(milestone.verified);
+
+            if (completed && !verified && milestone.completed_at) {
+                const submittedTime = new Date(milestone.completed_at).getTime() / 1000;
+                if (now > (submittedTime + FIVE_MINUTES)) {
+                    targetMilestoneInfo = {
+                        agreementId: agreement.agreement_id,
+                        reference: agreement.reference_no,
+                        checkpoint: milestone.checkpoint || `Milestone ${(milestone.milestone_index || 0) + 1}`
+                    };
+                    break;
+                }
+            }
+        }
+        if (targetMilestoneInfo) break;
+    }
+
+    if (!targetMilestoneInfo) {
+        bar.style.display = "none";
+        return;
+    }
+
+    detail.innerHTML = `
+        Verification pending over 5 minutes. Please review and verify milestone <strong>"${escapeHtml(targetMilestoneInfo.checkpoint)}"</strong> for agreement #${escapeHtml(targetMilestoneInfo.reference)}.
+        <button type="button" class="primary-action-btn" style="display: inline-flex; margin-top: 8px; padding: 6px 12px; font-size: 12px; background: #059669;" onclick="jumpToAgreementCard(${targetMilestoneInfo.agreementId})">
+            <i class="fa-solid fa-arrow-right"></i> Go & Review
+        </button>
+    `;
+    bar.style.display = "block";
+}
+
+
+// Function to expand card and scroll to it
+function jumpToAgreementCard(agreementId) {
+    expandedAgreements.add(Number(agreementId));
+    renderAgreements();
+
+    // Smooth scroll to the specific agreement card after rendering
+    setTimeout(() => {
+        const cardElement = document.getElementById(`milestones-${agreementId}`)?.closest(".details-card");
+        if (cardElement) {
+            cardElement.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+    }, 100);
+}
 
 // =====================================================
 // RENDER SINGLE MILESTONE
@@ -776,7 +855,7 @@ function renderMilestone(
         state = "completed";
         stateText = "Completed & Paid";
     } else if (milestone.isRejected) {
-        state = "cancelled"; // Uses red/danger theme matching rejection
+        state = "cancelled";
         stateText = "Rejected";
     } else if (completed && !verified) {
         state = "active";
@@ -784,6 +863,15 @@ function renderMilestone(
     } else if (milestoneIndex === activeIndex) {
         state = "active";
         stateText = "Pending";
+    }
+
+    let reminderHtml = "";
+    if (completed && !verified && checkReminderWindow(milestone)) {
+        reminderHtml = `
+            <div style="margin-top: 8px; padding: 8px 12px; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 6px; color: #fbbf24; font-size: 12px;">
+                <i class="fa-solid fa-triangle-exclamation"></i> Verification pending over 5 minutes. Please review and verify this milestone.
+            </div>
+        `;
     }
 
 
@@ -810,7 +898,6 @@ function renderMilestone(
             </button>
         `;
     } else if (completed || verified) {
-        // Allows BOTH Carrier and Shipper to view details of submitted/verified milestones anytime
         actionHtml = `
             <button
                 type="button"
@@ -947,6 +1034,7 @@ function renderMilestone(
             : ""
         }
 
+                    ${reminderHtml}
                     ${actionHtml}
 
                 </div>
@@ -966,7 +1054,6 @@ function renderMilestone(
         </div>
 
     `;
-
 }
 
 

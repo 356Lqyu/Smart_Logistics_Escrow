@@ -807,7 +807,7 @@ function renderAgreement() {
 
     setText(
         "agreement-deadline",
-        formatDate(
+        formatDateTime(
             deadline
         )
     );
@@ -3524,7 +3524,30 @@ function getStatusClass(
 
 
 function openMilestoneSubmission(agreementId, milestoneIndex, mode) {
-    window.location.href = `milestoneSubmission.html?agreementId=${Number(agreementId)}&milestoneIndex=${Number(milestoneIndex)}&mode=${encodeURIComponent(mode)}`;
+    window.location.href = `milestoneSubmission.html?agreementId=${Number(agreementId)}&milestoneIndex=${Number(milestoneIndex)}&mode=${encodeURIComponent(mode)}&from=agreement-details`;
+}
+
+function formatDateTime(
+    timestamp
+) {
+
+    if (!timestamp) {
+        return "-";
+    }
+
+    return new Date(
+        Number(timestamp) *
+        1000
+    ).toLocaleString(
+        "en-US",
+        {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit"
+        }
+    );
 }
 
 

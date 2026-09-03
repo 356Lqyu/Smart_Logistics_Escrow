@@ -26,6 +26,8 @@ document.addEventListener(
 
             await initializeWallet();
 
+            configureRoleFilters();
+
 
             // =========================================
             // 2. LOAD TRANSACTION HISTORY
@@ -63,6 +65,23 @@ document.addEventListener(
 
     }
 );
+
+// =====================================================
+// ROLE-BASED FILTER TABS
+// =====================================================
+
+function configureRoleFilters() {
+    const userRole = String(localStorage.getItem("role") || "").toLowerCase();
+    const isCarrier = userRole === "2" || userRole === "carrier";
+
+    if (!isCarrier) {
+        return;
+    }
+
+    document.querySelectorAll(
+        '.transaction-filter-btn[data-filter="funded"], .transaction-filter-btn[data-filter="cancelled"]'
+    ).forEach(button => button.remove());
+}
 
 // =====================================================
 // INITIALIZE WALLET
@@ -387,6 +406,11 @@ function updateStatistics() {
                 "Completed"
         ).length;
 
+    const totalAgreements = allAgreements.length;
+    const completedRate = totalAgreements
+        ? (completed / totalAgreements) * 100
+        : 0;
+
 
     const completedElement =
         document.getElementById(
@@ -401,18 +425,37 @@ function updateStatistics() {
 
     }
 
+    const completedRateElement =
+        document.getElementById(
+            "completed-rate"
+        );
+
+    if (completedRateElement) {
+        completedRateElement.innerText =
+            `↗ ${completedRate.toFixed(1)}% rate`;
+    }
+
 
     // =================================================
-    // REFUNDED / CANCELLED AGREEMENTS
+    // REFUNDED / CANCELLED FOR SHIPPERS; EXPIRED FOR CARRIERS
     // =================================================
 
-    const refunded =
+    const terminalAgreements =
         allAgreements.filter(
-            agreement =>
-                agreement.status === "Refunded" || 
-                agreement.status === "Cancelled" || 
-                agreement.status === "Expired"
+            agreement => {
+                if (isCarrier) {
+                    return agreement.status === "Expired";
+                }
+
+                return agreement.status === "Refunded" ||
+                    agreement.status === "Cancelled" ||
+                    agreement.status === "Expired";
+            }
         ).length;
+
+    const refundRate = totalAgreements
+        ? (terminalAgreements / totalAgreements) * 100
+        : 0;
 
 
     const refundElement =
@@ -429,12 +472,24 @@ function updateStatistics() {
     if (refundElement) {
 
         refundElement.innerText =
-            refunded;
+            terminalAgreements;
 
         if (refundLabel) {
-            refundLabel.innerText = "REFUNDED / CANCELLED";
+            refundLabel.innerText = isCarrier
+                ? "EXPIRED"
+                : "REFUNDED / CANCELLED";
         }
 
+    }
+
+    const refundRateElement =
+        document.getElementById(
+            "refund-rate"
+        );
+
+    if (refundRateElement) {
+        refundRateElement.innerText =
+            `${refundRate.toFixed(1)}% of total`;
     }
 
 }
@@ -796,97 +851,52 @@ function renderMilestoneRow(row, event) {
 // =====================================================
 
 function matchesFilter(event) {
-
-    if (
-        currentFilter ===
-        "all"
-    ) {
-
+    if (currentFilter === "all") {
         return true;
-
     }
 
+    const type = event.type === "milestone"
+        ? "completed"
+        : (event.transaction?.event_type || "").toLowerCase();
 
-    const type =
-        event.type ===
-            "milestone"
+    const agreement = event.agreement;
 
-            ? "completed"
-
-            : (
-                event.transaction
-                    ?.event_type || ""
-            ).toLowerCase();
-
-
-    const agreement =
-        event.agreement;
-
-
-    if (
-        currentFilter ===
-        "completed"
-    ) {
-
-        return (
-            type.includes(
-                "completed"
-            ) ||
-            agreement?.status ===
-            "Completed"
-        );
-
+    if (currentFilter === "funded") {
+        return type === "agreementcreated" || type === "escrowfunded";
     }
 
-
-    if (
-        currentFilter ===
-        "funded"
-    ) {
-
-        return (
-            type.includes(
-                "fund"
-            ) ||
-            type.includes(
-                "created"
-            )
-        );
-
+    if (currentFilter === "pending") {
+        return type === "milestonesubmitted" || type === "extensionrequested";
     }
 
-
-    if (
-        currentFilter ===
-        "refunded"
-    ) {
-
-        return (
-            type.includes(
-                "refund"
-            ) ||
-            agreement?.status ===
-            "Refunded"
-        );
-
+    if (currentFilter === "verified") {
+        return (type === "milestoneverified" || type === "milestonepayout") && !type.includes("rejected");
     }
 
-    if (
-        currentFilter === "cancelled"
-    ) {
-
-        return (
-            type.includes("cancel") ||
-            event.agreementAction === "Cancelled"
-        );
-
+    if (currentFilter === "extensions") {
+        return (type.includes("extension") || type.includes("extended")) && !type.includes("rejected");
     }
 
+    if (currentFilter === "completed") {
+        return type === "agreementcompleted" || agreement?.status === "Completed";
+    }
+
+    if (currentFilter === "rejected") {
+        return type === "milestonerejected" || type === "deadlineextensionrejected";
+    }
+
+    if (currentFilter === "cancelled") {
+        // Ensure it is strictly a cancellation and NOT an agreement creation record
+        return (type === "agreementcancelled" || event.agreementAction === "Cancelled" || agreement?.status === "Cancelled") && !type.includes("created");
+    }
+
+    if (currentFilter === "expired") {
+        // Ensure it is strictly an expiration and NOT an agreement creation record
+        return (type === "agreementexpired" || agreement?.status === "Expired") && !type.includes("created");
+    }
 
     return true;
-
 }
-
 
 // =====================================================
 // SEARCH
@@ -1077,148 +1087,67 @@ function extractTransactionAmount(transaction, agreement = null) {
 // TRANSACTION STATUS
 // =====================================================
 
-function getTransactionStatus(
-    eventType
-) {
+function getTransactionStatus(eventType) {
+    const type = String(eventType).toLowerCase();
 
-    const type =
-        String(
-            eventType
-        ).toLowerCase();
-
-
-    if (
-        type.includes(
-            "refund"
-        )
-    ) {
-
+    if (type === "milestonerejected" || type === "deadlineextensionrejected"){
+        return "Rejected";
+    }
+    if (type.includes("extension") || type.includes("extended")) {
+        return "Extended";
+    }
+    if (type.includes("refund")) {
         return "Refunded";
-
     }
-
-
-    if (
-        type.includes(
-            "complete"
-        )
-    ) {
-
+    if (type.includes("complete")) {
         return "Completed";
-
     }
-
-
-    if (
-        type.includes(
-            "cancel"
-        )
-    ) {
-
+    if (type.includes("cancel")) {
         return "Cancelled";
-
     }
-
-
-    if (
-        type.includes(
-            "expire"
-        )
-    ) {
-
+    if (type.includes("expire")) {
         return "Expired";
-
     }
-
-
-    if (
-        type.includes(
-            "fund"
-        ) ||
-        type.includes(
-            "created"
-        )
-    ) {
-
+    if (type.includes("fund") || type.includes("created")) {
         return "Funded";
-
     }
-
-
-    if (
-        type.includes(
-            "submit"
-        )
-    ) {
-
+    if (type.includes("submit")) {
         return "Submitted";
-
     }
-
-
-    if (
-        type.includes(
-            "verified"
-        ) ||
-        type.includes(
-            "payout"
-        ) ||
-        type.includes(
-            "release"
-        )
-    ) {
-
+    if (type.includes("verified") || type.includes("payout") || type.includes("release")) {
         return "Verified";
-
     }
-
 
     return "Recorded";
-
 }
-
 
 // =====================================================
 // STATUS CSS CLASS
 // =====================================================
 
-function getStatusClass(
-    status
-) {
-
-    switch (
-    status
-    ) {
-
+function getStatusClass(status) {
+    switch (status) {
         case "Funded":
+        case "Extended":
             return "status-funded";
-
         case "Submitted":
             return "status-submitted";
-
         case "Verified":
         case "Released":
             return "status-verified";
-
         case "Completed":
             return "status-completed";
-
         case "Refunded":
             return "status-refunded";
-
         case "Cancelled":
+        case "Rejected":
             return "status-cancelled";
-
         case "Expired":
             return "status-expired";
-
         default:
             return "status-active";
-
     }
-
 }
-
 
 // =====================================================
 // FORMAT DATE/TIME

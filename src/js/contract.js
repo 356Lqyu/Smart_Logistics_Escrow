@@ -1,5 +1,5 @@
 const CONTRACT_ADDRESS =
-    "0x4eb4F810ccAdAF867f1b544F46398e2Fe3EF4836";
+    "0x9D26f92dC19c93ADA8fDc1D7Aeb06f0cf3cF5b5F";
 
 
 const CONTRACT_ABI = [
@@ -640,6 +640,24 @@ const CONTRACT_ABI = [
         }
       ],
       "name": "verifyMilestone",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "agreementId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "milestoneIndex",
+          "type": "uint256"
+        }
+      ],
+      "name": "autoVerifyMilestone",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"

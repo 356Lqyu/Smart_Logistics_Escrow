@@ -340,6 +340,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                 .split("/")
                 .pop();
 
+        // Detail pages remain within their parent navigation workflows.
+        const activePageMap = {
+            "milestoneSubmission.html": "milestones.html",
+            "agreementDetails.html": "agreements.html"
+        };
+        const activePage = activePageMap[currentPage] || currentPage;
+
 
         menuListEl
             .querySelectorAll("a")
@@ -351,7 +358,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         ?.split("?")[0];
 
 
-                if (linkPage === currentPage) {
+                if (linkPage === activePage) {
                     link.classList.add("active");
                 }
 
