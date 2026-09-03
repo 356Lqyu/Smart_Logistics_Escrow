@@ -701,6 +701,8 @@ function setupSearch() {
 
 function renderAgreements() {
 
+    renderExtensionRequestBar();
+
     const tbody =
         document.getElementById(
             "agreements-table-body"
@@ -970,6 +972,189 @@ function renderAgreements() {
 }
 
 
+// =====================================================
+// SHIPPER EXTENSION REQUEST BAR
+// =====================================================
+
+function renderExtensionRequestBar() {
+    const bar = document.getElementById("extension-notification-bar");
+    const role = String(localStorage.getItem("role") || "")
+        .toLowerCase()
+        .trim();
+    const wallet = String(localStorage.getItem("wallet") || "")
+        .toLowerCase();
+
+    if (!bar || (role !== "1" && role !== "shipper") || !wallet) {
+        if (bar) bar.style.display = "none";
+        return;
+    }
+
+    const requestedAgreement = allAgreements.find(agreement => {
+        const hasPendingRequest =
+            agreement.extension_requested_deadline !== null &&
+            agreement.extension_requested_deadline !== undefined &&
+            String(agreement.extension_requested_deadline).trim() !== "";
+
+        return (
+            hasPendingRequest &&
+            String(agreement.shipper_address || "").toLowerCase() === wallet &&
+            getEffectiveStatus(agreement) === "In Progress"
+        );
+    });
+
+    if (!requestedAgreement) {
+        bar.style.display = "none";
+        return;
+    }
+
+    const detail = document.getElementById("extension-bar-details");
+    const approveButton = document.getElementById("bar-approve-ext-btn");
+    const rejectButton = document.getElementById("bar-reject-ext-btn");
+    const requestedDeadline = Number(
+        requestedAgreement.extension_requested_deadline
+    );
+
+    if (detail) {
+        detail.textContent =
+            `Carrier requested a deadline extension for ${
+                requestedAgreement.reference_no
+            } until ${formatDateTime(requestedDeadline)}. ` +
+            `Reason: ${
+                requestedAgreement.extension_request_reason ||
+                "No reason provided."
+            }`;
+    }
+
+    if (approveButton) {
+        approveButton.onclick = () =>
+            approveDeadlineExtensionFromList(
+                requestedAgreement.agreement_id
+            );
+    }
+
+    if (rejectButton) {
+        rejectButton.onclick = () =>
+            rejectDeadlineExtensionFromList(
+                requestedAgreement.agreement_id
+            );
+    }
+
+    bar.style.display = "block";
+}
+
+async function approveDeadlineExtensionFromList(agreementId) {
+    const agreement = allAgreements.find(
+        item => Number(item.agreement_id) === Number(agreementId)
+    );
+
+    if (!agreement) {
+        alert("Agreement not found.");
+        return;
+    }
+
+    try {
+        const account = String(localStorage.getItem("wallet") || "");
+        const shipper = String(
+            agreement.blockchain_shipper || agreement.shipper_address || ""
+        ).toLowerCase();
+        const requestedDeadline = Number(
+            agreement.extension_requested_deadline
+        );
+
+        if (!account || account.toLowerCase() !== shipper) {
+            throw new Error("Only the Shipper can approve this extension.");
+        }
+
+        if (!requestedDeadline) {
+            throw new Error("No pending extension request was found.");
+        }
+
+        if (typeof window.ethereum === "undefined") {
+            throw new Error("MetaMask is required.");
+        }
+
+        const web3 = new Web3(window.ethereum);
+        const contract = new web3.eth.Contract(
+            CONTRACT_ABI,
+            CONTRACT_ADDRESS
+        );
+        const tx = await contract.methods
+            .extendDeadline(Number(agreementId), requestedDeadline)
+            .send({ from: account });
+
+        const { error } = await supabaseClient
+            .from("agreements")
+            .update({
+                deadline: requestedDeadline,
+                extension_requested_deadline: null,
+                extension_request_reason: null
+            })
+            .eq("agreement_id", Number(agreementId));
+
+        if (error) throw error;
+
+        await supabaseClient.from("transactions").insert([{
+            transaction_hash: tx.transactionHash,
+            agreement_id: Number(agreementId),
+            event_type: "DeadlineExtended",
+            actor_address: account.toLowerCase(),
+            details: {
+                new_deadline: requestedDeadline,
+                description: "Shipper approved deadline extension."
+            }
+        }]);
+
+        alert("Deadline extension approved successfully.");
+        window.location.reload();
+    } catch (error) {
+        console.error("Deadline extension approval failed:", error);
+        alert("Failed to approve extension: " + (error.message || error));
+    }
+}
+
+async function rejectDeadlineExtensionFromList(agreementId) {
+    try {
+        const account = String(localStorage.getItem("wallet") || "");
+        const agreement = allAgreements.find(
+            item => Number(item.agreement_id) === Number(agreementId)
+        );
+        const shipper = String(
+            agreement?.blockchain_shipper || agreement?.shipper_address || ""
+        ).toLowerCase();
+
+        if (!agreement || !account || account.toLowerCase() !== shipper) {
+            throw new Error("Only the Shipper can reject this extension.");
+        }
+
+        const { error } = await supabaseClient
+            .from("agreements")
+            .update({
+                extension_requested_deadline: null,
+                extension_request_reason: null
+            })
+            .eq("agreement_id", Number(agreementId));
+
+        if (error) throw error;
+
+        await supabaseClient.from("transactions").insert([{
+            transaction_hash: "N/A-" + Date.now(),
+            agreement_id: Number(agreementId),
+            event_type: "DeadlineExtensionRejected",
+            actor_address: account.toLowerCase(),
+            details: {
+                description: "Shipper rejected deadline extension request."
+            }
+        }]);
+
+        alert("Deadline extension request rejected.");
+        window.location.reload();
+    } catch (error) {
+        console.error("Deadline extension rejection failed:", error);
+        alert("Failed to reject extension: " + (error.message || error));
+    }
+}
+
+
 async function acceptAgreementAction(agreementId) {
     try {
         if (typeof window.ethereum === "undefined") {
@@ -1006,7 +1191,9 @@ async function acceptAgreementAction(agreementId) {
 
         const now = Math.floor(Date.now() / 1000);
 
-        await supabaseClient
+        const {
+            error: agreementUpdateError
+        } = await supabaseClient
             .from("agreements")
             .update({
                 status: "In Progress",
@@ -1014,6 +1201,13 @@ async function acceptAgreementAction(agreementId) {
                 accepted_at: now
             })
             .eq("agreement_id", agreementId);
+
+        if (agreementUpdateError) {
+            throw new Error(
+                "Agreement was accepted on-chain, but its status could not be saved: " +
+                agreementUpdateError.message
+            );
+        }
 
         await supabaseClient.from("transactions").insert([{
             transaction_hash: tx.transactionHash,
@@ -1283,6 +1477,23 @@ function formatDate(
 
             day:
                 "numeric"
+        }
+    );
+}
+
+function formatDateTime(timestamp) {
+    if (!timestamp) {
+        return "-";
+    }
+
+    return new Date(Number(timestamp) * 1000).toLocaleString(
+        "en-US",
+        {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit"
         }
     );
 }

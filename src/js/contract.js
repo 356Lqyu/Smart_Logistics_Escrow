@@ -1,5 +1,5 @@
 const CONTRACT_ADDRESS =
-    "0xD59a961481B79cf2ed8092C7280FA8933440338D";
+    "0x4eb4F810ccAdAF867f1b544F46398e2Fe3EF4836";
 
 
 const CONTRACT_ABI = [
@@ -90,6 +90,31 @@ const CONTRACT_ABI = [
         }
       ],
       "name": "AgreementExpired",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "agreementId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "newDeadline",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "shipper",
+          "type": "address"
+        }
+      ],
+      "name": "DeadlineExtended",
       "type": "event"
     },
     {
@@ -659,6 +684,24 @@ const CONTRACT_ABI = [
         }
       ],
       "name": "expireAgreement",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "agreementId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "newDeadline",
+          "type": "uint256"
+        }
+      ],
+      "name": "extendDeadline",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"

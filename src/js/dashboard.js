@@ -222,12 +222,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 '<i class="fa-solid fa-truck-fast"></i>';
 
 
-            if (searchInputEl) {
-                searchInputEl.placeholder =
-                    "Search available jobs...";
-            }
-
-
             menuListEl.innerHTML = `
 
                 <li>
@@ -286,10 +280,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             profileIconEl.innerHTML =
                 '<i class="fa-solid fa-box"></i>';
-
-
-            searchInputEl.placeholder =
-                "Search agreements...";
 
 
             menuListEl.innerHTML = `
