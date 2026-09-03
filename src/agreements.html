@@ -20,13 +20,27 @@
         <!-- Top Bar -->
         <header class="top-navbar">
             <div class="page-title-block">
-                <h1 id="page-heading">Dashboard</h1>
+                <h1 id="page-heading">Agreements</h1>
+            <div class="network-stats">
+                    <span>Chain ID: <strong id="chain-id">—</strong></span>
+                    <span class="dot"></span>
+                    <span>Gas: <strong id="gas-price">—</strong></span>
+                    <span class="dot"></span>
+                    <span>ETH: <strong id="eth-price">—</strong></span>
+                </div>
             </div>
-            
+
             <div class="top-nav-right">
                 <div class="search-box">
                     <i class="fa-solid fa-magnifying-glass"></i>
                     <input type="text" id="search-input" placeholder="Search agreements...">
+                </div>
+
+
+                <div class="wallet-badge">
+                    <span class="wallet-glow-dot"></span>
+                    <span id="top-wallet-address">Connecting...</span>
+                    <span class="wallet-avatar" aria-hidden="true"></span>
                 </div>
             </div>
         </header>

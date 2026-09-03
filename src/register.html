@@ -28,90 +28,110 @@
 
         <p class="subtitle">
             Register as a Shipper or Carrier to start using LogisticsEscrow.
+            <br>
+            <small style="opacity:0.85;">
+                Your email &amp; password sign you in. Your MetaMask wallet is your
+                on-chain identity for agreements and escrow &mdash; one wallet = one account.
+            </small>
         </p>
 
-        <!-- Name -->
-        <div class="form-group">
+        <form id="registerForm" autocomplete="off">
 
-            <label for="name">
-                Full Name
-            </label>
+            <div class="section-label">Personal Details</div>
 
-            <input
-                type="text"
-                id="name"
-                placeholder="Enter your name"
-            >
+            <!-- Name -->
+            <div class="form-group">
+                <label for="name">Full Name</label>
+                <input type="text" id="name" placeholder="Enter your full name" autocomplete="name">
+            </div>
 
-        </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="age">Age</label>
+                    <input type="number" id="age" placeholder="e.g. 25" min="18" max="120">
+                </div>
 
+                <div class="form-group">
+                    <label for="icNumber">IC Number</label>
+                    <input type="text" id="icNumber" placeholder="e.g. 990101-01-1234" maxlength="20">
+                </div>
+            </div>
 
-        <!-- Role -->
-        <div class="form-group">
+            <div class="form-group">
+                <label for="phone">Phone Number</label>
+                <input type="tel" id="phone" placeholder="e.g. 012-3456789" autocomplete="tel">
+            </div>
 
-            <label>
-                Select Role
-            </label>
+            <div class="section-label">Login Credentials</div>
 
-            <div class="role-container">
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" placeholder="you@example.com" autocomplete="email">
+            </div>
 
-                <button
-                    type="button"
-                    class="role-btn"
-                    id="shipperBtn"
-                    onclick="selectRole(1)"
-                >
-                    <i class="fa-solid fa-box"></i>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <div class="password-wrapper">
+                        <input type="password" id="password" placeholder="At least 8 characters" autocomplete="new-password">
+                        <button type="button" class="password-toggle" data-toggle-for="password" aria-label="Show password">
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
 
-                    <strong>Shipper</strong>
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm Password</label>
+                    <div class="password-wrapper">
+                        <input type="password" id="confirmPassword" placeholder="Re-enter password" autocomplete="new-password">
+                        <button type="button" class="password-toggle" data-toggle-for="confirmPassword" aria-label="Show password">
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
 
-                    <span>
-                        Create and fund logistics agreements
-                    </span>
-                </button>
+            <div class="section-label">Select Role</div>
 
+            <div class="form-group" style="margin-bottom:0;">
+                <div class="role-container">
 
-                <button
-                    type="button"
-                    class="role-btn"
-                    id="carrierBtn"
-                    onclick="selectRole(2)"
-                >
-                    <i class="fa-solid fa-truck-fast"></i>
+                    <button type="button" class="role-btn" id="shipperBtn" onclick="selectRole(1)">
+                        <i class="fa-solid fa-box"></i>
+                        <strong>Shipper</strong>
+                        <span>Create and fund logistics agreements</span>
+                    </button>
 
-                    <strong>Carrier</strong>
+                    <button type="button" class="role-btn" id="carrierBtn" onclick="selectRole(2)">
+                        <i class="fa-solid fa-truck-fast"></i>
+                        <strong>Carrier</strong>
+                        <span>Accept agreements and complete deliveries</span>
+                    </button>
 
-                    <span>
-                        Accept agreements and complete deliveries
-                    </span>
+                </div>
+            </div>
+
+            <!-- Wallet -->
+            <div class="wallet-section">
+
+                <p id="walletStatus">
+                    MetaMask is required to complete registration.
+                </p>
+
+                <button type="button" id="connectWalletBtn" class="connect-btn" onclick="registerUser()">
+                    <i class="fa-solid fa-wallet"></i>
+                    Connect MetaMask &amp; Register
                 </button>
 
             </div>
 
-        </div>
+            <p id="message"></p>
 
-
-        <!-- Wallet -->
-        <div class="wallet-section">
-
-            <p id="walletStatus">
-                MetaMask is required to complete registration.
+            <p class="auth-switch">
+                Already have an account? <a href="login.html">Log in</a>
             </p>
 
-            <button
-                id="connectWalletBtn"
-                class="connect-btn"
-                onclick="registerUser()"
-            >
-                <i class="fa-solid fa-wallet"></i>
-
-                Connect MetaMask & Register
-            </button>
-
-        </div>
-
-
-        <p id="message"></p>
+        </form>
 
     </div>
 

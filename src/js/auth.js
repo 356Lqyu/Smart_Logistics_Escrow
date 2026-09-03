@@ -25,17 +25,10 @@ async function connectWallet() {
     try {
 
         // =====================================
-        // 1. Switch MetaMask to Ganache
+        // 1. Switch / add Ganache (5777 or 1337)
         // =====================================
 
-        await window.ethereum.request({
-            method: "wallet_switchEthereumChain",
-            params: [
-                {
-                    chainId: "0x539"
-                }
-            ]
-        });
+        await ensureGanacheNetworkForAuth();
 
         console.log("Switched to Ganache");
 
@@ -76,11 +69,20 @@ async function connectWallet() {
 
         console.error("Connection error:", error);
 
-        // =====================================
-        // Ganache network doesn't exist in MetaMask
-        // =====================================
+        const rawMessage =
+            error?.message ||
+            error?.cause?.message ||
+            String(error);
 
-        if (error.code === 4902) {
+        if (/failed to fetch/i.test(rawMessage)) {
+            alert(
+                "Cannot reach Ganache.\n\n" +
+                "1. Open Ganache\n" +
+                "2. RPC URL: http://127.0.0.1:8545\n" +
+                "3. Network ID / Chain ID: 1337 (MetaMask Localhost)\n" +
+                "4. Then try again"
+            );
+        } else if (error.code === 4902) {
 
             alert(
                 "Ganache network is not added to MetaMask.\n\n" +
@@ -91,10 +93,67 @@ async function connectWallet() {
 
             alert(
                 "Connection failed:\n\n" +
-                error.message
+                rawMessage
             );
         }
     }
+}
+
+async function ensureGanacheNetworkForAuth() {
+
+    const networks = [
+        {
+            chainId: "0x1691",
+            chainName: "Ganache Local 5777",
+            rpcUrls: ["http://127.0.0.1:8545"],
+            nativeCurrency: {
+                name: "ETH",
+                symbol: "ETH",
+                decimals: 18
+            }
+        },
+        {
+            chainId: "0x539",
+            chainName: "Ganache Local 1337",
+            rpcUrls: ["http://127.0.0.1:8545"],
+            nativeCurrency: {
+                name: "ETH",
+                symbol: "ETH",
+                decimals: 18
+            }
+        }
+    ];
+
+    let lastError = null;
+
+    for (const network of networks) {
+        try {
+            await window.ethereum.request({
+                method: "wallet_switchEthereumChain",
+                params: [{ chainId: network.chainId }]
+            });
+            return;
+        } catch (switchError) {
+            lastError = switchError;
+
+            if (
+                switchError.code === 4902 ||
+                switchError?.data?.originalError?.code === 4902
+            ) {
+                try {
+                    await window.ethereum.request({
+                        method: "wallet_addEthereumChain",
+                        params: [network]
+                    });
+                    return;
+                } catch (addError) {
+                    lastError = addError;
+                }
+            }
+        }
+    }
+
+    throw lastError || new Error("Could not connect to Ganache network.");
 }
 
 async function checkRegistration() {

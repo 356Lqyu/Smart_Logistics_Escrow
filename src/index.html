@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,6 +10,7 @@
   <link rel="stylesheet" href="css/index.css">
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
+
 <body>
   <header>
     <div class="logo">
@@ -30,10 +32,16 @@
   <section id="hero">
     <div class="hero-content">
       <h1>Decentralized Escrow & <span class="highlight">Milestone-Based Logistics</span></h1>
-      <p>Secure global trade and supply chain transactions with self-enforcing Ethereum smart contracts, automated milestone distributions, and trustless escrow protection.</p>
-<button class="hero-cta" onclick="window.location.href='register.html'">
-    <i class="fa-solid fa-user-plus"></i> Get Started
-</button>
+      <p>Secure global trade and supply chain transactions with self-enforcing Ethereum smart contracts, automated
+        milestone distributions, and trustless escrow protection.</p>
+      <div class="hero-buttons">
+        <button class="hero-cta" onclick="window.location.href='register.html'">
+          <i class="fa-solid fa-user-plus"></i> Get Started
+        </button>
+        <button class="hero-cta hero-cta-secondary" onclick="window.location.href='login.html'">
+          <i class="fa-solid fa-right-to-bracket"></i> Log In
+        </button>
+      </div>
     </div>
   </section>
 
@@ -41,15 +49,17 @@
   <section id="features">
     <div class="section-container">
       <h2>Why LogisticsEscrow?</h2>
-      <p class="subtitle">Built on Ethereum, designed for modern logistics operations that demand trust,<br/> automation, and verifiable records.</p>
-      
+      <p class="subtitle">Built on Ethereum, designed for modern logistics operations that demand trust,<br />
+        automation, and verifiable records.</p>
+
       <div class="features-grid">
         <div class="feature-card">
           <div class="feature-icon-box">
             <i class="fa-solid fa-lock"></i>
           </div>
           <h3>Smart Contract Escrow</h3>
-          <p>Shippers deposit full escrow amounts into secure Ethereum smart contracts. Funds remain locked on-chain until verified conditions are fulfilled.</p>
+          <p>Shippers deposit full escrow amounts into secure Ethereum smart contracts. Funds remain locked on-chain
+            until verified conditions are fulfilled.</p>
         </div>
 
         <div class="feature-card">
@@ -57,7 +67,8 @@
             <i class="fa-solid fa-location-dot"></i>
           </div>
           <h3>Milestone Checkpoints</h3>
-          <p>Configurable payment distribution milestones (e.g., 30% pickup, 30% warehouse arrival, 40% final delivery) ensure orderly checkpoint tracking.</p>
+          <p>Configurable payment distribution milestones (e.g., 30% pickup, 30% warehouse arrival, 40% final delivery)
+            ensure orderly checkpoint tracking.</p>
         </div>
 
         <div class="feature-card">
@@ -65,7 +76,8 @@
             <i class="fa-solid fa-scale-balanced"></i>
           </div>
           <h3>Automated Refund Policy</h3>
-          <p>If the delivery deadline is breached before milestones are met, the smart contract automatically issues escrow refunds back to the shipper.</p>
+          <p>If the delivery deadline is breached before milestones are met, the smart contract automatically issues
+            escrow refunds back to the shipper.</p>
         </div>
 
         <div class="feature-card">
@@ -94,7 +106,8 @@
             <p>01</p>
           </div>
           <h3>Create & Fund Agreement</h3>
-          <p>Shippers define shipment specifications, delivery priority, deadlines, and lock the required ETH amount directly into escrow.</p>
+          <p>Shippers define shipment specifications, delivery priority, deadlines, and lock the required ETH amount
+            directly into escrow.</p>
         </div>
 
         <div class="step-arrow">
@@ -108,7 +121,8 @@
             <p>02</p>
           </div>
           <h3>Carrier Acceptance</h3>
-          <p>Registered carriers browse available funded agreements, accept assignments, and change the contract status to "In Progress".</p>
+          <p>Registered carriers browse available funded agreements, accept assignments, and change the contract status
+            to "In Progress".</p>
         </div>
 
         <div class="step-arrow">
@@ -122,7 +136,8 @@
             <p>03</p>
           </div>
           <h3>Milestone & Payout</h3>
-          <p>Carriers submit checkpoints. Shippers review and verify each completed phase, triggering instant on-chain ETH payouts.</p>
+          <p>Carriers submit checkpoints. Shippers review and verify each completed phase, triggering instant on-chain
+            ETH payouts.</p>
         </div>
       </div>
     </div>
@@ -139,8 +154,9 @@
     lucide.createIcons();
   </script>
   <script src="https://cdn.jsdelivr.net/npm/web3@1.10.4/dist/web3.min.js"></script>
-<script src="js/contract.js"></script>
-<script src="js/auth.js"></script>
-<script src="js/supabase.js"></script>
+  <script src="js/contract.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/supabase.js"></script>
 </body>
+
 </html>

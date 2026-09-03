@@ -167,6 +167,19 @@ section {
     transform: translateY(-2px);
 }
 
+.hero-buttons {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.hero-cta-secondary {
+    background-color: transparent;
+    border: 1px solid #3a506b;
+}
+
 /* Platform Features */
 #features {
     background: #050d217c;
