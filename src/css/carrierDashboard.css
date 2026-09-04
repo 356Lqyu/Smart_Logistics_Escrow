@@ -175,6 +175,45 @@
 }
 
 .carrier-milestone-track {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.carrier-payment-agreement {
+    padding-top: 18px;
+    border-top: 1px solid rgba(58, 80, 107, 0.45);
+}
+
+.carrier-payment-agreement:first-child {
+    padding-top: 0;
+    border-top: 0;
+}
+
+.carrier-payment-agreement-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.carrier-payment-agreement-header strong {
+    color: #ffffff;
+    font-size: 14px;
+}
+
+.carrier-payment-agreement-header a {
+    color: #93c5fd;
+    font-size: 12px;
+    text-decoration: none;
+}
+
+.carrier-payment-agreement-header a:hover {
+    color: #ffffff;
+}
+
+.carrier-payment-milestones {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 14px;
@@ -284,7 +323,7 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .carrier-milestone-track {
+    .carrier-payment-milestones {
         grid-template-columns: 1fr;
     }
 }

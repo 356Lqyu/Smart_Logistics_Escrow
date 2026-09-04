@@ -9,6 +9,7 @@ contract LogisticsEscrow {
     ILogiTrustToken public rewardToken;
 
     uint public constant CARRIER_REWARD = 10 * 10 ** 18;
+    uint private constant MAX_ACTIVE_AGREEMENTS_PER_CARRIER = 3;
 
     event CarrierRewarded(
         uint indexed agreementId,
@@ -71,6 +72,7 @@ contract LogisticsEscrow {
     mapping(bytes32 => bool) private agreementHashes;
     mapping(uint => bytes32) private completionDocumentHashes;
     mapping(uint => address) private completionDocumentSubmitter;
+    mapping(address => uint) private activeAgreementsByCarrier;
 
     event AgreementCreated(uint indexed agreementId, string referenceNo, address indexed shipper, uint escrowAmount);
     event EscrowFunded(uint indexed agreementId, uint amount);
@@ -244,9 +246,14 @@ contract LogisticsEscrow {
         require(msg.sender != agreement.shipper, "Shipper cannot be carrier");
         require(block.timestamp <= agreement.deadline, "Deadline passed");
         require(agreement.escrowRemaining == agreement.escrowAmount, "Escrow is not fully funded");
+        require(
+            activeAgreementsByCarrier[msg.sender] < MAX_ACTIVE_AGREEMENTS_PER_CARRIER,
+            "Carrier already has 3 active agreements"
+        );
 
         agreement.carrier = payable(msg.sender);
         agreement.status = AgreementStatus.InProgress;
+        activeAgreementsByCarrier[msg.sender]++;
 
         emit AgreementAccepted(agreementId, msg.sender);
     }
@@ -307,6 +314,7 @@ contract LogisticsEscrow {
         if (agreement.currentMilestone >= agreementMilestones[agreementId].length) {
             require(agreement.escrowRemaining == 0, "Escrow remains after final milestone");
             agreement.status = AgreementStatus.Completed;
+            activeAgreementsByCarrier[agreement.carrier]--;
 
             emit AgreementCompleted(agreementId);
 
@@ -361,10 +369,16 @@ contract LogisticsEscrow {
         require(block.timestamp > agreement.deadline, "Deadline not passed");
         require(agreement.status == AgreementStatus.Created || agreement.status == AgreementStatus.InProgress, "Cannot expire");
 
+        bool wasInProgress = agreement.status == AgreementStatus.InProgress;
+
         uint amount = agreement.escrowRemaining;
         agreement.escrowRemaining = 0;
         agreement.escrowAmount = 0;
         agreement.status = AgreementStatus.Expired;
+
+        if (wasInProgress) {
+            activeAgreementsByCarrier[agreement.carrier]--;
+        }
 
         if (amount > 0) {
             (bool success,) = agreement.shipper.call{value: amount}("");

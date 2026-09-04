@@ -1074,15 +1074,19 @@ function renderMilestones() {
             // Priority check for rejections
             // -------------------------------------------------
             if (milestone.isRejected) {
+                const rejectionMode = isShipper ? "review" : "submit";
+                const rejectionLabel = isShipper
+                    ? "View Rejection Reason"
+                    : "View Rejection Reason & Re-submit";
                 action = `
                     <button
                         type="button"
                         class="danger-action-btn"
                         style="margin-top: 12px; padding: 8px 14px; font-size: 12px; background: #ef4444;"
-                        onclick="openMilestoneSubmission(${agreementId}, ${index}, 'submit')"
+                        onclick="openMilestoneSubmission(${agreementId}, ${index}, '${rejectionMode}')"
                     >
                         <i class="fa-solid fa-triangle-exclamation"></i>
-                        View Rejection Reason & Re-submit
+                        ${rejectionLabel}
                     </button>
                 `;
             } else if (completed || verified) {

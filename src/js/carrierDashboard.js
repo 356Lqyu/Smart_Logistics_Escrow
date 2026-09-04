@@ -211,7 +211,7 @@ async function loadCarrierDashboard(walletLower, currentAccount) {
     const sidebarTokens = document.getElementById("sidebar-token-balance");
     if (sidebarTokens) sidebarTokens.innerText = `${tokens} LTT`;
 
-    await renderPaymentBreakdown(active[0]);
+    await renderPaymentBreakdown(active);
     renderAvailableJobs(available.slice(0, 8), active.length, currentAccount);
 }
 
@@ -228,58 +228,83 @@ async function loadCarrierTokenBalance(wallet) {
     }
 }
 
-async function renderPaymentBreakdown(activeJob) {
+async function renderPaymentBreakdown(activeJobs) {
     const track = document.getElementById("payment-milestone-track");
     const label = document.getElementById("payment-agreement-label");
     const link = document.getElementById("payment-details-link");
+    const jobs = activeJobs || [];
 
     if (!track) return;
 
-    if (!activeJob) {
+    if (!jobs.length) {
         if (label) label.innerText = "No active delivery yet";
         track.innerHTML =
             '<div class="carrier-empty">Accept a job to see milestone payout progress here.</div>';
         return;
     }
 
-    const ref = activeJob.reference_no || `LG-${activeJob.agreement_id}`;
-    if (label) label.innerText = `Agreement ${ref}`;
+    if (label) {
+        label.innerText = `${jobs.length} active ${jobs.length === 1 ? "agreement" : "agreements"}`;
+    }
     if (link) {
-        link.href = `agreementDetails.html?id=${encodeURIComponent(activeJob.agreement_id)}`;
+        link.href = "milestones.html";
     }
 
     const { data: milestones } = await supabaseClient
         .from("milestones")
         .select("*")
-        .eq("agreement_id", activeJob.agreement_id)
+        .in("agreement_id", jobs.map(job => Number(job.agreement_id)))
         .order("milestone_index", { ascending: true });
 
-    const list = milestones?.length
-        ? milestones
-        : [
-            { checkpoint: "Goods Pickup", percentage: 30, verified: false, paid: false, completed: false },
-            { checkpoint: "Warehouse Arrival", percentage: 30, verified: false, paid: false, completed: false },
-            { checkpoint: "Final Delivery", percentage: 40, verified: false, paid: false, completed: false }
-        ];
+    const milestonesByAgreement = (milestones || []).reduce((groups, milestone) => {
+        const agreementId = Number(milestone.agreement_id);
+        if (!groups[agreementId]) groups[agreementId] = [];
+        groups[agreementId].push(milestone);
+        return groups;
+    }, {});
 
-    const escrow = Number(activeJob.escrow_amount || 0);
+    const fallbackMilestones = [
+        { checkpoint: "Goods Pickup", percentage: 30, verified: false, paid: false, completed: false },
+        { checkpoint: "Warehouse Arrival", percentage: 30, verified: false, paid: false, completed: false },
+        { checkpoint: "Final Delivery", percentage: 40, verified: false, paid: false, completed: false }
+    ];
 
-    track.innerHTML = list.map((m, index) => {
-        const pct = Number(m.percentage || 0);
-        const eth = ((escrow * pct) / 100).toFixed(2);
-        const state = milestoneState(m, index, Number(activeJob.current_milestone || 0));
+    track.innerHTML = jobs.map(job => {
+        const agreementId = Number(job.agreement_id);
+        const ref = job.reference_no || `LG-${agreementId}`;
+        const list = milestonesByAgreement[agreementId]?.length
+            ? milestonesByAgreement[agreementId]
+            : fallbackMilestones;
+        const escrow = Number(job.escrow_amount || 0);
+        const milestonesHtml = list.map((milestone, index) => {
+            const percentage = Number(milestone.percentage || 0);
+            const eth = ((escrow * percentage) / 100).toFixed(2);
+            const state = milestoneState(milestone, index, Number(job.current_milestone || 0));
+
+            return `
+                <div class="carrier-milestone-item ${state}">
+                    <div class="carrier-milestone-bar"></div>
+                    <div class="carrier-milestone-copy">
+                        <strong>${escapeHtml(milestone.checkpoint || `Milestone ${index + 1}`)}</strong>
+                        <span>${stateLabel(state)}</span>
+                    </div>
+                    <div class="carrier-milestone-eth">
+                        <i class="fa-brands fa-ethereum"></i> ${eth}
+                    </div>
+                </div>
+            `;
+        }).join("");
 
         return `
-            <div class="carrier-milestone-item ${state}">
-                <div class="carrier-milestone-bar"></div>
-                <div class="carrier-milestone-copy">
-                    <strong>${escapeHtml(m.checkpoint || `Milestone ${index + 1}`)}</strong>
-                    <span>${stateLabel(state)}</span>
+            <section class="carrier-payment-agreement">
+                <div class="carrier-payment-agreement-header">
+                    <strong>${escapeHtml(ref)}</strong>
+                    <a href="agreementDetails.html?id=${encodeURIComponent(agreementId)}">View agreement</a>
                 </div>
-                <div class="carrier-milestone-eth">
-                    <i class="fa-brands fa-ethereum"></i> ${eth}
+                <div class="carrier-payment-milestones">
+                    ${milestonesHtml}
                 </div>
-            </div>
+            </section>
         `;
     }).join("");
 }
@@ -358,6 +383,23 @@ async function acceptJobFromDashboard(agreementId, shipperAddress) {
 
         if (shipperAddress && currentAccount === shipperAddress) {
             alert("Action Denied: You cannot accept your own agreement as carrier.");
+            return;
+        }
+
+        // Re-check before confirmation because the dashboard may have been
+        // open while another agreement was accepted elsewhere.
+        const { count, error: activeCountError } = await supabaseClient
+            .from("agreements")
+            .select("agreement_id", { count: "exact", head: true })
+            .eq("carrier_address", currentAccount)
+            .eq("status", "In Progress");
+
+        if (activeCountError) throw activeCountError;
+        if ((count || 0) >= MAX_CONCURRENT_JOBS) {
+            alert(
+                `You already have ${MAX_CONCURRENT_JOBS} agreements in progress. ` +
+                "Complete an active agreement before accepting another one."
+            );
             return;
         }
 

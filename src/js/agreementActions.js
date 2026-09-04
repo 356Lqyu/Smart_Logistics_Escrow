@@ -1,3 +1,5 @@
+const MAX_ACTIVE_AGREEMENTS_PER_CARRIER = 3;
+
 async function sharedAcceptAgreement(agreementId, referenceNo, onSuccess) {
     if (typeof window.ethereum === "undefined") {
         alert("MetaMask is required.");
@@ -7,6 +9,24 @@ async function sharedAcceptAgreement(agreementId, referenceNo, onSuccess) {
     try {
         const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
         const currentAccount = accounts[0].toLowerCase();
+
+        // Always re-check immediately before asking the carrier to sign. This
+        // protects the Agreements and Agreement Details acceptance flows even
+        // when their displayed lists are stale.
+        const { count, error: activeCountError } = await supabaseClient
+            .from("agreements")
+            .select("agreement_id", { count: "exact", head: true })
+            .eq("carrier_address", currentAccount)
+            .eq("status", "In Progress");
+
+        if (activeCountError) throw activeCountError;
+        if ((count || 0) >= MAX_ACTIVE_AGREEMENTS_PER_CARRIER) {
+            alert(
+                `You already have ${MAX_ACTIVE_AGREEMENTS_PER_CARRIER} agreements in progress. ` +
+                "Complete an active agreement before accepting another one."
+            );
+            return;
+        }
 
         const web3 = new Web3(window.ethereum);
         const contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);

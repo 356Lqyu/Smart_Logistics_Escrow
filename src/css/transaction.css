@@ -656,6 +656,26 @@
     color: #304665;
 }
 
+.view-btn {
+    background: #1c2541;
+    border: 1px solid #3a506b;
+    color: #e0e1dd;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.view-btn:hover {
+    background: #0e51e3;
+    border-color: #0e51e3;
+    color: #ffffff;
+}
+
 
 /* =========================================================
    TOP SEARCH

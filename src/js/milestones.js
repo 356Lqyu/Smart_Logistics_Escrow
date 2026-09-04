@@ -883,6 +883,10 @@ function renderMilestone(
     const isCurrentActive = (milestoneIndex === activeIndex);
 
     if (milestone.isRejected) {
+        const rejectionMode = milestoneRole === "shipper" ? "review" : "submit";
+        const rejectionLabel = milestoneRole === "shipper"
+            ? "View Rejection Reason"
+            : "View Rejection Reason & Re-submit";
         actionHtml = `
             <button
                 type="button"
@@ -893,12 +897,12 @@ function renderMilestone(
                     openMilestoneSubmission(
                         ${agreementId},
                         ${milestoneIndex},
-                        'submit'
+                        '${rejectionMode}'
                     );
                 "
             >
                 <i class="fa-solid fa-triangle-exclamation"></i>
-                View Rejection Reason & Re-submit
+                ${rejectionLabel}
             </button>
         `;
     } else if (completed || verified) {

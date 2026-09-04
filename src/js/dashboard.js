@@ -343,7 +343,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         // Detail pages remain within their parent navigation workflows.
         const activePageMap = {
             "milestoneSubmission.html": "milestones.html",
-            "agreementDetails.html": "agreements.html"
+            "agreementDetails.html": "agreements.html",
+            "transactionDetails.html": "transactionHistory.html"
         };
         const activePage = activePageMap[currentPage] || currentPage;
 

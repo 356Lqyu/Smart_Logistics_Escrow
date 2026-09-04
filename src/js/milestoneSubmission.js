@@ -47,17 +47,19 @@ async function initialiseSubmissionPage() {
             throw new Error("Milestone evidence storage is not configured.");
         }
 
-        const { data: rejectionTx } = await supabaseClient
+        const { data: rejectionTransactions } = await supabaseClient
             .from("transactions")
             .select("details, created_at")
             .eq("agreement_id", submissionAgreementId)
             .eq("event_type", "MilestoneRejected")
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
+            .order("created_at", { ascending: false });
 
-        const rejectionDetails = rejectionTx?.details;
-        const isThisMilestoneRejected = rejectionDetails && Number(rejectionDetails.milestone_index) === submissionMilestoneIndex;
+        // The latest rejection may belong to a different milestone, so locate
+        // the latest rejection recorded for the milestone being viewed.
+        const rejectionDetails = (rejectionTransactions || []).find(transaction =>
+            Number(transaction.details?.milestone_index) === submissionMilestoneIndex
+        )?.details;
+        const isThisMilestoneRejected = Boolean(rejectionDetails);
         rejectionReason = isThisMilestoneRejected ? rejectionDetails.reason : null;
 
         submissionAgreement = agreement;
@@ -97,23 +99,19 @@ function renderSubmissionPage() {
 
     const submittedAtFormatted = submissionMilestone.completed_at ? new Date(submissionMilestone.completed_at).toLocaleString() : "—";
     const verifiedAtFormatted = submissionMilestone.verified_at ? new Date(submissionMilestone.verified_at).toLocaleString() : "Not verified yet";
+    const rejectionReasonHtml = rejectionReason ? `
+        <div style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3); padding: 18px; border-radius: 14px; margin-bottom: 24px;">
+            <h4 style="color: #f87171; margin-bottom: 8px; font-size: 15px;"><i class="fa-solid fa-circle-exclamation"></i> Milestone Rejection Reason</h4>
+            <p style="color: #cbd5e1; font-size: 13px; margin: 0; white-space: pre-wrap; line-height: 1.6;">${escapeHtml(rejectionReason)}</p>
+        </div>
+    ` : "";
 
     let workflowHtml = "";
     if (submissionMode === "submit" && !submissionMilestone.completed) {
         const canSubmit = isCarrier && submissionAgreement.status === "In Progress";
         
-        let rejectionBannerHtml = "";
-        if (isCarrier && rejectionReason) {
-            rejectionBannerHtml = `
-                <div style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3); padding: 18px; border-radius: 14px; margin-bottom: 24px;">
-                    <h4 style="color: #f87171; margin-bottom: 8px; font-size: 15px;"><i class="fa-solid fa-circle-exclamation"></i> Milestone Rejected by Shipper</h4>
-                    <p style="color: #cbd5e1; font-size: 13px; margin: 0; white-space: pre-wrap; line-height: 1.6;">${escapeHtml(rejectionReason)}</p>
-                </div>
-            `;
-        }
-
         workflowHtml = canSubmit ? `
-            ${rejectionBannerHtml}
+            ${rejectionReasonHtml}
             <form id="evidence-form">
                 <div class="detail-subsection" style="border-top:none; padding-top:0;">
                     <div class="detail-subsection-header">
@@ -139,7 +137,11 @@ function renderSubmissionPage() {
                         </div>
                     </div>
                     <div class="shipment-description-box" style="margin-bottom: 24px;">
-                        <input id="proof-file" type="file" accept="image/*" required style="display:block; color:#e0e1dd;">
+                        <input id="proof-file" class="proof-file-input" type="file" accept="image/*">
+                        <span id="proof-file-name" class="proof-file-name">No photo selected</span>
+                        <label for="proof-file" class="proof-upload-icon" title="Upload completion photo" aria-label="Upload completion photo">
+                            <i class="fa-solid fa-upload" style="font-size: 12px;" aria-hidden="true"></i>
+                        </label>
                     </div>
 
                     <button class="primary-action-btn" type="submit"><i class="fa-solid fa-upload"></i> Submit Evidence & Completion</button>
@@ -149,6 +151,7 @@ function renderSubmissionPage() {
         const canVerify = isShipper && submissionMilestone.completed && !submissionMilestone.verified && submissionEvidence;
         workflowHtml = `
         <div>
+            ${rejectionReasonHtml}
             <!-- Agreement Info Grid (Matches Details Page Grid Style) -->
             <div class="agreement-info-grid" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 24px;">
                 <div class="info-item">
@@ -238,6 +241,12 @@ function renderSubmissionPage() {
         </section>`;
 
     document.getElementById("evidence-form")?.addEventListener("submit", submitEvidenceAndCompletion);
+    document.getElementById("proof-file")?.addEventListener("change", event => {
+        const fileName = document.getElementById("proof-file-name");
+        if (fileName) {
+            fileName.textContent = event.target.files?.[0]?.name || "No photo selected";
+        }
+    });
     document.getElementById("verify-evidence-btn")?.addEventListener("click", verifyEvidenceAndRelease);
     document.getElementById("reject-evidence-btn")?.addEventListener("click", () => {
         const rejContainer = document.getElementById("rejection-container");
