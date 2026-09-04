@@ -1,24 +1,13 @@
-// // enter solidity contract
-// var Animals  = artifacts.require("./SponsorAnimals.sol");
-// //var LaunchPad = artifacts.require("LaunchPad");
-// //var MyToken = artifacts.require("MyToken");
-// //var EmoToken = artifacts.require("EmoToken");
-
-// module.exports = function(deployer) {
-//   deployer.deploy(Animals);
-// };
-
-
-
-// // module.exports = function(deployer, network, accounts) {
-// //     deployer.deploy(LaunchPad, false, { from: accounts[0] }); //not lock the contract
-// //     deployer.deploy(MyToken, { from: accounts[1] }); //comment when deploy
-// //     deployer.deploy(EmoToken, { from: accounts[6] }); //comment when deploy
-// // }
-
-
 const LogisticsEscrow = artifacts.require("LogisticsEscrow");
+const LogiTrustToken = artifacts.require("LogiTrustToken");
 
 module.exports = async function (deployer) {
-    await deployer.deploy(LogisticsEscrow);
+    await deployer.deploy(LogiTrustToken);
+    const token = await LogiTrustToken.deployed();
+
+    await deployer.deploy(LogisticsEscrow, token.address);
+    const escrow = await LogisticsEscrow.deployed();
+
+    // LogisticsEscrow is the only account allowed to mint LTT rewards.
+    await token.transferOwnership(escrow.address);
 };

@@ -195,12 +195,23 @@ function renderSubmissionPage() {
                     ` : (isCarrier ? '<p style="color:#8d99ae; font-style:italic;">Viewing submitted milestone details and proof.</p>' : '')}
                 </div>
 
-                <!-- Inline Rejection Bar (Initially Hidden) -->
-                <div id="rejection-container" style="display:none; margin-top:24px; background:rgba(15,23,42,0.65); padding:20px; border-radius:14px; border:1px solid rgba(239, 68, 68, 0.3);">
-                    <label class="detail-label" style="color:#f87171;">Reason for Rejection</label>
-                    <textarea id="rejection-reason" rows="3" class="ca-inline-1e1541ba" placeholder="Enter the reason why this milestone submission is being rejected..." style="margin-bottom: 14px;"></textarea>
-                    <div style="display:flex; gap:10px;">
-                        <button id="confirm-reject-btn" class="danger-action-btn" type="button"><i class="fa-solid fa-paper-plane"></i> Confirm Rejection</button>
+                <!-- Rejection details (initially hidden) -->
+                <div id="rejection-container" class="detail-subsection" style="display:none; margin-top:24px; padding:20px; border:1px solid rgba(239, 68, 68, 0.3); border-radius:10px; background:rgba(127, 29, 29, 0.08);">
+                    <div class="detail-subsection-header">
+                        <div class="detail-subsection-title">
+                            <span class="subsection-icon" style="color:#f87171;"><i class="fa-solid fa-circle-exclamation"></i></span>
+                            <div>
+                                <span class="subsection-kicker" style="color:#f87171;">REJECTION DETAILS</span>
+                                <h3>Reason for Rejection</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="shipment-description-box" style="margin-bottom:14px;">
+                        <label class="detail-label" for="rejection-reason">REJECTION REASON</label>
+                        <textarea id="rejection-reason" rows="3" placeholder="Enter the reason why this milestone submission is being rejected..." style="width:100%; resize:vertical; margin:0;"></textarea>
+                    </div>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                        <button id="confirm-reject-btn" class="danger-action-btn" type="button" disabled><i class="fa-solid fa-paper-plane"></i> Confirm Rejection</button>
                         <button id="cancel-reject-btn" class="view-btn" type="button">Cancel</button>
                     </div>
                 </div>
@@ -230,11 +241,22 @@ function renderSubmissionPage() {
     document.getElementById("verify-evidence-btn")?.addEventListener("click", verifyEvidenceAndRelease);
     document.getElementById("reject-evidence-btn")?.addEventListener("click", () => {
         const rejContainer = document.getElementById("rejection-container");
-        if (rejContainer) rejContainer.style.display = "block";
+        if (rejContainer) {
+            rejContainer.style.display = "block";
+            document.getElementById("rejection-reason")?.focus();
+        }
     });
     document.getElementById("cancel-reject-btn")?.addEventListener("click", () => {
         const rejContainer = document.getElementById("rejection-container");
+        const reasonInput = document.getElementById("rejection-reason");
+        const confirmButton = document.getElementById("confirm-reject-btn");
+        if (reasonInput) reasonInput.value = "";
+        if (confirmButton) confirmButton.disabled = true;
         if (rejContainer) rejContainer.style.display = "none";
+    });
+    document.getElementById("rejection-reason")?.addEventListener("input", (event) => {
+        const confirmButton = document.getElementById("confirm-reject-btn");
+        if (confirmButton) confirmButton.disabled = !event.target.value.trim();
     });
     document.getElementById("confirm-reject-btn")?.addEventListener("click", rejectEvidenceAndReset);
 }

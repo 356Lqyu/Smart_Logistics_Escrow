@@ -1016,25 +1016,23 @@ function renderExtensionRequestBar() {
 
     if (detail) {
         detail.textContent =
-            `Carrier requested a deadline extension for ${
-                requestedAgreement.reference_no
+            `Carrier requested a deadline extension for ${requestedAgreement.reference_no
             } until ${formatDateTime(requestedDeadline)}. ` +
-            `Reason: ${
-                requestedAgreement.extension_request_reason ||
-                "No reason provided."
+            `Reason: ${requestedAgreement.extension_request_reason ||
+            "No reason provided."
             }`;
     }
 
     if (approveButton) {
         approveButton.onclick = () =>
-            approveDeadlineExtensionFromList(
+            approveDeadlineExtension(
                 requestedAgreement.agreement_id
             );
     }
 
     if (rejectButton) {
         rejectButton.onclick = () =>
-            rejectDeadlineExtensionFromList(
+            rejectDeadlineExtension(
                 requestedAgreement.agreement_id
             );
     }
@@ -1042,7 +1040,7 @@ function renderExtensionRequestBar() {
     bar.style.display = "block";
 }
 
-async function approveDeadlineExtensionFromList(agreementId) {
+async function approveDeadlineExtension(agreementId) {
     const agreement = allAgreements.find(
         item => Number(item.agreement_id) === Number(agreementId)
     );
@@ -1052,185 +1050,53 @@ async function approveDeadlineExtensionFromList(agreementId) {
         return;
     }
 
-    try {
-        const account = String(localStorage.getItem("wallet") || "");
-        const shipper = String(
-            agreement.blockchain_shipper || agreement.shipper_address || ""
-        ).toLowerCase();
-        const requestedDeadline = Number(
-            agreement.extension_requested_deadline
-        );
-
-        if (!account || account.toLowerCase() !== shipper) {
-            throw new Error("Only the Shipper can approve this extension.");
-        }
-
-        if (!requestedDeadline) {
-            throw new Error("No pending extension request was found.");
-        }
-
-        if (typeof window.ethereum === "undefined") {
-            throw new Error("MetaMask is required.");
-        }
-
-        const web3 = new Web3(window.ethereum);
-        const contract = new web3.eth.Contract(
-            CONTRACT_ABI,
-            CONTRACT_ADDRESS
-        );
-        const tx = await contract.methods
-            .extendDeadline(Number(agreementId), requestedDeadline)
-            .send({ from: account });
-
-        const { error } = await supabaseClient
-            .from("agreements")
-            .update({
-                deadline: requestedDeadline,
-                extension_requested_deadline: null,
-                extension_request_reason: null
-            })
-            .eq("agreement_id", Number(agreementId));
-
-        if (error) throw error;
-
-        await supabaseClient.from("transactions").insert([{
-            transaction_hash: tx.transactionHash,
-            agreement_id: Number(agreementId),
-            event_type: "DeadlineExtended",
-            actor_address: account.toLowerCase(),
-            details: {
-                new_deadline: requestedDeadline,
-                description: "Shipper approved deadline extension."
-            }
-        }]);
-
-        alert("Deadline extension approved successfully.");
-        window.location.reload();
-    } catch (error) {
-        console.error("Deadline extension approval failed:", error);
-        alert("Failed to approve extension: " + (error.message || error));
-    }
+    await sharedApproveExtension(
+        agreementId,
+        agreement.reference_no,
+        agreement.extension_requested_deadline,
+        () => window.location.reload()
+    );
 }
 
-async function rejectDeadlineExtensionFromList(agreementId) {
-    try {
-        const account = String(localStorage.getItem("wallet") || "");
-        const agreement = allAgreements.find(
-            item => Number(item.agreement_id) === Number(agreementId)
-        );
-        const shipper = String(
-            agreement?.blockchain_shipper || agreement?.shipper_address || ""
-        ).toLowerCase();
+async function rejectDeadlineExtension(agreementId) {
+    const agreement = allAgreements.find(
+        item => Number(item.agreement_id) === Number(agreementId)
+    );
 
-        if (!agreement || !account || account.toLowerCase() !== shipper) {
-            throw new Error("Only the Shipper can reject this extension.");
-        }
-
-        const { error } = await supabaseClient
-            .from("agreements")
-            .update({
-                extension_requested_deadline: null,
-                extension_request_reason: null
-            })
-            .eq("agreement_id", Number(agreementId));
-
-        if (error) throw error;
-
-        await supabaseClient.from("transactions").insert([{
-            transaction_hash: "N/A-" + Date.now(),
-            agreement_id: Number(agreementId),
-            event_type: "DeadlineExtensionRejected",
-            actor_address: account.toLowerCase(),
-            details: {
-                description: "Shipper rejected deadline extension request."
-            }
-        }]);
-
-        alert("Deadline extension request rejected.");
-        window.location.reload();
-    } catch (error) {
-        console.error("Deadline extension rejection failed:", error);
-        alert("Failed to reject extension: " + (error.message || error));
+    if (!agreement) {
+        alert("Agreement not found.");
+        return;
     }
+
+    await sharedRejectExtension(
+        agreementId,
+        agreement.reference_no,
+        () => window.location.reload()
+    );
 }
 
 
 async function acceptAgreementAction(agreementId) {
-    try {
-        if (typeof window.ethereum === "undefined") {
-            throw new Error("MetaMask is required.");
-        }
-
-        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-        const currentAccount = accounts[0].toLowerCase();
-
-        // Find the agreement in local state to check its shipper
-        const targetAgreement = allAgreements.find(a => Number(a.agreement_id) === Number(agreementId));
-        const shipperAddress = (targetAgreement?.blockchain_shipper || targetAgreement?.shipper_address || "").toLowerCase();
-
-        if (isAgreementPastDeadline(targetAgreement)) {
-            throw new Error(
-                "This agreement has passed its deadline and is awaiting the Shipper's expiry confirmation."
-            );
-        }
-
-        if (shipperAddress && currentAccount === shipperAddress) {
-            alert("Action Denied: Shippers cannot accept their own logistics agreements as carriers.");
-            return;
-        }
-
-        const web3 = new Web3(window.ethereum);
-        const contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
-
-        const confirmed = confirm("Accept this logistics agreement?\n\nAfter acceptance, the agreement becomes In Progress.");
-        if (!confirmed) return;
-
-        const tx = await contract.methods.acceptAgreement(Number(agreementId)).send({
-            from: currentAccount
-        });
-
-        const now = Math.floor(Date.now() / 1000);
-
-        const {
-            error: agreementUpdateError
-        } = await supabaseClient
-            .from("agreements")
-            .update({
-                status: "In Progress",
-                carrier_address: currentAccount,
-                accepted_at: now
-            })
-            .eq("agreement_id", agreementId);
-
-        if (agreementUpdateError) {
-            throw new Error(
-                "Agreement was accepted on-chain, but its status could not be saved: " +
-                agreementUpdateError.message
-            );
-        }
-
-        await supabaseClient.from("transactions").insert([{
-            transaction_hash: tx.transactionHash,
-            agreement_id: Number(agreementId),
-            event_type: "AgreementAccepted",
-            actor_address: currentAccount,
-            details: {
-                status: "In Progress",
-                description: "Carrier accepted the logistics agreement."
-            }
-        }]);
-
-        alert("Agreement accepted successfully.\n\nStatus: In Progress");
-        window.location.reload();
-
-    } catch (error) {
-        console.error("Acceptance failed:", error);
-        let message = error?.message || String(error);
-        if (error?.code === 4001) {
-            message = "Transaction was rejected in MetaMask.";
-        }
-        alert("Failed to accept agreement:\n\n" + message);
+    const targetAgreement = allAgreements.find(a => Number(a.agreement_id) === Number(agreementId));
+    
+    if (isAgreementPastDeadline(targetAgreement)) {
+        alert("This agreement has passed its deadline and is awaiting the Shipper's expiry confirmation.");
+        return;
     }
+
+    const currentWallet = (localStorage.getItem("wallet") || "").toLowerCase();
+    const shipperAddress = (targetAgreement?.blockchain_shipper || targetAgreement?.shipper_address || "").toLowerCase();
+    
+    if (shipperAddress && currentWallet === shipperAddress) {
+        alert("Action Denied: Shippers cannot accept their own logistics agreements as carriers.");
+        return;
+    }
+
+    await sharedAcceptAgreement(
+        agreementId,
+        targetAgreement?.reference_no,
+        () => window.location.reload()
+    );
 }
 
 // =====================================================
@@ -1238,65 +1104,16 @@ async function acceptAgreementAction(agreementId) {
 // =====================================================
 
 async function cancelAgreementAction(agreementId) {
-    if (typeof window.ethereum === "undefined") {
-        alert("MetaMask is required.");
-        return;
-    }
+    const targetAgreement = allAgreements.find(a => Number(a.agreement_id) === Number(agreementId));
+    const refund = Number(targetAgreement?.escrow_remaining || targetAgreement?.escrow_amount || 0);
 
-    if (!confirm("Cancel this agreement?\n\nThe complete remaining escrow will be refunded to the Shipper.")) {
-        return;
-    }
-
-    try {
-        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-        const account = accounts[0];
-
-        const web3 = new Web3(window.ethereum);
-        const contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
-
-        const tx = await contract.methods.cancelAgreement(Number(agreementId)).send({
-            from: account
-        });
-
-        const targetAgreement = allAgreements.find(a => Number(a.agreement_id) === Number(agreementId));
-        const refund = Number(targetAgreement?.escrow_remaining || targetAgreement?.escrow_amount || 0);
-
-        await supabaseClient
-            .from("agreements")
-            .update({
-                status: "Cancelled",
-                cancelled_at: Math.floor(Date.now() / 1000),
-                refunded_amount: refund,
-                escrow_released: refund,
-                escrow_remaining: 0
-            })
-            .eq("agreement_id", Number(agreementId));
-
-        await supabaseClient
-            .from("transactions")
-            .insert([{
-                transaction_hash: tx.transactionHash,
-                agreement_id: Number(agreementId),
-                event_type: "AgreementCancelled",
-                actor_address: account.toLowerCase(),
-                details: {
-                    status: "Cancelled",
-                    escrow_refunded: refund,
-                    description: "Agreement cancelled and escrow refunded to shipper."
-                }
-            }]);
-
-        alert("Agreement cancelled successfully.\n\nThe escrow has been refunded to the Shipper.");
-        window.location.reload();
-
-    } catch (error) {
-        console.error("Cancellation failed:", error);
-        let message = error?.message || String(error);
-        if (error?.code === 4001) {
-            message = "Transaction was rejected in MetaMask.";
-        }
-        alert("Cancellation failed:\n\n" + message);
-    }
+    await sharedCancelAgreement(
+        agreementId,
+        targetAgreement?.reference_no,
+        refund,
+        targetAgreement?.status,
+        () => window.location.reload()
+    );
 }
 
 // =====================================================

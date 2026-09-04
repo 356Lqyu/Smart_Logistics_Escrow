@@ -33,6 +33,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         await loadProfile(wallet);
         setupEditModal(wallet);
         setupChangePasswordModal();
+        setupAvatarUpload(wallet);
 
         const searchInput = document.getElementById("search-input");
         if (searchInput) {
@@ -122,6 +123,9 @@ async function loadProfile(wallet) {
         avatar.innerText = getInitials(displayName);
     }
 
+    await loadProfilePicture(wallet);
+    await loadTokenBalance(wallet);
+
     if (typeof web3 !== "undefined" || window.ethereum) {
         try {
             const w3 = new Web3(window.ethereum);
@@ -188,10 +192,12 @@ function renderProfileStats(agreements, isCarrier) {
     const closed = completed + refunded;
     const successRate = closed ? Math.round((completed / closed) * 100) : 0;
     const disputeRate = total ? ((refunded / total) * 100).toFixed(1) : "0.0";
-    const trustScore = Math.max(
-        0,
-        Math.min(100, Math.round(successRate * 0.85 + (100 - Number(disputeRate)) * 0.15))
-    );
+    const trustScore = total === 0
+        ? 0
+        : Math.max(
+            0,
+            Math.min(100, Math.round(successRate * 0.85 + (100 - Number(disputeRate)) * 0.15))
+        );
 
     const now = new Date();
     const thisMonth = agreements.filter((a) => {
@@ -203,7 +209,6 @@ function renderProfileStats(agreements, isCarrier) {
         );
     }).length;
 
-    setText("stat-tokens", "0 LTT");
     setText("stat-agreements", String(total));
     setText(
         "stat-agreements-meta",
@@ -469,4 +474,194 @@ function normalize(value) {
 function setText(id, value) {
     const el = document.getElementById(id);
     if (el) el.innerText = value;
+}
+
+
+// ===============================
+// ON-CHAIN PROFILE PICTURE
+//
+// The image is downsized/compressed client-side to a small
+// JPEG, converted to raw bytes, and stored directly in the
+// LogisticsEscrow contract via setProfilePicture(). Nothing
+// image-related ever touches Supabase.
+// ===============================
+
+const AVATAR_MAX_BYTES = 60000; // stays under the 65536-byte contract cap
+
+function getEscrowContract() {
+    const w3 = new Web3(window.ethereum);
+    return new w3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
+}
+
+function getTokenContract() {
+    const w3 = new Web3(window.ethereum);
+    return new w3.eth.Contract(TOKEN_ABI, TOKEN_CONTRACT_ADDRESS);
+}
+
+async function loadProfilePicture(wallet) {
+    const avatar = document.getElementById("profile-avatar");
+    if (!avatar) return;
+
+    try {
+        const contract = getEscrowContract();
+        const hexData = await contract.methods.getProfilePicture(wallet).call();
+
+        if (hexData && hexData !== "0x") {
+            const dataUrl = hexToImageDataUrl(hexData);
+            avatar.style.backgroundImage = `url("${dataUrl}")`;
+            avatar.style.backgroundSize = "cover";
+            avatar.style.backgroundPosition = "center";
+            avatar.innerText = "";
+        }
+    } catch (error) {
+        console.warn("Could not load on-chain profile picture:", error);
+    }
+}
+
+async function loadTokenBalance(wallet) {
+    try {
+        const token = getTokenContract();
+        const balanceWei = await token.methods.balanceOf(wallet).call();
+        const balance = Web3.utils.fromWei(String(balanceWei), "ether");
+        const rounded = Math.round(Number(balance) * 100) / 100;
+        setText("stat-tokens", `${rounded} LTT`);
+    } catch (error) {
+        console.warn("Could not load LTT balance:", error);
+        setText("stat-tokens", "0 LTT");
+    }
+}
+
+function setupAvatarUpload(wallet) {
+    const changeBtn = document.getElementById("change-avatar-btn");
+    const fileInput = document.getElementById("avatar-file-input");
+    if (!changeBtn || !fileInput) return;
+
+    changeBtn.addEventListener("click", () => fileInput.click());
+
+    fileInput.addEventListener("change", async () => {
+        const file = fileInput.files[0];
+        fileInput.value = "";
+        if (!file) return;
+
+        if (!file.type.startsWith("image/")) {
+            alert("Please choose an image file.");
+            return;
+        }
+
+        changeBtn.disabled = true;
+        const originalIcon = changeBtn.innerHTML;
+        changeBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="font-size:12px;"></i>';
+
+        try {
+            const bytes = await compressImageToBytes(file, AVATAR_MAX_BYTES);
+            const hexData = bytesToHex(bytes);
+
+            const contract = getEscrowContract();
+            await contract.methods.setProfilePicture(hexData).send({ from: wallet });
+
+            const avatar = document.getElementById("profile-avatar");
+            if (avatar) {
+                avatar.style.backgroundImage = `url("${bytesToDataUrl(bytes)}")`;
+                avatar.style.backgroundSize = "cover";
+                avatar.style.backgroundPosition = "center";
+                avatar.innerText = "";
+            }
+        } catch (error) {
+            console.error("Profile picture update failed:", error);
+            alert(
+                "Could not save profile picture: " +
+                (error?.code === 4001 ? "Transaction was rejected in MetaMask." : (error.message || String(error)))
+            );
+        } finally {
+            changeBtn.disabled = false;
+            changeBtn.innerHTML = originalIcon;
+        }
+    });
+}
+
+
+// ===============================
+// IMAGE COMPRESSION
+//
+// Resizes + re-encodes the image as JPEG, shrinking quality
+// and then dimensions until it fits under maxBytes.
+// ===============================
+
+async function compressImageToBytes(file, maxBytes) {
+    const sourceDataUrl = await readFileAsDataURL(file);
+    const image = await loadImageElement(sourceDataUrl);
+
+    let dim = Math.max(image.width, image.height) > 256 ? 256 : Math.max(image.width, image.height);
+    dim = Math.max(dim, 32);
+
+    for (let attempt = 0; attempt < 12; attempt++) {
+        const scale = dim / Math.max(image.width, image.height);
+        const width = Math.max(1, Math.round(image.width * scale));
+        const height = Math.max(1, Math.round(image.height * scale));
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d").drawImage(image, 0, 0, width, height);
+
+        for (let quality = 0.7; quality >= 0.2; quality -= 0.1) {
+            const outDataUrl = canvas.toDataURL("image/jpeg", quality);
+            const bytes = dataUrlToBytes(outDataUrl);
+            if (bytes.length <= maxBytes) {
+                return bytes;
+            }
+        }
+
+        dim = Math.round(dim * 0.75);
+    }
+
+    throw new Error("Image could not be compressed small enough. Try a simpler/smaller image.");
+}
+
+function readFileAsDataURL(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error("Could not read file."));
+        reader.readAsDataURL(file);
+    });
+}
+
+function loadImageElement(dataUrl) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("Could not load image."));
+        img.src = dataUrl;
+    });
+}
+
+function dataUrlToBytes(dataUrl) {
+    const base64 = dataUrl.split(",")[1] || "";
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+}
+
+function bytesToDataUrl(bytes, mime) {
+    mime = mime || "image/jpeg";
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    return `data:${mime};base64,${btoa(binary)}`;
+}
+
+function bytesToHex(bytes) {
+    let hex = "0x";
+    for (let i = 0; i < bytes.length; i++) hex += bytes[i].toString(16).padStart(2, "0");
+    return hex;
+}
+
+function hexToImageDataUrl(hexData, mime) {
+    const hex = hexData.replace(/^0x/, "");
+    const bytes = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < bytes.length; i++) {
+        bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+    }
+    return bytesToDataUrl(bytes, mime);
 }

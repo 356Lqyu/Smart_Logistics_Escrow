@@ -1,4 +1,4 @@
-onst MAX_CONCURRENT_JOBS = 3;
+const MAX_CONCURRENT_JOBS = 3;
 
 document.addEventListener("DOMContentLoaded", async () => {
     try {
@@ -188,7 +188,7 @@ async function loadCarrierDashboard(walletLower, currentAccount) {
         );
     }).length;
 
-    const tokens = completed.length * 10;
+    const tokens = await loadCarrierTokenBalance(currentAccount);
 
     setText("kpi-available", String(available.length));
     setText(
@@ -213,6 +213,19 @@ async function loadCarrierDashboard(walletLower, currentAccount) {
 
     await renderPaymentBreakdown(active[0]);
     renderAvailableJobs(available.slice(0, 8), active.length, currentAccount);
+}
+
+async function loadCarrierTokenBalance(wallet) {
+    try {
+        const web3 = new Web3(window.ethereum);
+        const token = new web3.eth.Contract(TOKEN_ABI, TOKEN_CONTRACT_ADDRESS);
+        const balanceWei = await token.methods.balanceOf(wallet).call();
+        const balance = Web3.utils.fromWei(String(balanceWei), "ether");
+        return Math.round(Number(balance) * 100) / 100;
+    } catch (error) {
+        console.warn("Could not load LTT balance:", error);
+        return 0;
+    }
 }
 
 async function renderPaymentBreakdown(activeJob) {

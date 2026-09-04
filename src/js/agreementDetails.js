@@ -17,14 +17,9 @@ document.addEventListener(
     async () => {
 
         try {
+            const params = new URLSearchParams(window.location.search);
 
-            const params =
-                new URLSearchParams(
-                    window.location.search
-                );
-
-            agreementId =
-                params.get("id");
+            agreementId = params.get("id");
 
             if (!agreementId) {
                 throw new Error(
@@ -39,22 +34,19 @@ document.addEventListener(
             await loadAgreement();
 
             // -------------------------------------------------
-            // IMPORTANT:
             // Automatically process expiry before rendering.
             // -------------------------------------------------
 
             await processAgreementExpiry();
 
-            // Reload after expiry in case blockchain/database
-            // state was changed.
             await loadAgreement();
-
             await loadMilestones();
 
             renderAgreement();
             renderMilestones();
             renderLifecycle();
             setupActions();
+            await renderCompletionDocumentSection();
 
             document.getElementById(
                 "details-loading"
@@ -109,17 +101,9 @@ async function loadAgreement() {
         );
     }
 
-    agreementData =
-        data;
+    agreementData = data;
 
-    // -------------------------------------------------
-    // Blockchain is authoritative
-    // -------------------------------------------------
-
-    if (
-        typeof window.ethereum !==
-        "undefined"
-    ) {
+    if (typeof window.ethereum !=="undefined") {
 
         try {
 
@@ -141,32 +125,13 @@ async function loadAgreement() {
                     )
                     .call();
 
-            agreementData.blockchain_escrow =
-                chainAgreement.escrowAmount;
-
-            agreementData.blockchain_escrow_remaining =
-                chainAgreement.escrowRemaining;
-
-            agreementData.blockchain_shipper =
-                chainAgreement.shipper;
-
-            agreementData.blockchain_carrier =
-                chainAgreement.carrier;
-
-            agreementData.blockchain_status =
-                Number(
-                    chainAgreement.status
-                );
-
-            agreementData.blockchain_current_milestone =
-                Number(
-                    chainAgreement.currentMilestone
-                );
-
-            agreementData.blockchain_deadline =
-                Number(
-                    chainAgreement.deadline
-                );
+            agreementData.blockchain_escrow = chainAgreement.escrowAmount;
+            agreementData.blockchain_escrow_remaining = chainAgreement.escrowRemaining;
+            agreementData.blockchain_shipper = chainAgreement.shipper;
+            agreementData.blockchain_carrier = chainAgreement.carrier;
+            agreementData.blockchain_status = Number( chainAgreement.status);
+            agreementData.blockchain_current_milestone = Number(chainAgreement.currentMilestone);
+            agreementData.blockchain_deadline = Number(chainAgreement.deadline);
 
         } catch (error) {
 
@@ -182,22 +147,12 @@ async function loadAgreement() {
 // =====================================================
 // PROCESS AGREEMENT EXPIRY
 // =====================================================
-//
-// IMPORTANT:
-//
 // Expiry is determined by the blockchain deadline.
 //
-// If:
-//      current time > deadline
+// If: current time > deadline
 //
 // and the blockchain agreement is not already Completed,
-// Cancelled or Expired:
-//
-//      call expireAgreement()
-//
-// The smart contract must refund remaining escrow
-// to the Shipper and change blockchain status to Expired.
-//
+// call expireAgreement()
 // =====================================================
 
 async function processAgreementExpiry() {
@@ -238,9 +193,7 @@ async function processAgreementExpiry() {
 
     // Already expired
     if (blockchainStatus === 4) {
-
         await syncExpiredAgreementToSupabase();
-
         return;
     }
 
@@ -520,35 +473,19 @@ async function syncExpiredAgreementToSupabase(
                 "AgreementExpired",
                 actor,
                 {
-                    status:
-                        "Expired",
-
-                    escrow_refunded:
-                        remainingEth,
-
-                    description:
-                        "Agreement expired after the deadline. Remaining escrow was refunded to the Shipper."
+                    status: "Expired",
+                    escrow_refunded: remainingEth,
+                    description: "Agreement expired after the deadline. Remaining escrow was refunded to the Shipper."
                 }
             );
         }
 
         // Update local state
-        agreementData.status =
-            "Expired";
-
-        agreementData.expired_at =
-            Math.floor(
-                Date.now() / 1000
-            );
-
-        agreementData.escrow_remaining =
-            0;
-
-        agreementData.refunded_amount =
-            remainingEth;
-
-        agreementData.blockchain_status =
-            4;
+        agreementData.status = "Expired";
+        agreementData.expired_at = Math.floor(Date.now() / 1000);
+        agreementData.escrow_remaining =  0;
+        agreementData.refunded_amount = remainingEth;
+        agreementData.blockchain_status = 4;
 
     } catch (error) {
 
@@ -601,8 +538,7 @@ async function loadMilestones() {
         throw error;
     }
 
-    milestoneData =
-        data || [];
+    milestoneData = data || [];
 
     const { data: rejectionTransactions } = await supabaseClient
         .from("transactions")
@@ -861,10 +797,8 @@ function renderAgreement() {
         `$${payload.toLocaleString(
             undefined,
             {
-                minimumFractionDigits:
-                    2,
-                maximumFractionDigits:
-                    2
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
             }
         )}`
     );
@@ -1127,6 +1061,13 @@ function renderMilestones() {
                 stateText = "Pending";
             }
 
+            const verificationPendingTooLong =
+                completed &&
+                !verified &&
+                isVerificationPendingOverFiveMinutes(
+                    milestone.completed_at
+                );
+
             let action = "";
 
             // -------------------------------------------------
@@ -1269,6 +1210,16 @@ function renderMilestones() {
                     : ""
                 }
 
+                        ${verificationPendingTooLong &&
+                    status !== "Expired"
+                    ? `
+                                    <div style="margin-top:8px; padding:8px 12px; background:rgba(245, 158, 11, 0.1); border:1px solid rgba(245, 158, 11, 0.3); border-radius:6px; color:#fbbf24; font-size:12px;">
+                                        <i class="fa-solid fa-triangle-exclamation"></i> Verification pending over 5 minutes. Please review and verify this milestone.
+                                    </div>
+                                `
+                    : ""
+                }
+
                         ${completed &&
                     verified &&
                     paid
@@ -1311,6 +1262,18 @@ function renderMilestones() {
     updateOverallProgress();
 }
 
+function isVerificationPendingOverFiveMinutes(completedAt) {
+    if (!completedAt) return false;
+
+    const numericTimestamp = Number(completedAt);
+    const submittedAtMs = Number.isFinite(numericTimestamp) && numericTimestamp > 0
+        ? numericTimestamp * 1000
+        : new Date(completedAt).getTime();
+
+    return Number.isFinite(submittedAtMs) &&
+        Date.now() > submittedAtMs + (5 * 60 * 1000);
+}
+
 
 // =====================================================
 // CHECK EXPIRY
@@ -1338,627 +1301,13 @@ function isAgreementExpired() {
 
 
 // =====================================================
-// CARRIER SUBMITS COMPLETION
-// =====================================================
-
-async function submitMilestoneCompletion(
-    id
-) {
-
-    try {
-
-        // -------------------------------------------------
-        // HARD EXPIRY CHECK
-        // -------------------------------------------------
-
-        if (
-            isAgreementExpired()
-        ) {
-
-            await processAgreementExpiry();
-
-            throw new Error(
-                "This agreement has expired. The remaining escrow must be refunded to the Shipper. Milestone submissions are no longer allowed."
-            );
-        }
-
-        if (
-            agreementData.status !==
-            "In Progress"
-        ) {
-
-            throw new Error(
-                "The agreement is not In Progress."
-            );
-        }
-
-        if (
-            typeof window.ethereum ===
-            "undefined"
-        ) {
-
-            throw new Error(
-                "MetaMask is required."
-            );
-        }
-
-        const accounts =
-            await window.ethereum.request({
-                method:
-                    "eth_requestAccounts"
-            });
-
-        const account =
-            accounts[0];
-
-        const carrier =
-            getCarrierAddressRaw();
-
-        if (
-            carrier &&
-            account.toLowerCase() !==
-            carrier.toLowerCase()
-        ) {
-
-            throw new Error(
-                "Only the assigned Carrier can submit milestone completion."
-            );
-        }
-
-        const index =
-            getCurrentMilestoneIndex();
-
-        if (
-            index < 0
-        ) {
-
-            throw new Error(
-                "There is no pending milestone."
-            );
-        }
-
-        const milestone =
-            milestoneData[index];
-
-        if (
-            normalizeBool(
-                milestone.completed
-            )
-        ) {
-
-            throw new Error(
-                "This milestone is already awaiting verification or completed."
-            );
-        }
-
-        const web3 =
-            new Web3(
-                window.ethereum
-            );
-
-        const contract =
-            new web3.eth.Contract(
-                CONTRACT_ABI,
-                CONTRACT_ADDRESS
-            );
-
-        // -------------------------------------------------
-        // Check blockchain status again
-        // -------------------------------------------------
-
-        const chainAgreement =
-            await contract.methods
-                .getAgreementBasic(
-                    Number(id)
-                )
-                .call();
-
-        const chainStatus =
-            Number(
-                chainAgreement.status
-            );
-
-        if (
-            chainStatus === 4
-        ) {
-
-            await syncExpiredAgreementToSupabase();
-
-            throw new Error(
-                "This agreement has expired. The escrow has been refunded to the Shipper."
-            );
-        }
-
-        // -------------------------------------------------
-        // Check deadline again
-        // -------------------------------------------------
-
-        const chainDeadline =
-            Number(
-                chainAgreement.deadline
-            );
-
-        if (
-            chainDeadline &&
-            Math.floor(
-                Date.now() / 1000
-            ) >
-            chainDeadline
-        ) {
-
-            await processAgreementExpiry();
-
-            throw new Error(
-                "This agreement has expired. Milestone submission is no longer allowed."
-            );
-        }
-
-        const confirmed =
-            confirm(
-                `Submit completion for "${milestone.checkpoint}"?\n\n` +
-                "MetaMask will ask you to confirm the blockchain transaction."
-            );
-
-        if (!confirmed) {
-            return;
-        }
-
-        const button =
-            findMilestoneActionButton(
-                "Submit Completion"
-            );
-
-        if (button) {
-
-            button.disabled =
-                true;
-
-            button.innerHTML =
-                '<i class="fa-solid fa-spinner fa-spin"></i> Submitting...';
-        }
-
-        const tx =
-            await contract.methods
-                .submitMilestoneCompletion(
-                    Number(id)
-                )
-                .send({
-                    from:
-                        account
-                });
-
-        await supabaseClient
-            .from("milestones")
-            .update({
-                completed:
-                    true,
-
-                completed_at:
-                    new Date().toISOString()
-            })
-            .eq(
-                "agreement_id",
-                Number(id)
-            )
-            .eq(
-                "milestone_index",
-                index
-            );
-
-        await saveTransaction(
-            tx.transactionHash,
-            "MilestoneSubmitted",
-            account,
-            {
-                milestone_index:
-                    index,
-
-                checkpoint:
-                    milestone.checkpoint,
-
-                percentage:
-                    milestone.percentage,
-
-                status:
-                    "Awaiting Verification",
-
-                description:
-                    "Carrier submitted milestone completion. Waiting for Shipper verification."
-            }
-        );
-
-        alert(
-            "Milestone completion submitted successfully.\n\n" +
-            "Status: Awaiting Verification"
-        );
-
-        await loadAgreement();
-        await loadMilestones();
-
-        renderAgreement();
-        renderMilestones();
-        renderLifecycle();
-        setupActions();
-
-    } catch (error) {
-
-        console.error(
-            "Submit completion failed:",
-            error
-        );
-
-        alert(
-            "Failed to submit milestone completion:\n\n" +
-            (
-                error?.code === 4001
-                    ? "Transaction was rejected in MetaMask."
-                    : error?.message ||
-                    String(error)
-            )
-        );
-
-        renderMilestones();
-    }
-}
-
-
-// =====================================================
-// SHIPPER VERIFIES + RELEASES
-// =====================================================
-
-async function verifyMilestone(
-    id
-) {
-
-    try {
-
-        if (
-            isAgreementExpired()
-        ) {
-
-            await processAgreementExpiry();
-
-            throw new Error(
-                "This agreement has expired. Milestone verification is no longer allowed."
-            );
-        }
-
-        if (
-            agreementData.status !==
-            "In Progress"
-        ) {
-
-            throw new Error(
-                "The agreement is not In Progress."
-            );
-        }
-
-        if (
-            typeof window.ethereum ===
-            "undefined"
-        ) {
-
-            throw new Error(
-                "MetaMask is required."
-            );
-        }
-
-        const accounts =
-            await window.ethereum.request({
-                method:
-                    "eth_requestAccounts"
-            });
-
-        const account =
-            accounts[0];
-
-        const shipper =
-            (
-                agreementData.blockchain_shipper ||
-                agreementData.shipper_address ||
-                ""
-            ).toLowerCase();
-
-        if (
-            account.toLowerCase() !==
-            shipper
-        ) {
-
-            throw new Error(
-                "Only the Shipper can verify a milestone."
-            );
-        }
-
-        const index =
-            getCurrentMilestoneIndex();
-
-        if (
-            index < 0
-        ) {
-
-            throw new Error(
-                "There is no milestone awaiting verification."
-            );
-        }
-
-        const milestone =
-            milestoneData[index];
-
-        if (
-            !normalizeBool(
-                milestone.completed
-            )
-        ) {
-
-            throw new Error(
-                "Carrier has not submitted this milestone."
-            );
-        }
-
-        if (
-            normalizeBool(
-                milestone.verified
-            ) ||
-            normalizeBool(
-                milestone.paid
-            )
-        ) {
-
-            throw new Error(
-                "This milestone has already been paid."
-            );
-        }
-
-        const payout =
-            calculateMilestoneAmount(
-                milestone.percentage
-            );
-
-        const web3 =
-            new Web3(
-                window.ethereum
-            );
-
-        const contract =
-            new web3.eth.Contract(
-                CONTRACT_ABI,
-                CONTRACT_ADDRESS
-            );
-
-        const confirmed =
-            confirm(
-                `Verify "${milestone.checkpoint}" and release ${payout} ETH to the Carrier?\n\n` +
-                "The smart contract will verify the Shipper, milestone, completion and payment state."
-            );
-
-        if (!confirmed) {
-            return;
-        }
-
-        const button =
-            findMilestoneActionButton(
-                "Verify & Release Payment"
-            );
-
-        if (button) {
-
-            button.disabled =
-                true;
-
-            button.innerHTML =
-                '<i class="fa-solid fa-spinner fa-spin"></i> Verifying...';
-        }
-
-        const tx =
-            await contract.methods
-                .verifyMilestone(
-                    Number(id)
-                )
-                .send({
-                    from:
-                        account
-                });
-
-        const now =
-            new Date().toISOString();
-
-        await supabaseClient
-            .from("milestones")
-            .update({
-                completed:
-                    true,
-
-                verified:
-                    true,
-
-                paid:
-                    true,
-
-                verified_at:
-                    now,
-
-                paid_at:
-                    now
-            })
-            .eq(
-                "agreement_id",
-                Number(id)
-            )
-            .eq(
-                "milestone_index",
-                index
-            );
-
-        const payoutNumber =
-            Number(
-                payout
-            );
-
-        const oldReleased =
-            Number(
-                agreementData.escrow_released ||
-                0
-            );
-
-        const oldRemaining =
-            Number(
-                agreementData.escrow_remaining ||
-                agreementData.escrow_amount ||
-                0
-            );
-
-        const allPaid =
-            index ===
-            milestoneData.length - 1;
-
-        const {
-            error: agreementUpdateError
-        } = await supabaseClient
-            .from("agreements")
-            .update({
-                escrow_released:
-                    oldReleased +
-                    payoutNumber,
-
-                escrow_remaining:
-                    Math.max(
-                        0,
-                        oldRemaining -
-                        payoutNumber
-                    ),
-
-                current_milestone:
-                    index + 1,
-
-                status:
-                    allPaid
-                        ? "Completed"
-                        : "In Progress",
-
-                completed_at:
-                    allPaid
-                        ? Math.floor(
-                            Date.now() / 1000
-                        )
-                        : null
-            })
-            .eq(
-                "agreement_id",
-                Number(id)
-            );
-
-        await saveTransaction(
-            tx.transactionHash,
-            "MilestoneVerified",
-            account,
-            {
-                milestone_index:
-                    index,
-
-                checkpoint:
-                    milestone.checkpoint,
-
-                percentage:
-                    milestone.percentage,
-
-                amount:
-                    payout,
-
-                status:
-                    "Completed & Paid",
-
-                description:
-                    "Shipper verified the milestone."
-            }
-        );
-
-        await saveTransaction(
-            tx.transactionHash + "-payout",
-            "MilestonePayout",
-            account,
-            {
-                milestone_index:
-                    index,
-
-                checkpoint:
-                    milestone.checkpoint,
-
-                amount:
-                    payout,
-
-                status:
-                    "Completed & Paid",
-
-                description:
-                    `${payout} ETH released to Carrier.`
-            }
-        );
-
-        if (allPaid) {
-
-            await saveTransaction(
-                tx.transactionHash + "-completed",
-                "AgreementCompleted",
-                account,
-                {
-                    status:
-                        "Completed",
-
-                    description:
-                        "All milestones completed, verified and paid."
-                }
-            );
-        }
-
-        alert(
-            `Milestone verified successfully.\n\n` +
-            `${payout} ETH released to Carrier.` +
-            (
-                allPaid
-                    ? "\n\nAgreement completed."
-                    : "\n\nThe next milestone is now active."
-            )
-        );
-
-        await loadAgreement();
-        await loadMilestones();
-
-        renderAgreement();
-        renderMilestones();
-        renderLifecycle();
-        setupActions();
-
-    } catch (error) {
-
-        console.error(
-            "Verify milestone failed:",
-            error
-        );
-
-        alert(
-            "Failed to verify milestone:\n\n" +
-            (
-                error?.code === 4001
-                    ? "Transaction was rejected in MetaMask."
-                    : error?.message ||
-                    String(error)
-            )
-        );
-
-        renderMilestones();
-    }
-}
-
-
-// =====================================================
 // CURRENT MILESTONE
 // =====================================================
 
 function getCurrentMilestoneIndex() {
 
     const blockchainIndex =
-        Number(
-            agreementData
+        Number(agreementData
                 ?.blockchain_current_milestone
         );
 
@@ -2038,8 +1387,7 @@ function updateOverallProgress() {
             "overall-progress-bar"
         );
 
-    let completedPercentage =
-        0;
+    let completedPercentage = 0;
 
     milestoneData.forEach(
         milestone => {
@@ -2272,7 +1620,7 @@ function renderLifecycle() {
             if (completed && verified && paid) {
                 stageState = "completed";
             } else if (milestone.isRejected) {
-                stageState = "cancelled"; // triggers red color theme
+                stageState = "cancelled"; 
             } else if (completed) {
                 stageState = "active";
             }
@@ -2470,13 +1818,13 @@ function setupActions() {
             cancelButton.disabled = false;
             cancelButton.className = "danger-action-btn";
             cancelButton.innerHTML = `<i class="fa-solid fa-xmark"></i> Cancel Agreement`;
-            cancelButton.onclick = cancelAgreement;
+            cancelButton.onclick = cancelAgreementAction;
         } else if (isCarrier && status === "created" && !isAgreementExpired()) {
             cancelButton.style.display = "inline-flex";
             cancelButton.disabled = false;
             cancelButton.className = "primary-action-btn";
             cancelButton.innerHTML = `<i class="fa-solid fa-check"></i> Accept Agreement`;
-            cancelButton.onclick = acceptAgreementDetailsAction;
+            cancelButton.onclick = acceptAgreementAction;
         } else {
             cancelButton.style.display = "none";
         }
@@ -2509,12 +1857,6 @@ function setupActions() {
         removeExtensionRequestButton();
     }
 
-    if (isShipper && pendingExtension) {
-        showShipperExtensionApprovalUI(
-            agreementData.extension_request_reason,
-            agreementData.extension_requested_deadline
-        );
-    }
 }
 
 
@@ -2543,37 +1885,7 @@ function removeExtensionRequestButton() {
     document.getElementById("request-extension-btn")?.remove();
 }
 
-function showShipperExtensionApprovalUI(reason, requestedDeadline) {
-    const container = document.querySelector(".agreement-actions");
 
-    if (!container) {
-        return;
-    }
-
-    // Avoid duplicate approval cards
-    if (document.getElementById("extension-approval-card")) return;
-
-    const card = document.createElement("div");
-    card.id = "extension-approval-card";
-    card.style.cssText = "margin-top: 15px; padding: 12px; background: #fffbebfb; border: 1px solid #fcd34d; border-radius: 8px;";
-    card.innerHTML = `
-        <div style="font-weight: bold; color: #b45309; margin-bottom: 6px;">
-            <i class="fa-solid fa-clock-rotate-left"></i> Deadline Extension Requested
-        </div>
-        <p style="font-size: 13px; margin: 4px 0;"><strong>Requested Deadline:</strong> ${formatDate(requestedDeadline)}</p>
-        <p style="font-size: 13px; margin: 4px 0;"><strong>Reason:</strong> ${escapeHtml(reason || "No reason provided.")}</p>
-        <div style="margin-top: 10px; display: flex; gap: 8px;">
-            <button type="button" class="primary-action-btn" onclick="approveDeadlineExtension(${agreementId})">
-                Approve Extension
-            </button>
-            <button type="button" class="danger-action-btn" onclick="rejectDeadlineExtension(${agreementId})">
-                Reject Extension
-            </button>
-        </div>
-    `;
-
-    container.appendChild(card);
-}
 
 function openExtensionModal() {
     let modal = document.getElementById("extension-request-modal");
@@ -2723,562 +2035,51 @@ async function submitDeadlineExtensionRequest() {
 // ACCEPT AGREEMENT
 // =====================================================
 
-async function acceptAgreementDetailsAction() {
-
-    try {
-
-        // -------------------------------------------------
-        // NEVER allow accepting after deadline
-        // -------------------------------------------------
-
-        if (
-            isAgreementExpired()
-        ) {
-
-            await processAgreementExpiry();
-
-            throw new Error(
-                "This agreement has expired. It can no longer be accepted."
-            );
-        }
-
-        if (
-            typeof window.ethereum ===
-            "undefined"
-        ) {
-
-            throw new Error(
-                "MetaMask is required."
-            );
-        }
-
-        const accounts =
-            await window.ethereum.request({
-                method:
-                    "eth_requestAccounts"
-            });
-
-        if (
-            !accounts ||
-            accounts.length === 0
-        ) {
-
-            throw new Error(
-                "No wallet connected."
-            );
-        }
-
-        const currentAccount =
-            accounts[0];
-
-        const web3 =
-            new Web3(
-                window.ethereum
-            );
-
-        const contract =
-            new web3.eth.Contract(
-                CONTRACT_ABI,
-                CONTRACT_ADDRESS
-            );
-
-        // -------------------------------------------------
-        // Check blockchain state
-        // -------------------------------------------------
-
-        const chainAgreement =
-            await contract.methods
-                .getAgreementBasic(
-                    Number(agreementId)
-                )
-                .call();
-
-        const deadline =
-            Number(
-                chainAgreement.deadline
-            );
-
-        if (
-            deadline &&
-            Math.floor(
-                Date.now() / 1000
-            ) >
-            deadline
-        ) {
-
-            await processAgreementExpiry();
-
-            throw new Error(
-                "This agreement has expired and cannot be accepted."
-            );
-        }
-
-        const confirmed =
-            confirm(
-                "Accept this logistics agreement?\n\n" +
-                "After acceptance, the agreement becomes In Progress."
-            );
-
-        if (!confirmed) {
-            return;
-        }
-
-        const tx =
-            await contract.methods
-                .acceptAgreement(
-                    Number(agreementId)
-                )
-                .send({
-                    from:
-                        currentAccount
-                });
-
-        const now =
-            Math.floor(
-                Date.now() / 1000
-            );
-
-        await supabaseClient
-            .from("agreements")
-            .update({
-
-                status:
-                    "In Progress",
-
-                carrier_address:
-                    currentAccount.toLowerCase(),
-
-                accepted_at:
-                    now
-
-            })
-            .eq(
-                "agreement_id",
-                Number(agreementId)
-            );
-
-        if (agreementUpdateError) {
-            throw new Error(
-                "Agreement was accepted on-chain, but its status could not be saved: " +
-                agreementUpdateError.message
-            );
-        }
-
-        await supabaseClient
-            .from("transactions")
-            .insert([
-                {
-
-                    transaction_hash:
-                        tx.transactionHash,
-
-                    agreement_id:
-                        Number(agreementId),
-
-                    event_type:
-                        "AgreementAccepted",
-
-                    actor_address:
-                        currentAccount.toLowerCase(),
-
-                    details:
-                    {
-                        status:
-                            "In Progress",
-
-                        description:
-                            "Carrier accepted the logistics agreement."
-                    }
-                }
-            ]);
-
-        alert(
-            "Agreement accepted successfully!\n\n" +
-            "Status: In Progress"
-        );
-
-        window.location.reload();
-
-    } catch (error) {
-
-        console.error(
-            "Acceptance failed:",
-            error
-        );
-
-        let message =
-            error?.message ||
-            String(error);
-
-        if (
-            error?.code ===
-            4001
-        ) {
-
-            message =
-                "Transaction was rejected in MetaMask.";
-        }
-
-        alert(
-            "Failed to accept agreement:\n\n" +
-            message
-        );
+async function acceptAgreementAction() {
+    if (isAgreementExpired()) {
+        alert("This agreement has passed its deadline and is awaiting the Shipper's expiry confirmation.");
+        return;
     }
-}
 
+    const currentWallet = (localStorage.getItem("wallet") || "").toLowerCase();
+    const shipperAddress = (agreementData?.blockchain_shipper || agreementData?.shipper_address || "").toLowerCase();
+
+    if (shipperAddress && currentWallet === shipperAddress) {
+        alert("Action Denied: Shippers cannot accept their own logistics agreements as carriers.");
+        return;
+    }
+
+    await sharedAcceptAgreement(
+        agreementId,
+        agreementData?.reference_no,
+        () => window.location.reload()
+    );
+}
 
 // =====================================================
 // CANCEL AGREEMENT
 // =====================================================
 
-async function cancelAgreement() {
+async function cancelAgreementAction() {
+    const refund = Number(agreementData?.escrow_remaining || agreementData?.escrow_amount || 0);
 
-    if (
-        agreementData.status !==
-        "Created"
-    ) {
-
-        alert(
-            "Only a Created agreement can be cancelled."
-        );
-
-        return;
-    }
-
-    const role =
-        String(
-            localStorage.getItem(
-                "role"
-            ) ||
-            ""
-        ).toLowerCase();
-
-    if (
-        role !== "1" &&
-        role !== "shipper"
-    ) {
-
-        alert(
-            "Only the Shipper can cancel the agreement."
-        );
-
-        return;
-    }
-
-    // -------------------------------------------------
-    // If expired, expiry should be used instead
-    // -------------------------------------------------
-
-    if (
-        isAgreementExpired()
-    ) {
-
-        await processAgreementExpiry();
-
-        alert(
-            "This agreement has expired. It cannot be cancelled. The expiry refund process has been initiated."
-        );
-
-        return;
-    }
-
-    if (
-        !confirm(
-            "Cancel this agreement?\n\n" +
-            "The complete remaining escrow will be refunded to the Shipper."
-        )
-    ) {
-
-        return;
-    }
-
-    try {
-
-        if (
-            typeof window.ethereum ===
-            "undefined"
-        ) {
-
-            throw new Error(
-                "MetaMask is required."
-            );
-        }
-
-        const accounts =
-            await window.ethereum.request({
-                method:
-                    "eth_requestAccounts"
-            });
-
-        const account =
-            accounts[0];
-
-        const shipper =
-            (
-                agreementData.blockchain_shipper ||
-                agreementData.shipper_address ||
-                ""
-            ).toLowerCase();
-
-        if (
-            account.toLowerCase() !==
-            shipper
-        ) {
-
-            throw new Error(
-                "Only the Shipper can cancel this agreement."
-            );
-        }
-
-        const web3 =
-            new Web3(
-                window.ethereum
-            );
-
-        const contract =
-            new web3.eth.Contract(
-                CONTRACT_ABI,
-                CONTRACT_ADDRESS
-            );
-
-        const button =
-            document.getElementById(
-                "cancel-btn"
-            );
-
-        if (button) {
-
-            button.disabled =
-                true;
-
-            button.innerHTML =
-                '<i class="fa-solid fa-spinner fa-spin"></i> Cancelling & Refunding...';
-        }
-
-        const tx =
-            await contract.methods
-                .cancelAgreement(
-                    Number(agreementId)
-                )
-                .send({
-                    from:
-                        account
-                });
-
-        const refund =
-            Number(
-                agreementData.escrow_remaining ||
-                agreementData.escrow_amount ||
-                0
-            );
-
-        await supabaseClient
-            .from("agreements")
-            .update({
-
-                status:
-                    "Cancelled",
-
-                cancelled_at:
-                    Math.floor(
-                        Date.now() / 1000
-                    ),
-
-                refunded_amount:
-                    refund,
-
-                escrow_released:
-                    refund,
-
-                escrow_remaining:
-                    0
-
-            })
-            .eq(
-                "agreement_id",
-                Number(agreementId)
-            );
-
-        await saveTransaction(
-            tx.transactionHash,
-            "AgreementCancelled",
-            account,
-            {
-
-                status:
-                    "Cancelled",
-
-                escrow_refunded:
-                    refund,
-
-                description:
-                    "Agreement cancelled and escrow refunded to shipper."
-            }
-        );
-
-        alert(
-            "Agreement cancelled successfully.\n\n" +
-            "The escrow has been refunded to the Shipper."
-        );
-
-        window.location.reload();
-
-    } catch (error) {
-
-        console.error(
-            "Cancellation failed:",
-            error
-        );
-
-        alert(
-            "Cancellation failed:\n\n" +
-            (
-                error?.code === 4001
-                    ? "Transaction was rejected in MetaMask."
-                    : error?.message ||
-                    String(error)
-            )
-        );
-
-        const button =
-            document.getElementById(
-                "cancel-btn"
-            );
-
-        if (button) {
-
-            button.disabled =
-                false;
-
-            button.innerHTML =
-                '<i class="fa-solid fa-xmark"></i> Cancel Agreement';
-        }
-    }
+    await sharedCancelAgreement(
+        agreementId,
+        agreementData?.reference_no,
+        refund,
+        agreementData?.status,
+        () => window.location.reload()
+    );
 }
 
 // Request extend agreement deadline
-async function requestDeadlineExtension(agreementId) {
-    try {
-        const newDeadlineDate = prompt("Enter new deadline date (YYYY-MM-DD):");
-        if (!newDeadlineDate) return;
-
-        const newDeadlineTimestamp = Math.floor(new Date(newDeadlineDate).getTime() / 1000);
-        const currentDeadline = Number(agreementData.blockchain_deadline || agreementData.deadline);
-
-        if (isNaN(newDeadlineTimestamp) || newDeadlineTimestamp <= currentDeadline) {
-            alert("New deadline must be a valid future date beyond the current deadline.");
-            return;
-        }
-
-        const reason = prompt("Enter reason for delay (optional):") || "";
-
-        const { error } = await supabaseClient
-            .from("agreements")
-            .update({
-                extension_requested_deadline: newDeadlineTimestamp,
-                extension_request_reason: reason
-            })
-            .eq("agreement_id", Number(agreementId));
-
-        if (error) throw error;
-
-        await saveTransaction(
-            "N/A-" + Date.now(),
-            "DeadlineExtensionRequested",
-            localStorage.getItem("wallet"),
-            {
-                requested_deadline: newDeadlineTimestamp,
-                reason: reason,
-                description: "Carrier requested deadline extension."
-            }
-        );
-
-        alert("Extension request submitted to Shipper.");
-        window.location.reload();
-    } catch (err) {
-        console.error("Extension request failed:", err);
-        alert("Failed to submit extension request: " + (err.message || err));
-    }
-}
-
-// shipper approve the deadline extension
-async function approveDeadlineExtension(agreementId) {
-    try {
-        if (typeof window.ethereum === "undefined") throw new Error("MetaMask is required.");
-
-        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-        const account = accounts[0];
-
-        const shipper = (agreementData.blockchain_shipper || agreementData.shipper_address || "").toLowerCase();
-        if (account.toLowerCase() !== shipper) {
-            throw new Error("Only the Shipper can approve deadline extensions.");
-        }
-
-        const newDeadline = Number(agreementData.extension_requested_deadline);
-        if (!newDeadline) throw new Error("No pending extension request found.");
-
-        const web3 = new Web3(window.ethereum);
-        const contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
-
-        const tx = await contract.methods
-            .extendDeadline(Number(agreementId), newDeadline)
-            .send({ from: account });
-
-        const { error } = await supabaseClient
-            .from("agreements")
-            .update({
-                deadline: newDeadline,
-                extension_requested_deadline: null,
-                extension_request_reason: null
-            })
-            .eq("agreement_id", Number(agreementId));
-
-        if (error) throw error;
-
-        await saveTransaction(
-            tx.transactionHash,
-            "DeadlineExtended",
-            account,
-            {
-                new_deadline: newDeadline,
-                description: "Shipper approved deadline extension."
-            }
-        );
-
-        alert("Deadline extended successfully!");
-        window.location.reload();
-    } catch (err) {
-        console.error("Extension approval failed:", err);
-        alert("Failed to approve extension: " + (err.message || err));
-    }
-}
-
-// shipper reject the deadline extension
-async function rejectDeadlineExtension(agreementId) {
-    try {
-        const { error } = await supabaseClient
-            .from("agreements")
-            .update({
-                extension_requested_deadline: null,
-                extension_request_reason: null
-            })
-            .eq("agreement_id", Number(agreementId));
-
-        if (error) throw error;
-
-        await saveTransaction(
-            "N/A-" + Date.now(),
-            "DeadlineExtensionRejected",
-            localStorage.getItem("wallet"),
-            { description: "Shipper rejected deadline extension request." }
-        );
-
-        alert("Extension request rejected.");
-        window.location.reload();
-    } catch (err) {
-        console.error("Rejection failed:", err);
-        alert("Failed to reject extension: " + (err.message || err));
-    }
+async function requestDeadlineExtension(id) {
+    const newDate = prompt("Enter new deadline date (YYYY-MM-DD):");
+    if (!newDate) return;
+    const timestamp = Math.floor(new Date(newDate).getTime() / 1000);
+    const reason = prompt("Enter reason for delay (optional):") || "";
+    const wallet = localStorage.getItem("wallet");
+    await sharedRequestExtension(id, timestamp, reason, wallet, () => window.location.reload());
 }
 
 // =====================================================
@@ -3786,4 +2587,230 @@ function showError(
             ← Back to Agreements
         </a>
     `;
+}
+
+// =====================================================
+// COMPLETION DOCUMENT
+//
+// Once an agreement is Completed, either party can attach a
+// final proof-of-delivery photo. The photo itself is stored
+// in Supabase; only its SHA-256 hash goes on-chain, so the
+// photo's authenticity can be verified against the blockchain
+// record but the blockchain never holds the image itself.
+// =====================================================
+
+async function renderCompletionDocumentSection() {
+
+    const status =
+        agreementData.status ||
+        getStatusFromBlockchain() ||
+        "Created";
+
+    let container =
+        document.getElementById("completion-document-section");
+
+    if (String(status).toLowerCase() !== "completed") {
+        if (container) container.style.display = "none";
+        return;
+    }
+
+    if (!container) {
+        container = document.createElement("section");
+        container.id = "completion-document-section";
+        container.className = "details-card shipment-agreement-card";
+        container.style.marginTop = "20px";
+
+        const parent = document.getElementById("agreement-content");
+        if (parent) parent.appendChild(container);
+    }
+
+    container.style.display = "block";
+
+    const { data: doc } = await supabaseClient
+        .from("completion_documents")
+        .select("*")
+        .eq("agreement_id", Number(agreementId))
+        .maybeSingle();
+
+    let onChainHash = null;
+
+    try {
+        const web3 = new Web3(window.ethereum);
+        const contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
+        const result = await contract.methods
+            .getCompletionDocument(Number(agreementId))
+            .call();
+
+        if (result.documentHash && !/^0x0+$/.test(result.documentHash)) {
+            onChainHash = result.documentHash;
+        }
+    } catch (error) {
+        console.warn("Could not read completion document hash:", error);
+    }
+
+    const accountsRaw =
+        await window.ethereum
+            .request({ method: "eth_accounts" })
+            .catch(() => []);
+
+    const account = (accountsRaw && accountsRaw[0]) || "";
+    const shipper = (agreementData.blockchain_shipper || agreementData.shipper_address || "").toLowerCase();
+    const carrier = getCarrierAddressRaw().toLowerCase();
+    const isParty = account && (account.toLowerCase() === shipper || account.toLowerCase() === carrier);
+
+    if (onChainHash) {
+        container.innerHTML = `
+            <div class="detail-subsection-header">
+                <div class="detail-subsection-title">
+                    <span class="subsection-icon"><i class="fa-solid fa-file-shield"></i></span>
+                    <div>
+                        <span class="subsection-kicker">PROOF OF DELIVERY</span>
+                        <h3>Completion Document</h3>
+                    </div>
+                </div>
+            </div>
+            ${doc?.proof_url ? `<img src="${escapeHtml(doc.proof_url)}" alt="Completion document" style="display:block; max-width:100%; max-height:480px; border-radius:10px; border:1px solid rgba(148,163,184,0.15); margin-bottom:14px;">` : ""}
+            <p style="color:#8d99ae; font-size:13px; word-break:break-all;">On-chain hash: <span style="font-family:monospace; color:#38bdf8;">${escapeHtml(onChainHash)}</span></p>
+            <p style="color:#34d399; font-size:13px; margin:0;"><i class="fa-solid fa-circle-check"></i> This hash is recorded on the blockchain and proves the photo has not been altered.</p>
+        `;
+        return;
+    }
+
+    if (isParty) {
+        container.innerHTML = `
+            <div class="detail-subsection-header">
+                <div class="detail-subsection-title">
+                    <span class="subsection-icon"><i class="fa-solid fa-file-shield"></i></span>
+                    <div>
+                        <span class="subsection-kicker">PROOF OF DELIVERY</span>
+                        <h3>Upload Completion Document</h3>
+                    </div>
+                </div>
+            </div>
+            <p style="color:#8d99ae; font-size:13px; margin-bottom:14px;">
+                This agreement is complete. Upload a final documentation photo (e.g. a signed delivery note).
+                The photo is stored off-chain in Supabase; its SHA-256 hash is recorded on the blockchain so
+                it can later be verified as unaltered.
+            </p>
+            <input id="completion-doc-file" type="file" accept="image/*" style="display:block; color:#e0e1dd; margin-bottom:14px;">
+            <button id="submit-completion-doc-btn" class="primary-action-btn" type="button">
+                <i class="fa-solid fa-upload"></i> Submit Completion Document
+            </button>
+        `;
+
+        document.getElementById("submit-completion-doc-btn")
+            ?.addEventListener("click", submitCompletionDocument);
+    } else {
+        container.innerHTML = `
+            <div class="detail-subsection-header">
+                <div class="detail-subsection-title">
+                    <span class="subsection-icon"><i class="fa-solid fa-file-shield"></i></span>
+                    <div>
+                        <span class="subsection-kicker">PROOF OF DELIVERY</span>
+                        <h3>Completion Document</h3>
+                    </div>
+                </div>
+            </div>
+            <p style="color:#8d99ae; font-style:italic;">No completion document has been submitted yet.</p>
+        `;
+    }
+}
+
+async function submitCompletionDocument() {
+
+    const fileInput = document.getElementById("completion-doc-file");
+    const button = document.getElementById("submit-completion-doc-btn");
+    const file = fileInput?.files[0];
+
+    if (!file) {
+        alert("Choose an image file first.");
+        return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+        alert("Only image files are accepted.");
+        return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+        alert("File must be 10 MB or smaller.");
+        return;
+    }
+
+    button.disabled = true;
+    button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Submitting…';
+
+    try {
+        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+        const account = accounts[0];
+
+        const shipper = (agreementData.blockchain_shipper || agreementData.shipper_address || "").toLowerCase();
+        const carrier = getCarrierAddressRaw().toLowerCase();
+
+        if (account.toLowerCase() !== shipper && account.toLowerCase() !== carrier) {
+            throw new Error("Only the Shipper or Carrier of this agreement can submit the completion document.");
+        }
+
+        const fileBuffer = await file.arrayBuffer();
+        const hashBuffer = await crypto.subtle.digest("SHA-256", fileBuffer);
+        const hashHex =
+            "0x" +
+            Array.from(new Uint8Array(hashBuffer))
+                .map((b) => b.toString(16).padStart(2, "0"))
+                .join("");
+
+        const path = `${agreementId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+
+        const { error: uploadError } = await supabaseClient.storage
+            .from("completion-documents")
+            .upload(path, file, { upsert: false });
+
+        if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
+
+        const proofUrl =
+            supabaseClient.storage
+                .from("completion-documents")
+                .getPublicUrl(path).data.publicUrl;
+
+        const web3 = new Web3(window.ethereum);
+        const contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
+
+        const tx = await contract.methods
+            .submitCompletionDocument(Number(agreementId), hashHex)
+            .send({ from: account });
+
+        await supabaseClient.from("completion_documents").upsert(
+            {
+                agreement_id: Number(agreementId),
+                proof_url: proofUrl,
+                proof_file_name: file.name,
+                document_hash: hashHex,
+                submitted_by: account.toLowerCase(),
+                transaction_hash: tx.transactionHash
+            },
+            { onConflict: "agreement_id" }
+        );
+
+        await saveTransaction(
+            tx.transactionHash,
+            "CompletionDocumentSubmitted",
+            account,
+            {
+                document_hash: hashHex,
+                description: "Completion document hash recorded on-chain."
+            }
+        );
+
+        alert("Completion document submitted and its hash recorded on-chain.");
+        await renderCompletionDocumentSection();
+    } catch (error) {
+        alert(
+            `Submission failed: ${error?.code === 4001 ? "Transaction was rejected in MetaMask." : (error.message || String(error))}`
+        );
+
+        if (button) {
+            button.disabled = false;
+            button.innerHTML = '<i class="fa-solid fa-upload"></i> Submit Completion Document';
+        }
+    }
 }
