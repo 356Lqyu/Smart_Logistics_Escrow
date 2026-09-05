@@ -69,6 +69,7 @@ contract LogisticsEscrow {
 
     mapping(uint => Agreement) private agreements;
     mapping(uint => Milestone[]) public agreementMilestones;
+    mapping(uint => mapping(uint => bytes32)) private milestoneProofHashes;
     mapping(bytes32 => bool) private agreementHashes;
     mapping(uint => bytes32) private completionDocumentHashes;
     mapping(uint => address) private completionDocumentSubmitter;
@@ -77,7 +78,7 @@ contract LogisticsEscrow {
     event AgreementCreated(uint indexed agreementId, string referenceNo, address indexed shipper, uint escrowAmount);
     event EscrowFunded(uint indexed agreementId, uint amount);
     event AgreementAccepted(uint indexed agreementId, address indexed carrier);
-    event MilestoneCompletionSubmitted(uint indexed agreementId, uint indexed milestoneIndex, address indexed carrier);
+    event MilestoneCompletionSubmitted(uint indexed agreementId, uint indexed milestoneIndex, address indexed carrier, bytes32 proofHash);
     event MilestoneVerified(uint indexed agreementId, uint indexed milestoneIndex, address indexed shipper, uint amount);
     event MilestonePayout(uint indexed agreementId, uint indexed milestoneIndex, address indexed carrier, uint amount);
     event MilestoneRejected(uint indexed agreementId, uint indexed milestoneIndex, address indexed shipper, string reason);
@@ -166,6 +167,11 @@ contract LogisticsEscrow {
         require(index < agreementMilestones[agreementId].length, "Milestone does not exist");
         Milestone storage m = agreementMilestones[agreementId][index];
         return (m.checkpoint, m.percentage, m.completed, m.verified, m.paid, m.completedAt, m.verifiedAt);
+    }
+
+    function getMilestoneProofHash(uint agreementId, uint index) external view returns (bytes32) {
+        require(index < agreementMilestones[agreementId].length, "Milestone does not exist");
+        return milestoneProofHashes[agreementId][index];
     }
 
     function createAgreement(
@@ -258,7 +264,7 @@ contract LogisticsEscrow {
         emit AgreementAccepted(agreementId, msg.sender);
     }
 
-    function submitMilestoneCompletion(uint agreementId) external {
+    function submitMilestoneCompletion(uint agreementId, bytes32 proofHash) external {
         Agreement storage agreement = agreements[agreementId];
         require(agreement.agreementId != 0, "Agreement does not exist");
         require(agreement.status == AgreementStatus.InProgress, "Agreement is not in progress");
@@ -272,11 +278,13 @@ contract LogisticsEscrow {
         require(!milestone.completed, "Milestone already submitted");
         require(!milestone.verified, "Milestone already verified");
         require(!milestone.paid, "Milestone already paid");
+        require(proofHash != bytes32(0), "Invalid proof hash");
 
         milestone.completed = true;
         milestone.completedAt = block.timestamp;
+        milestoneProofHashes[agreementId][index] = proofHash;
 
-        emit MilestoneCompletionSubmitted(agreementId, index, msg.sender);
+        emit MilestoneCompletionSubmitted(agreementId, index, msg.sender, proofHash);
     }
 
     function verifyMilestone(uint agreementId) external {
@@ -338,6 +346,7 @@ contract LogisticsEscrow {
 
         milestone.completed = false;
         milestone.completedAt = 0;
+        delete milestoneProofHashes[agreementId][index];
 
         emit MilestoneRejected(agreementId, index, msg.sender, reason);
     }

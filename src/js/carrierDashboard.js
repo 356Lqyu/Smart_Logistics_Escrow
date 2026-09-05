@@ -440,9 +440,27 @@ async function acceptJobFromDashboard(agreementId, shipperAddress) {
         window.location.reload();
     } catch (error) {
         console.error(error);
-        let message = error?.message || String(error);
-        if (error?.code === 4001) message = "Transaction was rejected in MetaMask.";
-        alert("Failed to accept agreement:\n\n" + message);
+        const details = [
+            error?.data?.message,
+            error?.data?.originalError?.message,
+            error?.message,
+            String(error || "")
+        ].filter(Boolean).join(" ").toLowerCase();
+
+        let message = "We could not accept this agreement. Please refresh the page and try again.";
+        if (error?.code === 4001) {
+            message = "Transaction was rejected in MetaMask.";
+        } else if (details.includes("carrier already has 3 active agreements")) {
+            message = `You already have the maximum of ${MAX_CONCURRENT_JOBS} active agreements.\n\nComplete an active agreement before accepting another one.`;
+        } else if (details.includes("agreement is not available for acceptance")) {
+            message = "This agreement is no longer available to accept. Please refresh the page.";
+        } else if (details.includes("deadline passed")) {
+            message = "This agreement has passed its deadline and can no longer be accepted.";
+        } else if (details.includes("shipper cannot be carrier")) {
+            message = "You cannot accept your own agreement as the carrier.";
+        }
+
+        alert("Agreement cannot be accepted.\n\n" + message);
     }
 }
 
