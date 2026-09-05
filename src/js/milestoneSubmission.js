@@ -47,17 +47,19 @@ async function initialiseSubmissionPage() {
             throw new Error("Milestone evidence storage is not configured.");
         }
 
-        const { data: rejectionTx } = await supabaseClient
+        const { data: rejectionTransactions } = await supabaseClient
             .from("transactions")
             .select("details, created_at")
             .eq("agreement_id", submissionAgreementId)
             .eq("event_type", "MilestoneRejected")
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
+            .order("created_at", { ascending: false });
 
-        const rejectionDetails = rejectionTx?.details;
-        const isThisMilestoneRejected = rejectionDetails && Number(rejectionDetails.milestone_index) === submissionMilestoneIndex;
+        // The latest rejection may belong to a different milestone, so locate
+        // the latest rejection recorded for the milestone being viewed.
+        const rejectionDetails = (rejectionTransactions || []).find(transaction =>
+            Number(transaction.details?.milestone_index) === submissionMilestoneIndex
+        )?.details;
+        const isThisMilestoneRejected = Boolean(rejectionDetails);
         rejectionReason = isThisMilestoneRejected ? rejectionDetails.reason : null;
 
         submissionAgreement = agreement;
@@ -97,23 +99,19 @@ function renderSubmissionPage() {
 
     const submittedAtFormatted = submissionMilestone.completed_at ? new Date(submissionMilestone.completed_at).toLocaleString() : "—";
     const verifiedAtFormatted = submissionMilestone.verified_at ? new Date(submissionMilestone.verified_at).toLocaleString() : "Not verified yet";
+    const rejectionReasonHtml = rejectionReason ? `
+        <div style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3); padding: 18px; border-radius: 14px; margin-bottom: 24px;">
+            <h4 style="color: #f87171; margin-bottom: 8px; font-size: 15px;"><i class="fa-solid fa-circle-exclamation"></i> Milestone Rejection Reason</h4>
+            <p style="color: #cbd5e1; font-size: 13px; margin: 0; white-space: pre-wrap; line-height: 1.6;">${escapeHtml(rejectionReason)}</p>
+        </div>
+    ` : "";
 
     let workflowHtml = "";
     if (submissionMode === "submit" && !submissionMilestone.completed) {
         const canSubmit = isCarrier && submissionAgreement.status === "In Progress";
         
-        let rejectionBannerHtml = "";
-        if (isCarrier && rejectionReason) {
-            rejectionBannerHtml = `
-                <div style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3); padding: 18px; border-radius: 14px; margin-bottom: 24px;">
-                    <h4 style="color: #f87171; margin-bottom: 8px; font-size: 15px;"><i class="fa-solid fa-circle-exclamation"></i> Milestone Rejected by Shipper</h4>
-                    <p style="color: #cbd5e1; font-size: 13px; margin: 0; white-space: pre-wrap; line-height: 1.6;">${escapeHtml(rejectionReason)}</p>
-                </div>
-            `;
-        }
-
         workflowHtml = canSubmit ? `
-            ${rejectionBannerHtml}
+            ${rejectionReasonHtml}
             <form id="evidence-form">
                 <div class="detail-subsection" style="border-top:none; padding-top:0;">
                     <div class="detail-subsection-header">
@@ -139,7 +137,11 @@ function renderSubmissionPage() {
                         </div>
                     </div>
                     <div class="shipment-description-box" style="margin-bottom: 24px;">
-                        <input id="proof-file" type="file" accept="image/*" required style="display:block; color:#e0e1dd;">
+                        <input id="proof-file" class="proof-file-input" type="file" accept="image/*">
+                        <span id="proof-file-name" class="proof-file-name">No photo selected</span>
+                        <label for="proof-file" class="proof-upload-icon" title="Upload completion photo" aria-label="Upload completion photo">
+                            <i class="fa-solid fa-upload" style="font-size: 12px;" aria-hidden="true"></i>
+                        </label>
                     </div>
 
                     <button class="primary-action-btn" type="submit"><i class="fa-solid fa-upload"></i> Submit Evidence & Completion</button>
@@ -149,6 +151,7 @@ function renderSubmissionPage() {
         const canVerify = isShipper && submissionMilestone.completed && !submissionMilestone.verified && submissionEvidence;
         workflowHtml = `
         <div>
+            ${rejectionReasonHtml}
             <!-- Agreement Info Grid (Matches Details Page Grid Style) -->
             <div class="agreement-info-grid" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 24px;">
                 <div class="info-item">
@@ -195,12 +198,23 @@ function renderSubmissionPage() {
                     ` : (isCarrier ? '<p style="color:#8d99ae; font-style:italic;">Viewing submitted milestone details and proof.</p>' : '')}
                 </div>
 
-                <!-- Inline Rejection Bar (Initially Hidden) -->
-                <div id="rejection-container" style="display:none; margin-top:24px; background:rgba(15,23,42,0.65); padding:20px; border-radius:14px; border:1px solid rgba(239, 68, 68, 0.3);">
-                    <label class="detail-label" style="color:#f87171;">Reason for Rejection</label>
-                    <textarea id="rejection-reason" rows="3" class="ca-inline-1e1541ba" placeholder="Enter the reason why this milestone submission is being rejected..." style="margin-bottom: 14px;"></textarea>
-                    <div style="display:flex; gap:10px;">
-                        <button id="confirm-reject-btn" class="danger-action-btn" type="button"><i class="fa-solid fa-paper-plane"></i> Confirm Rejection</button>
+                <!-- Rejection details (initially hidden) -->
+                <div id="rejection-container" class="detail-subsection" style="display:none; margin-top:24px; padding:20px; border:1px solid rgba(239, 68, 68, 0.3); border-radius:10px; background:rgba(127, 29, 29, 0.08);">
+                    <div class="detail-subsection-header">
+                        <div class="detail-subsection-title">
+                            <span class="subsection-icon" style="color:#f87171;"><i class="fa-solid fa-circle-exclamation"></i></span>
+                            <div>
+                                <span class="subsection-kicker" style="color:#f87171;">REJECTION DETAILS</span>
+                                <h3>Reason for Rejection</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="shipment-description-box" style="margin-bottom:14px;">
+                        <label class="detail-label" for="rejection-reason">REJECTION REASON</label>
+                        <textarea id="rejection-reason" rows="3" placeholder="Enter the reason why this milestone submission is being rejected..." style="width:100%; resize:vertical; margin:0;"></textarea>
+                    </div>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                        <button id="confirm-reject-btn" class="danger-action-btn" type="button" disabled><i class="fa-solid fa-paper-plane"></i> Confirm Rejection</button>
                         <button id="cancel-reject-btn" class="view-btn" type="button">Cancel</button>
                     </div>
                 </div>
@@ -227,14 +241,31 @@ function renderSubmissionPage() {
         </section>`;
 
     document.getElementById("evidence-form")?.addEventListener("submit", submitEvidenceAndCompletion);
+    document.getElementById("proof-file")?.addEventListener("change", event => {
+        const fileName = document.getElementById("proof-file-name");
+        if (fileName) {
+            fileName.textContent = event.target.files?.[0]?.name || "No photo selected";
+        }
+    });
     document.getElementById("verify-evidence-btn")?.addEventListener("click", verifyEvidenceAndRelease);
     document.getElementById("reject-evidence-btn")?.addEventListener("click", () => {
         const rejContainer = document.getElementById("rejection-container");
-        if (rejContainer) rejContainer.style.display = "block";
+        if (rejContainer) {
+            rejContainer.style.display = "block";
+            document.getElementById("rejection-reason")?.focus();
+        }
     });
     document.getElementById("cancel-reject-btn")?.addEventListener("click", () => {
         const rejContainer = document.getElementById("rejection-container");
+        const reasonInput = document.getElementById("rejection-reason");
+        const confirmButton = document.getElementById("confirm-reject-btn");
+        if (reasonInput) reasonInput.value = "";
+        if (confirmButton) confirmButton.disabled = true;
         if (rejContainer) rejContainer.style.display = "none";
+    });
+    document.getElementById("rejection-reason")?.addEventListener("input", (event) => {
+        const confirmButton = document.getElementById("confirm-reject-btn");
+        if (confirmButton) confirmButton.disabled = !event.target.value.trim();
     });
     document.getElementById("confirm-reject-btn")?.addEventListener("click", rejectEvidenceAndReset);
 }

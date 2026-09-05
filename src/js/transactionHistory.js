@@ -247,7 +247,7 @@ async function loadTransactionHistory() {
         // If user is a shipper, pull transactions for their agreements where they are the actor or relevant creator.
         if (isCarrier) {
             // Carriers see their own performed actions OR payout/release transactions
-            txQuery = txQuery.or(`actor_address.eq.${currentAccount},event_type.eq.MilestonePayout,event_type.eq.MilestoneVerified`);
+            txQuery = txQuery.or(`actor_address.eq.${currentAccount},event_type.eq.MilestonePayout,event_type.eq.MilestoneVerified,event_type.eq.MilestoneRejected`);
         } else {
             txQuery = txQuery.eq("actor_address", currentAccount);
         }
@@ -377,9 +377,9 @@ function updateStatistics() {
             "eth-earned"
         );
 
-    const earnedLabel = 
-        earnedElement 
-            ? earnedElement.closest(".transaction-stat-card")?.querySelector(".stat-label") 
+    const earnedLabel =
+        earnedElement
+            ? earnedElement.closest(".transaction-stat-card")?.querySelector(".stat-label")
             : null;
 
 
@@ -463,9 +463,9 @@ function updateStatistics() {
             "refund-count"
         );
 
-    const refundLabel = 
-        refundElement 
-            ? refundElement.closest(".transaction-stat-card")?.querySelector(".stat-label") 
+    const refundLabel =
+        refundElement
+            ? refundElement.closest(".transaction-stat-card")?.querySelector(".stat-label")
             : null;
 
 
@@ -779,7 +779,7 @@ function renderTransactionRow(row, event) {
 
     const date = formatDateTime(transaction.created_at);
     const reference = agreement ? agreement.reference_no : `Agreement #${transaction.agreement_id}`;
-    
+
     let type = transaction.event_type || "Transaction";
     const amount = extractTransactionAmount(transaction, agreement);
     const status = getTransactionStatus(type);
@@ -789,7 +789,7 @@ function renderTransactionRow(row, event) {
     if (transaction.details) {
         if (typeof transaction.details === "object") {
             detailsText = transaction.details.description || transaction.details.status || JSON.stringify(transaction.details);
-            
+
             // If a milestone index exists in details, append it cleanly to the type name
             if (transaction.details.milestone_index !== undefined) {
                 const milestoneNum = Number(transaction.details.milestone_index) + 1;
@@ -808,14 +808,12 @@ function renderTransactionRow(row, event) {
         <td style="color: #8d99ae; max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(detailsText)}">
             ${escapeHtml(detailsText)}
         </td>
-        <td>
-            ${transaction.transaction_hash ? `
-                <a href="${buildExplorerUrl(transaction.transaction_hash)}" target="_blank" rel="noopener noreferrer" class="transaction-hash" title="${escapeHtml(transaction.transaction_hash)}">
-                    ${formatHash(transaction.transaction_hash)}
-                </a>
-            ` : "—"}
-        </td>
         <td><span class="transaction-status ${getStatusClass(status)}">${escapeHtml(status)}</span></td>
+        <td>
+            <button class="view-btn" onclick="window.location.href='transactionDetails.html?id=${Number(transaction.id)}'">
+                <i class="fa-regular fa-eye"></i> View
+            </button>
+        </td>
     `;
 }
 
@@ -831,7 +829,7 @@ function renderMilestoneRow(row, event) {
     const reference = agreement ? agreement.reference_no : `Agreement #${milestone.agreement_id}`;
     const date = formatDateTime(event.date);
     const action = event.milestoneAction;
-    
+
     let detailsText = `Milestone ${milestone.milestone_index + 1}: ${milestone.checkpoint}`;
 
     row.innerHTML = `
@@ -1038,17 +1036,17 @@ function extractTransactionAmount(transaction, agreement = null) {
 
     if (typeof details === "object") {
         let amount = null;
-        let isIncoming = false; 
+        let isIncoming = false;
 
         if (details.escrow && details.escrow.amount !== undefined) {
             amount = Number(details.escrow.amount);
-            isIncoming = false; 
+            isIncoming = false;
         } else if (details.escrow_amount !== undefined) {
             amount = Number(details.escrow_amount);
             isIncoming = false;
         } else if (details.escrow_refunded !== undefined) {
             amount = Number(details.escrow_refunded);
-            isIncoming = true; 
+            isIncoming = true;
 
             // Older expiry records stored 0 after the balance had already
             // been cleared. Reconstruct the remaining escrow for display.
@@ -1090,7 +1088,7 @@ function extractTransactionAmount(transaction, agreement = null) {
 function getTransactionStatus(eventType) {
     const type = String(eventType).toLowerCase();
 
-    if (type === "milestonerejected" || type === "deadlineextensionrejected"){
+    if (type === "milestonerejected" || type === "deadlineextensionrejected") {
         return "Rejected";
     }
     if (type.includes("extension") || type.includes("extended")) {

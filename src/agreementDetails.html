@@ -13,7 +13,7 @@
 
     <link rel="stylesheet" href="css/dashboard.css">
     <link rel="stylesheet" href="css/agreement.css">
-
+    <link rel="stylesheet" href="css/milestone.css">
     <link rel="stylesheet" href="css/profile.css">
 
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -37,7 +37,7 @@
         <header class="top-navbar">
             <div class="page-title-block">
                 <h1 id="page-heading">Agreement Details</h1>
-            <div class="network-stats">
+                <div class="network-stats">
                     <span>Chain ID: <strong id="chain-id">—</strong></span>
                     <span class="dot"></span>
                     <span>Gas: <strong id="gas-price">—</strong></span>
@@ -316,9 +316,6 @@
                             </p>
                         </div>
 
-                        <div class="details-section-icon agreement-record-icon">
-                            <i class="fa-solid fa-file-contract"></i>
-                        </div>
 
                     </div>
 
@@ -328,72 +325,46 @@
                     ================================================== -->
 
                     <div class="detail-subsection">
-
                         <div class="detail-subsection-header">
-
                             <div class="detail-subsection-title">
-                                <span class="subsection-icon">
-                                    <i class="fa-solid fa-box-open"></i>
-                                </span>
-
                                 <div>
-                                    <span class="subsection-kicker">
-                                        SHIPMENT
-                                    </span>
-
                                     <h3>Shipment Information</h3>
                                 </div>
                             </div>
-
                         </div>
 
 
                         <!-- Shipment description -->
-
                         <div class="shipment-description-box">
-
                             <span class="detail-label">
                                 <i class="fa-solid fa-box"></i>
                                 Shipment Details
                             </span>
-
                             <div id="detail-shipment" class="shipment-description">
                                 -
                             </div>
-
                         </div>
 
-
                         <!-- Payload -->
-
                         <div class="shipment-info-grid">
-
                             <div class="detail-info-box">
-
                                 <span class="detail-label">
                                     PAYLOAD VALUE
                                 </span>
-
                                 <strong id="detail-payload-value">
                                     -
                                 </strong>
-
                             </div>
 
                             <div class="detail-info-box">
-
                                 <span class="detail-label">
                                     PRIORITY
                                 </span>
-
                                 <strong id="detail-priority">
                                     -
                                 </strong>
-
                             </div>
-
                         </div>
-
                     </div>
 
 
@@ -402,206 +373,115 @@
                     ================================================== -->
 
                     <div class="detail-subsection">
-
                         <div class="detail-subsection-header">
-
                             <div class="detail-subsection-title">
-
-                                <span class="subsection-icon">
-                                    <i class="fa-solid fa-route"></i>
-                                </span>
-
                                 <div>
-                                    <span class="subsection-kicker">
-                                        LOGISTICS ROUTE
-                                    </span>
-
-                                    <h3>Pickup & Delivery</h3>
+                                    <h3>Logistics Route</h3>
                                 </div>
-
                             </div>
-
                         </div>
 
-
                         <div class="route-details">
-
                             <!-- ORIGIN -->
-
                             <div class="route-location-card">
-
                                 <div class="route-location-icon origin">
                                     <i class="fa-solid fa-location-dot"></i>
                                 </div>
 
                                 <div class="route-location-content">
-
                                     <span class="detail-label">
                                         ORIGIN / PICKUP
                                     </span>
-
                                     <strong id="detail-origin">
                                         -
                                     </strong>
-
                                 </div>
-
                             </div>
-
 
                             <!-- CONNECTOR -->
-
                             <div class="route-line">
-
                                 <span class="route-line-dot"></span>
-
                                 <div class="route-line-body"></div>
-
                                 <i class="fa-solid fa-truck route-truck-icon"></i>
-
                                 <div class="route-line-body"></div>
-
                                 <span class="route-line-dot"></span>
-
                             </div>
 
-
                             <!-- DESTINATION -->
-
                             <div class="route-location-card">
-
                                 <div class="route-location-icon destination">
                                     <i class="fa-solid fa-flag-checkered"></i>
                                 </div>
-
                                 <div class="route-location-content">
-
                                     <span class="detail-label">
                                         DESTINATION / DELIVERY
                                     </span>
-
                                     <strong id="detail-destination">
                                         -
                                     </strong>
-
                                 </div>
-
                             </div>
-
                         </div>
-
                     </div>
 
 
                     <!-- =================================================
                     SUBSECTION 3 — FINANCIAL INFORMATION
                      ================================================== -->
-
                     <div class="detail-subsection" style="padding-bottom: 20px;">
-
                         <div class="detail-subsection-header">
-
                             <div class="detail-subsection-title">
-
-                                <span class="subsection-icon">
-                                    <i class="fa-solid fa-coins"></i>
-                                </span>
-
                                 <div>
-                                    <span class="subsection-kicker">
-                                        ESCROW
-                                    </span>
-
-                                    <h3>Financial & Agreement Information</h3>
+                                    <h3>ESCROW</h3>
                                 </div>
-
                             </div>
-
                         </div>
 
 
                         <div class="financial-info-grid">
-
                             <!-- Escrow Amount -->
-
                             <div class="financial-info-box">
-
                                 <span class="detail-label">
                                     ESCROW AMOUNT
                                 </span>
-
                                 <strong id="detail-escrow-amount">
                                     -
                                 </strong>
-
                             </div>
 
 
                             <!-- Released -->
-
                             <div class="financial-info-box released">
-
                                 <span class="detail-label">
                                     ESCROW RELEASED
                                 </span>
-
                                 <strong id="detail-escrow-released">
                                     -
                                 </strong>
-
                             </div>
 
 
                             <!-- Remaining -->
-
                             <div class="financial-info-box remaining">
-
                                 <span class="detail-label">
                                     ESCROW REMAINING
                                 </span>
-
                                 <strong id="detail-escrow-remaining">
                                     -
                                 </strong>
-
                             </div>
-
                         </div>
-
                     </div>
-
                 </section>
-
             </div>
-
         </div>
-
     </main>
-
-
-
-    <!-- =========================
-         LIBRARIES
-    ========================== -->
-
     <script src="https://cdn.jsdelivr.net/npm/web3@1.10.4/dist/web3.min.js"></script>
-
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-
-    <!-- =========================
-         PROJECT JS
-    ========================== -->
-
     <script src="js/contract.js"></script>
-
     <script src="js/supabase.js"></script>
-
     <script src="js/dashboard.js"></script>
-
     <script src="js/agreementDetails.js"></script>
-
-
+    <script src="js/agreementActions.js"></script>
 </body>
-
 </html>
