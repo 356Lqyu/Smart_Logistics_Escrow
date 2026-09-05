@@ -1,5 +1,36 @@
 const MAX_ACTIVE_AGREEMENTS_PER_CARRIER = 3;
 
+function getAcceptAgreementMessage(error) {
+    if (error?.code === 4001) {
+        return "Transaction was rejected in MetaMask.";
+    }
+
+    const details = [
+        error?.data?.message,
+        error?.data?.originalError?.message,
+        error?.message,
+        String(error || "")
+    ].filter(Boolean).join(" ").toLowerCase();
+
+    if (details.includes("carrier already has 3 active agreements")) {
+        return "You already have the maximum of 3 active agreements.\n\nComplete an active agreement before accepting another one.";
+    }
+    if (details.includes("agreement is not available for acceptance")) {
+        return "This agreement is no longer available to accept. Please refresh the page.";
+    }
+    if (details.includes("deadline passed")) {
+        return "This agreement has passed its deadline and can no longer be accepted.";
+    }
+    if (details.includes("shipper cannot be carrier")) {
+        return "You cannot accept your own agreement as the carrier.";
+    }
+    if (details.includes("escrow is not fully funded")) {
+        return "This agreement cannot be accepted until its escrow is fully funded.";
+    }
+
+    return "We could not accept this agreement. Please refresh the page and try again.";
+}
+
 async function sharedAcceptAgreement(agreementId, referenceNo, onSuccess) {
     if (typeof window.ethereum === "undefined") {
         alert("MetaMask is required.");
@@ -60,7 +91,8 @@ async function sharedAcceptAgreement(agreementId, referenceNo, onSuccess) {
         if (typeof onSuccess === "function") onSuccess();
         else window.location.reload();
     } catch (error) {
-        alert("Failed to accept agreement:\n\n" + (error?.message || error));
+        console.error("Accept agreement failed:", error);
+        alert("Agreement cannot be accepted.\n\n" + getAcceptAgreementMessage(error));
     }
 }
 

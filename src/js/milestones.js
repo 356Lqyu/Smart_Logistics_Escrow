@@ -870,7 +870,7 @@ function renderMilestone(
     }
 
     let reminderHtml = "";
-    if (completed && !verified && checkReminderWindow(milestone)) {
+    if (milestoneRole === "shipper" && completed && !verified && checkReminderWindow(milestone)) {
         reminderHtml = `
             <div style="margin-top: 8px; padding: 8px 12px; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 6px; color: #fbbf24; font-size: 12px;">
                 <i class="fa-solid fa-triangle-exclamation"></i> Verification pending over 5 minutes. Please review and verify this milestone.

@@ -6,6 +6,7 @@ let submissionMilestoneIndex;
 let submissionMode;
 let submissionSource;
 let rejectionReason = null;
+let submissionProofHash = null;
 
 document.addEventListener("DOMContentLoaded", initialiseSubmissionPage);
 
@@ -65,6 +66,7 @@ async function initialiseSubmissionPage() {
         submissionAgreement = agreement;
         submissionMilestone = milestone;
         submissionEvidence = evidence;
+        await loadMilestoneProofHash();
         renderSubmissionPage();
     } catch (error) {
         document.getElementById("submission-page").innerHTML = `
@@ -73,6 +75,22 @@ async function initialiseSubmissionPage() {
                 <br><br>
                 <a href="milestones.html" class="view-btn">Back to Milestones</a>
             </div>`;
+    }
+}
+
+async function loadMilestoneProofHash() {
+    try {
+        const web3 = new Web3(window.ethereum);
+        const contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
+        const hash = await contract.methods
+            .getMilestoneProofHash(submissionAgreementId, submissionMilestoneIndex)
+            .call();
+
+        submissionProofHash = hash && !/^0x0+$/.test(hash) ? hash : null;
+    } catch (error) {
+        // This can occur for records created before the proof-hash feature was deployed.
+        console.warn("Could not read milestone proof hash:", error);
+        submissionProofHash = null;
     }
 }
 
@@ -190,6 +208,19 @@ function renderSubmissionPage() {
                 <div class="shipment-description-box" style="margin-bottom: 24px;">
                     ${proofHtml}
                 </div>
+                ${submissionProofHash ? `
+                    <p style="color:#8d99ae; font-size:13px; word-break:break-all; margin:-10px 0 24px;">
+                        On-chain SHA-256: <span style="font-family:monospace; color:#38bdf8;">${escapeHtml(submissionProofHash)}</span>
+                    </p>
+                ` : ""}
+                ${submissionProofHash && submissionEvidence?.proof_url ? `
+                    <div style="margin:-10px 0 24px;">
+                        <button id="check-proof-integrity-btn" class="view-btn" type="button">
+                            <i class="fa-solid fa-shield-halved"></i> Check File Integrity
+                        </button>
+                        <p id="proof-integrity-result" style="display:none; margin:10px 0 0; font-size:13px;"></p>
+                    </div>
+                ` : ""}
 
                 <div style="display:flex; gap:12px; align-items: center;">
                     ${canVerify ? `
@@ -211,7 +242,7 @@ function renderSubmissionPage() {
                     </div>
                     <div class="shipment-description-box" style="margin-bottom:14px;">
                         <label class="detail-label" for="rejection-reason">REJECTION REASON</label>
-                        <textarea id="rejection-reason" rows="3" placeholder="Enter the reason why this milestone submission is being rejected..." style="width:100%; resize:vertical; margin:0;"></textarea>
+                        <textarea id="rejection-reason" class="ca-inline-1e1541ba" rows="3" placeholder="Enter the reason why this milestone submission is being rejected..." style="width:100%; resize:vertical; margin:0;"></textarea>
                     </div>
                     <div style="display:flex; gap:10px; flex-wrap:wrap;">
                         <button id="confirm-reject-btn" class="danger-action-btn" type="button" disabled><i class="fa-solid fa-paper-plane"></i> Confirm Rejection</button>
@@ -248,6 +279,7 @@ function renderSubmissionPage() {
         }
     });
     document.getElementById("verify-evidence-btn")?.addEventListener("click", verifyEvidenceAndRelease);
+    document.getElementById("check-proof-integrity-btn")?.addEventListener("click", checkProofIntegrity);
     document.getElementById("reject-evidence-btn")?.addEventListener("click", () => {
         const rejContainer = document.getElementById("rejection-container");
         if (rejContainer) {
@@ -270,6 +302,63 @@ function renderSubmissionPage() {
     document.getElementById("confirm-reject-btn")?.addEventListener("click", rejectEvidenceAndReset);
 }
 
+function setProofIntegrityResult(message, color) {
+    const result = document.getElementById("proof-integrity-result");
+    if (!result) return;
+
+    result.style.display = "block";
+    result.style.color = color;
+    result.textContent = message;
+}
+
+async function calculateSha256Hex(arrayBuffer) {
+    const hashBuffer = await crypto.subtle.digest("SHA-256", arrayBuffer);
+    return "0x" + Array.from(new Uint8Array(hashBuffer))
+        .map(byte => byte.toString(16).padStart(2, "0"))
+        .join("");
+}
+
+async function verifyProofIntegrity() {
+    if (!submissionProofHash) {
+        throw new Error("No on-chain hash exists for this milestone proof.");
+    }
+    if (!submissionEvidence?.proof_url) {
+        throw new Error("The off-chain milestone proof file is unavailable.");
+    }
+
+    const response = await fetch(submissionEvidence.proof_url, { cache: "no-store" });
+    if (!response.ok) {
+        throw new Error(`Could not download the proof file (HTTP ${response.status}).`);
+    }
+
+    const actualHash = await calculateSha256Hex(await response.arrayBuffer());
+    return actualHash.toLowerCase() === submissionProofHash.toLowerCase();
+}
+
+async function checkProofIntegrity() {
+    const button = document.getElementById("check-proof-integrity-btn");
+    if (button) {
+        button.disabled = true;
+        button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking…';
+    }
+
+    try {
+        const matches = await verifyProofIntegrity();
+        if (matches) {
+            setProofIntegrityResult("Verified: this file exactly matches the SHA-256 hash recorded on-chain.", "#34d399");
+        } else {
+            setProofIntegrityResult("Warning: this file does not match the on-chain SHA-256 hash and may have been changed.", "#f87171");
+        }
+    } catch (error) {
+        setProofIntegrityResult(`Could not check file integrity: ${error.message || String(error)}`, "#fbbf24");
+    } finally {
+        if (button) {
+            button.disabled = false;
+            button.innerHTML = '<i class="fa-solid fa-shield-halved"></i> Check File Integrity';
+        }
+    }
+}
+
 async function submitEvidenceAndCompletion(event) {
     event.preventDefault();
     const notes = document.getElementById("progress-notes").value.trim();
@@ -287,6 +376,8 @@ async function submitEvidenceAndCompletion(event) {
         return;
     }
 
+    const proofHash = await calculateSha256Hex(await file.arrayBuffer());
+
     const button = event.submitter;
     button.disabled = true;
     button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Submitting…';
@@ -303,7 +394,9 @@ async function submitEvidenceAndCompletion(event) {
 
         const web3 = new Web3(window.ethereum);
         const contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
-        const tx = await contract.methods.submitMilestoneCompletion(submissionAgreementId).send({ from: account });
+        const tx = await contract.methods
+            .submitMilestoneCompletion(submissionAgreementId, proofHash)
+            .send({ from: account });
 
         const { error: evidenceError } = await supabaseClient.from("milestone_evidence").upsert({
             agreement_id: submissionAgreementId, milestone_index: submissionMilestoneIndex,
@@ -316,7 +409,7 @@ async function submitEvidenceAndCompletion(event) {
             .eq("agreement_id", submissionAgreementId).eq("milestone_index", submissionMilestoneIndex);
         await supabaseClient.from("transactions").insert({
             transaction_hash: tx.transactionHash, agreement_id: submissionAgreementId, event_type: "MilestoneSubmitted",
-            actor_address: account.toLowerCase(), details: { milestone_index: submissionMilestoneIndex, description: "Carrier submitted milestone completion." }
+            actor_address: account.toLowerCase(), details: { milestone_index: submissionMilestoneIndex, proof_hash: proofHash, description: "Carrier submitted milestone completion; proof SHA-256 recorded on-chain." }
         });
         alert("Evidence and milestone completion submitted. The Shipper can now review it.");
         window.location.href = "milestones.html";
@@ -331,6 +424,11 @@ async function verifyEvidenceAndRelease() {
     try {
         const account = await getWalletAccount();
         if (account.toLowerCase() !== String(submissionAgreement.shipper_address || "").toLowerCase()) throw new Error("Only the Shipper can verify this milestone.");
+        const proofIsUnchanged = await verifyProofIntegrity();
+        if (!proofIsUnchanged) {
+            throw new Error("The proof file does not match its on-chain SHA-256 hash. Reject the milestone or investigate before releasing payment.");
+        }
+        setProofIntegrityResult("Verified: this file exactly matches the SHA-256 hash recorded on-chain.", "#34d399");
         if (!confirm("Verify this evidence and release the milestone payment to the Carrier?")) return;
 
         const web3 = new Web3(window.ethereum);
