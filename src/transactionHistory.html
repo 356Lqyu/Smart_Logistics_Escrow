@@ -17,26 +17,7 @@
     <main class="main-content">
 
         <!-- Top Bar -->
-        <header class="top-navbar">
-            <div class="page-title-block">
-                <h1 id="page-heading">Transaction History</h1>
-                <div class="network-stats">
-                    <span>Chain ID: <strong id="chain-id">—</strong></span>
-                    <span class="dot"></span>
-                    <span>Gas: <strong id="gas-price">—</strong></span>
-                    <span class="dot"></span>
-                    <span>ETH: <strong id="eth-price">—</strong></span>
-                </div>
-            </div>
-
-            <div class="top-nav-right">
-                <div class="wallet-badge">
-                    <span class="wallet-glow-dot"></span>
-                    <span id="top-wallet-address">Connecting...</span>
-                    <span class="wallet-avatar" aria-hidden="true"></span>
-                </div>
-            </div>
-        </header>
+        <div id="shared-header" data-page-title="Transaction History"></div>
 
         <div class="dashboard-body-placeholder transaction-history-page">
             <!-- STATISTICS -->

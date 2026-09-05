@@ -101,7 +101,37 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 
         // =====================================
-        // 5. LOAD SIDEBAR
+        // 5. LOAD SHARED HEADER
+        // =====================================
+
+        const headerContainer =
+            document.getElementById(
+                "shared-header"
+            );
+
+        if (headerContainer) {
+
+            const headerResponse =
+                await fetch("header.html");
+
+            headerContainer.innerHTML =
+                await headerResponse.text();
+
+            const pageHeading =
+                document.getElementById(
+                    "page-heading"
+                );
+
+            if (pageHeading) {
+                pageHeading.innerText =
+                    headerContainer.dataset.pageTitle ||
+                    "Dashboard";
+            }
+        }
+
+
+        // =====================================
+        // 6. LOAD SIDEBAR
         // =====================================
 
         const response =
@@ -118,7 +148,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 
         // =====================================
-        // 6. GET USER ROLE
+        // 7. GET USER ROLE
         // =====================================
 
         const urlParams =

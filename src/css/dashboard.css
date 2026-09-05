@@ -218,6 +218,40 @@ body {
     display: inline-block;
 }
 
+/* Shared network-stat tooltips: hover with a mouse or focus with a keyboard. */
+.network-stat {
+    position: relative;
+    cursor: help;
+    outline: none;
+}
+
+.network-stat::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    z-index: 110;
+    left: 0;
+    top: calc(100% + 9px);
+    width: 220px;
+    padding: 8px 10px;
+    border: 1px solid rgba(58, 80, 107, 0.8);
+    border-radius: 7px;
+    background: #0b132b;
+    color: #e0e1dd;
+    font-size: 12px;
+    line-height: 1.4;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-3px);
+    transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.network-stat:hover::after,
+.network-stat:focus::after {
+    opacity: 1;
+    transform: translateY(0);
+}
+
 .top-nav-right {
     display: flex;
     align-items: center;
