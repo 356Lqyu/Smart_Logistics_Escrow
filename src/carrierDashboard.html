@@ -1,118 +1,147 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Carrier Dashboard - LogisticsEscrow</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="css/dashboard.css">
-    <link rel="stylesheet" href="css/agreement.css">
-    <link rel="stylesheet" href="css/carrierDashboard.css">
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="css/dashboard.css" />
+    <link rel="stylesheet" href="css/agreement.css" />
+    <link rel="stylesheet" href="css/carrierDashboard.css" />
     <script src="https://unpkg.com/lucide@latest"></script>
-</head>
-<body>
-
+  </head>
+  <body>
     <aside id="sidebar-container" class="sidebar"></aside>
 
     <main class="main-content">
-        <div id="shared-header" data-page-title="Dashboard"></div>
+      <div id="shared-header" data-page-title="Dashboard"></div>
 
-        <div class="dashboard-body-placeholder carrier-dash" id="dashboard-content">
-
-            <!-- Carrier KPIs -->
-            <div class="dash-stats-grid">
-                <article class="dash-kpi-card">
-                    <div class="dash-kpi-top">
-                        <span class="dash-kpi-label">Available Jobs</span>
-                        <div class="dash-kpi-icon blue"><i class="fa-solid fa-briefcase"></i></div>
-                    </div>
-                    <div class="dash-kpi-value" id="kpi-available">0</div>
-                    <div class="dash-kpi-meta positive" id="kpi-available-meta">Open funded jobs</div>
-                </article>
-
-                <article class="dash-kpi-card">
-                    <div class="dash-kpi-top">
-                        <span class="dash-kpi-label">Accepted Jobs</span>
-                        <div class="dash-kpi-icon green"><i class="fa-solid fa-truck-fast"></i></div>
-                    </div>
-                    <div class="dash-kpi-value" id="kpi-accepted">0/3</div>
-                    <div class="dash-kpi-meta muted">Max 3 concurrent</div>
-                </article>
-
-                <article class="dash-kpi-card">
-                    <div class="dash-kpi-top">
-                        <span class="dash-kpi-label">Completed Deliveries</span>
-                        <div class="dash-kpi-icon purple"><i class="fa-solid fa-circle-check"></i></div>
-                    </div>
-                    <div class="dash-kpi-value" id="kpi-completed">0</div>
-                    <div class="dash-kpi-meta positive" id="kpi-completed-meta">— this month</div>
-                </article>
-
-                <article class="dash-kpi-card">
-                    <div class="dash-kpi-top">
-                        <span class="dash-kpi-label">LogiTrust Tokens</span>
-                        <div class="dash-kpi-icon gold"><i class="fa-solid fa-coins"></i></div>
-                    </div>
-                    <div class="dash-kpi-value" id="kpi-tokens">0 LTT</div>
-                    <div class="dash-kpi-meta muted">ERC-20 rewards</div>
-                </article>
+      <div
+        class="dashboard-body-placeholder carrier-dash"
+        id="dashboard-content"
+      >
+        <!-- Carrier KPIs -->
+        <div class="dash-stats-grid">
+          <article class="dash-kpi-card">
+            <div class="dash-kpi-top">
+              <span class="dash-kpi-label">Locked Carrier Stake</span>
+              <div class="dash-kpi-icon blue">
+                <i class="fa-solid fa-lock"></i>
+              </div>
             </div>
+            <div class="dash-kpi-value" id="kpi-locked-stake">0 ETH</div>
+            <div class="dash-kpi-meta muted" id="kpi-locked-stake-meta">
+              Across active agreements
+            </div>
+          </article>
 
-            <!-- Active payment breakdown -->
-            <section class="carrier-payment-card" id="payment-breakdown-card">
-                <div class="dash-volume-header">
-                    <div>
-                        <h2>Payment Breakdown</h2>
-                        <p id="payment-agreement-label">No active delivery yet</p>
-                    </div>
-                    <a class="dash-link-btn" id="payment-details-link" href="milestones.html">Milestones</a>
-                </div>
-                <div class="carrier-milestone-track" id="payment-milestone-track">
-                    <div class="carrier-empty">Accept a job to see milestone payout progress here.</div>
-                </div>
-            </section>
+          <article class="dash-kpi-card">
+            <div class="dash-kpi-top">
+              <span class="dash-kpi-label">Accepted Jobs</span>
+              <div class="dash-kpi-icon green">
+                <i class="fa-solid fa-truck-fast"></i>
+              </div>
+            </div>
+            <div class="dash-kpi-value" id="kpi-accepted">0/3</div>
+            <div class="dash-kpi-meta muted">Max 3 concurrent</div>
+          </article>
 
-            <!-- Available agreements to accept -->
-            <section class="dash-jobs-card">
-                <div class="dash-volume-header">
-                    <div>
-                        <h2>Available Agreements</h2>
-                        <p>Funded jobs waiting for a carrier</p>
-                    </div>
-                    <a class="dash-link-btn" href="agreements.html?role=carrier">View all jobs</a>
-                </div>
-                <div class="table-card dash-jobs-table-wrap">
-                    <table class="agreements-table">
-                        <thead>
-                            <tr>
-                                <th>AGREEMENT ID</th>
-                                <th>PAYLOAD</th>
-                                <th>PAYMENT</th>
-                                <th>PRIORITY</th>
-                                <th>DEADLINE</th>
-                                <th>ACTIONS</th>
-                            </tr>
-                        </thead>
-                        <tbody id="available-jobs-body">
-                            <tr>
-                                <td colspan="6" class="dash-empty-row">
-                                    <i class="fa-solid fa-spinner fa-spin"></i> Loading available jobs...
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+          <article class="dash-kpi-card">
+            <div class="dash-kpi-top">
+              <span class="dash-kpi-label">Completed Deliveries</span>
+              <div class="dash-kpi-icon purple">
+                <i class="fa-solid fa-circle-check"></i>
+              </div>
+            </div>
+            <div class="dash-kpi-value" id="kpi-completed">0</div>
+            <div class="dash-kpi-meta positive" id="kpi-completed-meta">
+              — this month
+            </div>
+          </article>
 
+          <article class="dash-kpi-card">
+            <div class="dash-kpi-top">
+              <span class="dash-kpi-label">LogiTrust Tokens</span>
+              <div class="dash-kpi-icon gold">
+                <i class="fa-solid fa-coins"></i>
+              </div>
+            </div>
+            <div class="dash-kpi-value" id="kpi-tokens">0 LTT</div>
+            <div class="dash-kpi-meta muted">ERC-20 rewards</div>
+          </article>
         </div>
+
+        <!-- Active payment breakdown -->
+        <section class="carrier-payment-card" id="payment-breakdown-card">
+          <div class="dash-volume-header">
+            <div>
+              <h2>Payment Breakdown</h2>
+              <p id="payment-agreement-label">No active delivery yet</p>
+            </div>
+            <a
+              class="dash-link-btn"
+              id="payment-details-link"
+              href="milestones.html"
+              >Milestones</a
+            >
+          </div>
+          <div class="carrier-milestone-track" id="payment-milestone-track">
+            <div class="carrier-empty">
+              Accept a job to see milestone payout progress here.
+            </div>
+          </div>
+        </section>
+
+        <!-- Available agreements to accept -->
+        <section class="dash-jobs-card">
+          <div class="dash-volume-header">
+            <div>
+              <h2>Available Agreements</h2>
+              <p>Funded jobs waiting for a carrier</p>
+            </div>
+            <a class="dash-link-btn" href="agreements.html?role=carrier"
+              >View all jobs</a
+            >
+          </div>
+          <div class="table-card dash-jobs-table-wrap">
+            <table class="agreements-table">
+              <thead>
+                <tr>
+                  <th>AGREEMENT ID</th>
+                  <th>PAYLOAD</th>
+                  <th>PAYMENT</th>
+                  <th>PRIORITY</th>
+                  <th>DEADLINE</th>
+                  <th>ACTIONS</th>
+                </tr>
+              </thead>
+              <tbody id="available-jobs-body">
+                <tr>
+                  <td colspan="6" class="dash-empty-row">
+                    <i class="fa-solid fa-spinner fa-spin"></i> Loading
+                    available jobs...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/web3@1.10.4/dist/web3.min.js"></script>
     <script src="js/supabase.js"></script>
     <script src="js/contract.js"></script>
+    <script src="js/agreementActions.js"></script>
     <script src="js/carrierDashboard.js"></script>
     <script src="js/dashboard.js"></script>
-</body>
+  </body>
 </html>

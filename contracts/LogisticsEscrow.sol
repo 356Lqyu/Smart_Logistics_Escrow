@@ -9,6 +9,7 @@ contract LogisticsEscrow {
     ILogiTrustToken public rewardToken;
 
     uint public constant CARRIER_REWARD = 10 * 10 ** 18;
+    uint public constant CARRIER_STAKE_PERCENTAGE = 30;
     uint private constant MAX_ACTIVE_AGREEMENTS_PER_CARRIER = 3;
 
     event CarrierRewarded(
@@ -58,6 +59,7 @@ contract LogisticsEscrow {
         uint payloadValue;
         uint escrowAmount;
         uint escrowRemaining;
+        uint carrierStake;
         uint deadline;
         uint createdTime;
         Priority priority;
@@ -74,10 +76,14 @@ contract LogisticsEscrow {
     mapping(uint => bytes32) private completionDocumentHashes;
     mapping(uint => address) private completionDocumentSubmitter;
     mapping(address => uint) private activeAgreementsByCarrier;
+    mapping(address => uint) private lockedStakeByCarrier;
 
     event AgreementCreated(uint indexed agreementId, string referenceNo, address indexed shipper, uint escrowAmount);
     event EscrowFunded(uint indexed agreementId, uint amount);
     event AgreementAccepted(uint indexed agreementId, address indexed carrier);
+    event CarrierStakeDeposited(uint indexed agreementId, address indexed carrier, uint amount);
+    event CarrierStakeReturned(uint indexed agreementId, address indexed carrier, uint amount);
+    event CarrierStakeForfeited(uint indexed agreementId, address indexed shipper, uint amount);
     event MilestoneCompletionSubmitted(uint indexed agreementId, uint indexed milestoneIndex, address indexed carrier, bytes32 proofHash);
     event MilestoneVerified(uint indexed agreementId, uint indexed milestoneIndex, address indexed shipper, uint amount);
     event MilestonePayout(uint indexed agreementId, uint indexed milestoneIndex, address indexed carrier, uint amount);
@@ -88,6 +94,10 @@ contract LogisticsEscrow {
     event EscrowRefunded(uint indexed agreementId, address indexed shipper, uint amount);
     event DeadlineExtended(uint indexed agreementId, uint newDeadline, address indexed shipper);
     event CompletionDocumentSubmitted(uint indexed agreementId, address indexed submitter, bytes32 documentHash);
+
+    function getCarrierLockedStake(address carrier) external view returns (uint) {
+        return lockedStakeByCarrier[carrier];
+    }
 
     function register(string memory _name, UserRole _role) external {
         require(!users[msg.sender].registered, "Wallet already registered");
@@ -218,6 +228,7 @@ contract LogisticsEscrow {
             payloadValue: payloadValue,
             escrowAmount: escrowAmount,
             escrowRemaining: escrowAmount,
+            carrierStake: 0,
             deadline: deadline,
             createdTime: block.timestamp,
             priority: priority,
@@ -245,7 +256,7 @@ contract LogisticsEscrow {
         return newId;
     }
 
-    function acceptAgreement(uint agreementId) external {
+    function acceptAgreement(uint agreementId) external payable {
         Agreement storage agreement = agreements[agreementId];
         require(agreement.agreementId != 0, "Agreement does not exist");
         require(agreement.status == AgreementStatus.Created, "Agreement is not available for acceptance");
@@ -257,11 +268,17 @@ contract LogisticsEscrow {
             "Carrier already has 3 active agreements"
         );
 
+        uint requiredStake = (agreement.escrowAmount * CARRIER_STAKE_PERCENTAGE) / 100;
+        require(msg.value == requiredStake, "Carrier stake must equal 30% of escrow");
+
         agreement.carrier = payable(msg.sender);
+        agreement.carrierStake = msg.value;
         agreement.status = AgreementStatus.InProgress;
         activeAgreementsByCarrier[msg.sender]++;
+        lockedStakeByCarrier[msg.sender] += msg.value;
 
         emit AgreementAccepted(agreementId, msg.sender);
+        emit CarrierStakeDeposited(agreementId, msg.sender, msg.value);
     }
 
     function submitMilestoneCompletion(uint agreementId, bytes32 proofHash) external {
@@ -324,7 +341,17 @@ contract LogisticsEscrow {
             agreement.status = AgreementStatus.Completed;
             activeAgreementsByCarrier[agreement.carrier]--;
 
+            uint stake = agreement.carrierStake;
+            agreement.carrierStake = 0;
+            lockedStakeByCarrier[agreement.carrier] -= stake;
+
             emit AgreementCompleted(agreementId);
+
+            if (stake > 0) {
+                (bool stakeReturned,) = agreement.carrier.call{value: stake}("");
+                require(stakeReturned, "Stake return failed");
+                emit CarrierStakeReturned(agreementId, agreement.carrier, stake);
+            }
 
             rewardToken.mintReward(agreement.carrier, CARRIER_REWARD);
             emit CarrierRewarded(agreementId, agreement.carrier, CARRIER_REWARD);
@@ -381,18 +408,23 @@ contract LogisticsEscrow {
         bool wasInProgress = agreement.status == AgreementStatus.InProgress;
 
         uint amount = agreement.escrowRemaining;
+        uint forfeitedStake = agreement.carrierStake;
         agreement.escrowRemaining = 0;
         agreement.escrowAmount = 0;
+        agreement.carrierStake = 0;
         agreement.status = AgreementStatus.Expired;
 
         if (wasInProgress) {
             activeAgreementsByCarrier[agreement.carrier]--;
+            lockedStakeByCarrier[agreement.carrier] -= forfeitedStake;
         }
 
-        if (amount > 0) {
-            (bool success,) = agreement.shipper.call{value: amount}("");
+        uint totalToShipper = amount + forfeitedStake;
+        if (totalToShipper > 0) {
+            (bool success,) = agreement.shipper.call{value: totalToShipper}("");
             require(success, "Refund failed");
-            emit EscrowRefunded(agreementId, agreement.shipper, amount);
+            if (amount > 0) emit EscrowRefunded(agreementId, agreement.shipper, amount);
+            if (forfeitedStake > 0) emit CarrierStakeForfeited(agreementId, agreement.shipper, forfeitedStake);
         }
 
         emit AgreementExpired(agreementId);

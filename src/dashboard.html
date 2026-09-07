@@ -1,110 +1,133 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Shipper Dashboard - LogisticsEscrow</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="css/dashboard.css">
-    <link rel="stylesheet" href="css/agreement.css">
-    <link rel="stylesheet" href="css/carrierDashboard.css">
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="css/dashboard.css" />
+    <link rel="stylesheet" href="css/agreement.css" />
+    <link rel="stylesheet" href="css/carrierDashboard.css" />
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-</head>
-<body>
-
+  </head>
+  <body>
     <aside id="sidebar-container" class="sidebar"></aside>
 
     <main class="main-content">
-        <div id="shared-header" data-page-title="Dashboard"></div>
+      <div id="shared-header" data-page-title="Dashboard"></div>
 
-        <div class="dashboard-body-placeholder shipper-dash" id="dashboard-content">
-
-            <div class="dash-stats-grid">
-                <article class="dash-kpi-card">
-                    <div class="dash-kpi-top">
-                        <span class="dash-kpi-label">Total Agreements</span>
-                        <div class="dash-kpi-icon blue"><i class="fa-regular fa-file-lines"></i></div>
-                    </div>
-                    <div class="dash-kpi-value" id="shipper-kpi-total">0</div>
-                    <div class="dash-kpi-meta positive" id="shipper-kpi-total-meta">— this month</div>
-                </article>
-
-                <article class="dash-kpi-card">
-                    <div class="dash-kpi-top">
-                        <span class="dash-kpi-label">Active Contracts</span>
-                        <div class="dash-kpi-icon green"><i class="fa-solid fa-wave-square"></i></div>
-                    </div>
-                    <div class="dash-kpi-value" id="shipper-kpi-active">0</div>
-                    <div class="dash-kpi-meta muted" id="shipper-kpi-active-meta">Pending milestones</div>
-                </article>
-
-                <article class="dash-kpi-card">
-                    <div class="dash-kpi-top">
-                        <span class="dash-kpi-label">Escrow Balance</span>
-                        <div class="dash-kpi-icon gold"><i class="fa-brands fa-ethereum"></i></div>
-                    </div>
-                    <div class="dash-kpi-value" id="shipper-kpi-escrow">0.00</div>
-                    <div class="dash-kpi-meta positive">ETH locked in escrow</div>
-                </article>
-
-                <article class="dash-kpi-card">
-                    <div class="dash-kpi-top">
-                        <span class="dash-kpi-label">Completed</span>
-                        <div class="dash-kpi-icon purple"><i class="fa-solid fa-circle-check"></i></div>
-                    </div>
-                    <div class="dash-kpi-value" id="shipper-kpi-completed">0</div>
-                    <div class="dash-kpi-meta positive" id="shipper-kpi-completed-meta">— success rate</div>
-                </article>
+      <div
+        class="dashboard-body-placeholder shipper-dash"
+        id="dashboard-content"
+      >
+        <div class="dash-stats-grid">
+          <article class="dash-kpi-card">
+            <div class="dash-kpi-top">
+              <span class="dash-kpi-label">Total Agreements</span>
+              <div class="dash-kpi-icon blue">
+                <i class="fa-regular fa-file-lines"></i>
+              </div>
             </div>
+            <div class="dash-kpi-value" id="shipper-kpi-total">0</div>
+            <div class="dash-kpi-meta positive" id="shipper-kpi-total-meta">
+              — this month
+            </div>
+          </article>
 
-            <section class="dash-volume-card">
-                <div class="dash-volume-header">
-                    <div>
-                        <h2>ETH Escrow Volume</h2>
-                        <p>Total ETH locked per month</p>
-                    </div>
-                    <div class="dash-range-pill" id="shipper-chart-range">—</div>
-                </div>
-                <div class="dash-chart-wrap">
-                    <canvas id="shipper-volume-chart" height="110"></canvas>
-                </div>
-            </section>
+          <article class="dash-kpi-card">
+            <div class="dash-kpi-top">
+              <span class="dash-kpi-label">Active Contracts</span>
+              <div class="dash-kpi-icon green">
+                <i class="fa-solid fa-wave-square"></i>
+              </div>
+            </div>
+            <div class="dash-kpi-value" id="shipper-kpi-active">0</div>
+            <div class="dash-kpi-meta muted" id="shipper-kpi-active-meta">
+              Pending milestones
+            </div>
+          </article>
 
-            <section class="dash-jobs-card">
-                <div class="dash-volume-header">
-                    <div>
-                        <h2>My Recent Agreements</h2>
-                        <p>Shipments you created and funded</p>
-                    </div>
-                    <a class="dash-link-btn" href="createAgreement.html">+ New Agreement</a>
-                </div>
-                <div class="table-card dash-jobs-table-wrap">
-                    <table class="agreements-table">
-                        <thead>
-                            <tr>
-                                <th>REFERENCE</th>
-                                <th>CARRIER</th>
-                                <th>PAYLOAD</th>
-                                <th>ESCROW</th>
-                                <th>DEADLINE</th>
-                                <th>STATUS</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody id="shipper-agreements-body">
-                            <tr>
-                                <td colspan="7" class="dash-empty-row">
-                                    <i class="fa-solid fa-spinner fa-spin"></i> Loading agreements...
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+          <article class="dash-kpi-card">
+            <div class="dash-kpi-top">
+              <span class="dash-kpi-label">Escrow Balance</span>
+              <div class="dash-kpi-icon gold">
+                <i class="fa-brands fa-ethereum"></i>
+              </div>
+            </div>
+            <div class="dash-kpi-value" id="shipper-kpi-escrow">0.00</div>
+            <div class="dash-kpi-meta positive">ETH locked in escrow</div>
+          </article>
 
+          <article class="dash-kpi-card">
+            <div class="dash-kpi-top">
+              <span class="dash-kpi-label">Completed</span>
+              <div class="dash-kpi-icon purple">
+                <i class="fa-solid fa-circle-check"></i>
+              </div>
+            </div>
+            <div class="dash-kpi-value" id="shipper-kpi-completed">0</div>
+            <div class="dash-kpi-meta positive" id="shipper-kpi-completed-meta">
+              — success rate
+            </div>
+          </article>
         </div>
+
+        <section class="dash-volume-card">
+          <div class="dash-volume-header">
+            <div>
+              <h2>ETH Escrow Volume</h2>
+              <p>Total ETH locked per month</p>
+            </div>
+            <div class="dash-range-pill" id="shipper-chart-range">—</div>
+          </div>
+          <div class="dash-chart-wrap">
+            <canvas id="shipper-volume-chart" height="110"></canvas>
+          </div>
+        </section>
+
+        <section class="dash-jobs-card">
+          <div class="dash-volume-header">
+            <div>
+              <h2>My Recent Agreements</h2>
+              <p>Shipments you created and funded</p>
+            </div>
+            <a class="dash-link-btn" href="createAgreement.html"
+              >+ New Agreement</a
+            >
+          </div>
+          <div class="table-card dash-jobs-table-wrap">
+            <table class="agreements-table">
+              <thead>
+                <tr>
+                  <th>REFERENCE</th>
+                  <th>CARRIER</th>
+                  <th>PAYLOAD</th>
+                  <th>ESCROW</th>
+                  <th>DEADLINE</th>
+                  <th>STATUS</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="shipper-agreements-body">
+                <tr>
+                  <td colspan="7" class="dash-empty-row">
+                    <i class="fa-solid fa-spinner fa-spin"></i> Loading
+                    agreements...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -112,5 +135,5 @@
     <script src="js/supabase.js"></script>
     <script src="js/dashboard.js"></script>
     <script src="js/shipperDashboard.js"></script>
-</body>
+  </body>
 </html>

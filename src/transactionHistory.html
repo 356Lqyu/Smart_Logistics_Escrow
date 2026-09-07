@@ -1,138 +1,252 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Transaction History - LogisticsEscrow</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="css/dashboard.css">
-    <link rel="stylesheet" href="css/transaction.css">
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="css/dashboard.css" />
+    <link rel="stylesheet" href="css/transaction.css" />
     <script src="https://unpkg.com/lucide@latest"></script>
-</head>
+  </head>
 
-<body>
+  <body>
     <aside id="sidebar-container" class="sidebar"></aside>
     <main class="main-content">
+      <div id="shared-header" data-page-title="Transaction History"></div>
 
-        <!-- Top Bar -->
-        <div id="shared-header" data-page-title="Transaction History"></div>
+      <div class="dashboard-body-placeholder transaction-history-page">
+        <section class="transaction-stats-grid">
+          <!-- ESCROW BALANCE -->
+          <div class="transaction-stat-card">
+            <div class="stat-card-content">
+              <span class="stat-label">ESCROW BALANCE</span>
+              <div class="stat-value-row">
+                <span class="eth-symbol">◆</span>
+                <strong id="escrow-balance">0.00</strong>
+              </div>
+              <span class="stat-change positive" id="escrow-meta"
+                >Locked on-chain</span
+              >
+            </div>
+            <div class="stat-icon escrow-icon">
+              <i class="fa-brands fa-ethereum"></i>
+            </div>
+          </div>
 
-        <div class="dashboard-body-placeholder transaction-history-page">
-            <!-- STATISTICS -->
-            <section class="transaction-stats-grid">
+          <!-- ETH EARNED -->
+          <div class="transaction-stat-card">
+            <div class="stat-card-content">
+              <span class="stat-label">ETH RELEASED </span>
+              <div class="stat-value-row">
+                <span class="eth-symbol">◆</span>
+                <strong id="eth-earned">0.00</strong>
+              </div>
+              <span class="stat-change positive" id="earned-meta"
+                >Released from agreements</span
+              >
+            </div>
+            <div class="stat-icon earned-icon">
+              <i class="fa-solid fa-arrow-trend-up"></i>
+            </div>
+          </div>
 
-                <!-- ESCROW BALANCE -->
-                <div class="transaction-stat-card">
-                    <div class="stat-card-content">
-                        <span class="stat-label">ESCROW BALANCE</span>
-                        <div class="stat-value-row">
-                            <span class="eth-symbol">◆</span>
-                            <strong id="escrow-balance">0.00</strong>
-                        </div>
-                        <span class="stat-change positive" id="escrow-meta">Locked on-chain</span>
-                    </div>
-                    <div class="stat-icon escrow-icon">
-                        <i class="fa-brands fa-ethereum"></i>
-                    </div>
-                </div>
+          <!-- Shippers only: ETH returned when an agreement is cancelled or expires. -->
+          <div class="transaction-stat-card" id="eth-refunded-card">
+            <div class="stat-card-content">
+              <span class="stat-label">ETH REFUNDED</span>
+              <div class="stat-value-row">
+                <span class="eth-symbol">◆</span>
+                <strong id="eth-refunded">0.00</strong>
+              </div>
+              <span class="stat-change positive">Returned to your wallet</span>
+            </div>
+            <div class="stat-icon refund-icon">
+              <i class="fa-solid fa-arrow-rotate-left"></i>
+            </div>
+          </div>
 
+          <div class="transaction-stat-card">
+            <div class="stat-card-content">
+              <span class="stat-label">COMPLETED</span>
+              <div class="stat-value-row">
+                <strong id="completed-count">0</strong>
+              </div>
+              <span class="stat-change positive" id="completed-rate"
+                >↗ 0.0% rate</span
+              >
+            </div>
+            <div class="stat-icon completed-icon">
+              <i class="fa-regular fa-circle-check"></i>
+            </div>
+          </div>
 
-                <!-- ETH EARNED -->
+          <!-- Carriers only: performance stake settlement totals. -->
+          <div class="transaction-stat-card" id="carrier-stake-locked-card">
+            <div class="stat-card-content">
+              <span class="stat-label">STAKE LOCKED</span>
+              <div class="stat-value-row">
+                <span class="eth-symbol">◆</span>
+                <strong id="carrier-stake-locked">0.00</strong>
+              </div>
+              <span class="stat-change neutral">Locked for agreements</span>
+            </div>
+            <div class="stat-icon escrow-icon">
+              <i class="fa-solid fa-lock"></i>
+            </div>
+          </div>
 
-                <div class="transaction-stat-card">
-                    <div class="stat-card-content">
-                        <span class="stat-label">ETH RELEASED </span>
-                        <div class="stat-value-row">
-                            <span class="eth-symbol">◆</span>
-                            <strong id="eth-earned">0.00</strong>
-                        </div>
-                        <span class="stat-change positive" id="earned-meta">Released from agreements</span>
-                    </div>
-                    <div class="stat-icon earned-icon">
-                        <i class="fa-solid fa-arrow-trend-up"></i>
-                    </div>
-                </div>
+          <div class="transaction-stat-card" id="carrier-stake-returned-card">
+            <div class="stat-card-content">
+              <span class="stat-label">STAKE RETURNED</span>
+              <div class="stat-value-row">
+                <span class="eth-symbol">◆</span>
+                <strong id="carrier-stake-returned">0.00</strong>
+              </div>
+              <span class="stat-change positive"
+                >Returned after completion</span
+              >
+            </div>
+            <div class="stat-icon earned-icon">
+              <i class="fa-solid fa-unlock"></i>
+            </div>
+          </div>
 
-                <div class="transaction-stat-card">
-                    <div class="stat-card-content">
-                        <span class="stat-label">COMPLETED</span>
-                        <div class="stat-value-row">
-                            <strong id="completed-count">0</strong>
-                        </div>
-                        <span class="stat-change positive" id="completed-rate">↗ 0.0% rate</span>
-                    </div>
-                    <div class="stat-icon completed-icon">
-                        <i class="fa-regular fa-circle-check"></i>
-                    </div>
-                </div>
+          <div class="transaction-stat-card" id="shipper-stake-forfeited-card">
+            <div class="stat-card-content">
+              <span class="stat-label">STAKE FORFEITED TO YOU</span>
+              <div class="stat-value-row">
+                <span class="eth-symbol">◆</span>
+                <strong id="shipper-stake-forfeited">0.00</strong>
+              </div>
+              <span class="stat-change positive">Carrier stake received</span>
+            </div>
+            <div class="stat-icon earned-icon">
+              <i class="fa-solid fa-hand-holding-dollar"></i>
+            </div>
+          </div>
 
+          <!-- REFUNDS -->
+          <div class="transaction-stat-card">
+            <div class="stat-card-content">
+              <span class="stat-label">REFUNDS</span>
+              <div class="stat-value-row">
+                <strong id="refund-count">0</strong>
+              </div>
+              <span class="stat-change neutral" id="refund-rate"
+                >0.0% of total</span
+              >
+            </div>
+            <div class="stat-icon refund-icon">
+              <i class="fa-solid fa-arrow-rotate-left"></i>
+            </div>
+          </div>
+        </section>
 
-                <!-- REFUNDS -->
+        <!-- TRANSACTION LEDGER -->
+        <section class="transaction-ledger-card">
+          <!-- TABS -->
+          <div class="transaction-tabs">
+            <h3>Transaction Ledger</h3>
+          </div>
+          <!-- FILTER AREA -->
+          <div class="transaction-filter-bar">
+            <!-- SEARCH -->
+            <div class="transaction-search">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input
+                type="text"
+                id="agreement-search"
+                placeholder="Search Agreement ID"
+              />
+            </div>
+            <!-- FILTER BUTTONS -->
+            <div class="transaction-filter-buttons">
+              <button class="transaction-filter-btn active" data-filter="all">
+                All
+              </button>
+              <button class="transaction-filter-btn" data-filter="funded">
+                Funded
+              </button>
+              <button class="transaction-filter-btn" data-filter="accepted">
+                Accepted
+              </button>
+              <button class="transaction-filter-btn" data-filter="stake-locked">
+                Stake Locked
+              </button>
+              <button class="transaction-filter-btn" data-filter="pending">
+                Pending
+              </button>
+              <button class="transaction-filter-btn" data-filter="verified">
+                Verified
+              </button>
+              <button class="transaction-filter-btn" data-filter="released">
+                Released
+              </button>
+              <button
+                class="transaction-filter-btn"
+                data-filter="stake-returned"
+              >
+                Stake Returned
+              </button>
+              <button
+                class="transaction-filter-btn"
+                data-filter="stake-forfeited"
+              >
+                Stake Forfeited
+              </button>
+              <button class="transaction-filter-btn" data-filter="refunded">
+                Refunded
+              </button>
+              <button class="transaction-filter-btn" data-filter="extensions">
+                Extensions
+              </button>
+              <button class="transaction-filter-btn" data-filter="completed">
+                Completed
+              </button>
+              <button class="transaction-filter-btn" data-filter="rejected">
+                Rejected
+              </button>
+              <button class="transaction-filter-btn" data-filter="cancelled">
+                Cancelled
+              </button>
+              <button class="transaction-filter-btn" data-filter="expired">
+                Expired
+              </button>
+            </div>
+          </div>
 
-                <div class="transaction-stat-card">
-                    <div class="stat-card-content">
-                        <span class="stat-label">REFUNDS</span>
-                        <div class="stat-value-row">
-                            <strong id="refund-count">0</strong>
-                        </div>
-                        <span class="stat-change neutral" id="refund-rate">0.0% of total</span>
-                    </div>
-                    <div class="stat-icon refund-icon">
-                        <i class="fa-solid fa-arrow-rotate-left"></i>
-                    </div>
-                </div>
-            </section>
-
-            <!-- TRANSACTION LEDGER -->
-            <section class="transaction-ledger-card">
-                <!-- TABS -->
-                <div class="transaction-tabs">
-                    <h3>Transaction Ledger</h3>
-                </div>
-                <!-- FILTER AREA -->
-                <div class="transaction-filter-bar">
-                    <!-- SEARCH -->
-                    <div class="transaction-search">
-                        <i class="fa-solid fa-magnifying-glass"></i>
-                        <input type="text" id="agreement-search" placeholder="Search Agreement ID">
-                    </div>
-                    <!-- FILTER BUTTONS -->
-                    <div class="transaction-filter-buttons">
-                        <button class="transaction-filter-btn active" data-filter="all">All</button>
-                        <button class="transaction-filter-btn" data-filter="funded">Funded</button>
-                        <button class="transaction-filter-btn" data-filter="pending">Pending</button>
-                        <button class="transaction-filter-btn" data-filter="verified">Verified</button>
-                        <button class="transaction-filter-btn" data-filter="extensions">Extensions</button>
-                        <button class="transaction-filter-btn" data-filter="completed">Completed</button>
-                        <button class="transaction-filter-btn" data-filter="rejected">Rejected</button>
-                        <button class="transaction-filter-btn" data-filter="cancelled">Cancelled</button>
-                        <button class="transaction-filter-btn" data-filter="expired">Expired</button>
-                    </div>
-                </div>
-
-                <!-- LEDGER TABLE -->
-                <div id="transaction-ledger-content" class="transaction-table-wrapper">
-                    <table class="transaction-history-table">
-                        <thead>
-                            <tr>
-                                <th>DATE</th>
-                                <th>AGREEMENT</th>
-                                <th>TYPE</th>
-                                <th>AMOUNT (ETH)</th>
-                                <th>DETAILS</th>
-                                <th>STATUS</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody id="transaction-table-body">
-                            <!-- Generated by JavaScript -->
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-        </div>
+          <!-- LEDGER TABLE -->
+          <div
+            id="transaction-ledger-content"
+            class="transaction-table-wrapper"
+          >
+            <table class="transaction-history-table">
+              <thead>
+                <tr>
+                  <th>DATE</th>
+                  <th>AGREEMENT</th>
+                  <th>TYPE</th>
+                  <th>AMOUNT (ETH)</th>
+                  <th>DETAILS</th>
+                  <th>STATUS</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="transaction-table-body">
+                <!-- Generated by JavaScript -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/web3@1.10.4/dist/web3.min.js"></script>
@@ -141,6 +255,5 @@
     <script src="js/supabase.js"></script>
     <script src="js/dashboard.js"></script>
     <script src="js/transactionHistory.js"></script>
-</body>
-
+  </body>
 </html>

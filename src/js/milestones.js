@@ -7,119 +7,60 @@ let milestoneRole = null;
 let milestoneAgreements = [];
 let expandedAgreements = new Set();
 
-
 // =====================================================
 // PAGE INITIALIZATION
 // =====================================================
 
 document.addEventListener("DOMContentLoaded", async () => {
+  try {
+    console.log("Milestone page initialization started...");
 
-    try {
+    await initialiseMilestonePage();
+  } catch (error) {
+    console.error("Milestone page initialization failed:", error);
 
-        console.log(
-            "Milestone page initialization started..."
-        );
-
-        await initialiseMilestonePage();
-
-    }
-
-    catch (error) {
-
-        console.error(
-            "Milestone page initialization failed:",
-            error
-        );
-
-        showPageError(
-            error?.message ||
-            String(error)
-        );
-
-    }
-
+    showPageError(error?.message || String(error));
+  }
 });
-
 
 // =====================================================
 // INITIALISE MILESTONE PAGE
 // =====================================================
 
 async function initialiseMilestonePage() {
+  milestoneWallet = localStorage.getItem("wallet");
 
-    milestoneWallet =
-        localStorage.getItem("wallet");
+  if (!milestoneWallet) {
+    throw new Error("Wallet information not found. Please reconnect MetaMask.");
+  }
 
+  milestoneRole = String(
+    localStorage.getItem("userRole") || localStorage.getItem("role") || "",
+  ).toLowerCase();
 
-    if (!milestoneWallet) {
+  if (milestoneRole === "1" || milestoneRole === "shipper") {
+    milestoneRole = "shipper";
+  } else if (milestoneRole === "2" || milestoneRole === "carrier") {
+    milestoneRole = "carrier";
+  } else {
+    throw new Error("User role not found.");
+  }
 
-        throw new Error(
-            "Wallet information not found. Please reconnect MetaMask."
-        );
-
-    }
-
-
-    milestoneRole =
-        String(
-            localStorage.getItem("userRole") ||
-            localStorage.getItem("role") ||
-            ""
-        ).toLowerCase();
-
-
-    if (
-        milestoneRole === "1" ||
-        milestoneRole === "shipper"
-    ) {
-
-        milestoneRole = "shipper";
-
-    }
-
-    else if (
-        milestoneRole === "2" ||
-        milestoneRole === "carrier"
-    ) {
-
-        milestoneRole = "carrier";
-
-    }
-
-    else {
-
-        throw new Error(
-            "User role not found."
-        );
-
-    }
-
-
-    await loadInProgressAgreements();
-
+  await loadInProgressAgreements();
 }
-
 
 // =====================================================
 // LOAD IN-PROGRESS AGREEMENTS
 // =====================================================
 
 async function loadInProgressAgreements() {
+  const container = document.getElementById("milestones-page-container");
 
-    const container =
-        document.getElementById(
-            "milestones-page-container"
-        );
+  if (!container) {
+    return;
+  }
 
-
-    if (!container) {
-
-        return;
-
-    }
-
-
-    container.innerHTML = `
+  container.innerHTML = `
 
         <div class="details-loading">
 
@@ -133,19 +74,13 @@ async function loadInProgressAgreements() {
 
     `;
 
+  try {
+    const wallet = String(milestoneWallet).toLowerCase();
 
-    try {
-
-        const wallet =
-            String(
-                milestoneWallet
-            ).toLowerCase();
-
-
-        let agreementQuery =
-            supabaseClient
-                .from("agreements")
-                .select(`
+    let agreementQuery = supabaseClient
+      .from("agreements")
+      .select(
+        `
                     agreement_id,
                     reference_no,
                     shipper_address,
@@ -169,89 +104,46 @@ async function loadInProgressAgreements() {
                     cancelled_at,
                     expired_at,
                     refunded_amount
-                `)
-                .eq(
-                    "status",
-                    "In Progress"
-                );
+                `,
+      )
+      .eq("status", "In Progress");
 
+    if (milestoneRole === "carrier") {
+      agreementQuery = agreementQuery.eq("carrier_address", wallet);
+    } else if (milestoneRole === "shipper") {
+      agreementQuery = agreementQuery.eq("shipper_address", wallet);
+    }
 
-        if (
-            milestoneRole === "carrier"
-        ) {
+    const { data: agreementRows, error: agreementError } =
+      await agreementQuery.order("agreement_id", {
+        ascending: false,
+      });
 
-            agreementQuery =
-                agreementQuery.eq(
-                    "carrier_address",
-                    wallet
-                );
+    if (agreementError) {
+      throw agreementError;
+    }
 
-        }
+    // A deadline makes milestone work unavailable immediately, even when
+    // the shipper has not yet submitted the on-chain expiry transaction.
+    const now = Math.floor(Date.now() / 1000);
+    milestoneAgreements = (agreementRows || []).filter(
+      (agreement) => Number(agreement.deadline || 0) > now,
+    );
 
-        else if (
-            milestoneRole === "shipper"
-        ) {
+    if (milestoneAgreements.length === 0) {
+      renderNoAgreements();
 
-            agreementQuery =
-                agreementQuery.eq(
-                    "shipper_address",
-                    wallet
-                );
+      return;
+    }
 
-        }
+    const agreementIds = milestoneAgreements.map((agreement) =>
+      Number(agreement.agreement_id),
+    );
 
-
-        const {
-            data: agreementRows,
-            error: agreementError
-        } =
-            await agreementQuery
-                .order(
-                    "agreement_id",
-                    {
-                        ascending: false
-                    }
-                );
-
-
-        if (agreementError) {
-
-            throw agreementError;
-
-        }
-
-
-        milestoneAgreements =
-            agreementRows || [];
-
-
-        if (
-            milestoneAgreements.length === 0
-        ) {
-
-            renderNoAgreements();
-
-            return;
-
-        }
-
-
-        const agreementIds =
-            milestoneAgreements.map(
-                agreement =>
-                    Number(
-                        agreement.agreement_id
-                    )
-            );
-
-
-        const {
-            data: milestoneRows,
-            error: milestoneError
-        } =
-            await supabaseClient
-                .from("milestones")
-                .select(`
+    const { data: milestoneRows, error: milestoneError } = await supabaseClient
+      .from("milestones")
+      .select(
+        `
                     id,
                     agreement_id,
                     milestone_index,
@@ -263,319 +155,258 @@ async function loadInProgressAgreements() {
                     verified_at,
                     paid,
                     paid_at
-                `)
-                .in(
-                    "agreement_id",
-                    agreementIds
-                )
-                .order(
-                    "milestone_index",
-                    {
-                        ascending: true
-                    }
-                );
+                `,
+      )
+      .in("agreement_id", agreementIds)
+      .order("milestone_index", {
+        ascending: true,
+      });
 
-        // After loading milestoneRows, query latest rejections
-        const { data: rejectionTransactions } = await supabaseClient
-            .from("transactions")
-            .select("agreement_id, details")
-            .in("agreement_id", agreementIds)
-            .eq("event_type", "MilestoneRejected")
-            .order("created_at", { ascending: false });
+    // After loading milestoneRows, query latest rejections
+    const { data: rejectionTransactions } = await supabaseClient
+      .from("transactions")
+      .select("agreement_id, details")
+      .in("agreement_id", agreementIds)
+      .eq("event_type", "MilestoneRejected")
+      .order("created_at", { ascending: false });
 
-        milestoneRows.forEach(milestone => {
-            milestone.isRejected = false;
-            milestone.rejectionReason = null;
+    milestoneRows.forEach((milestone) => {
+      milestone.isRejected = false;
+      milestone.rejectionReason = null;
 
-            if (rejectionTransactions) {
-                const match = rejectionTransactions.find(tx =>
-                    Number(tx.agreement_id) === Number(milestone.agreement_id) &&
-                    Number(tx.details?.milestone_index) === Number(milestone.milestone_index)
-                );
-                if (match && !normalizeBool(milestone.completed)) {
-                    milestone.isRejected = true;
-                    milestone.rejectionReason = match.details.reason;
-                }
-            }
-        });
-
-
-        if (milestoneError) {
-
-            throw milestoneError;
-
-        }
-
-
-        if (typeof window.ethereum !== "undefined") {
-            try {
-                const web3 = new Web3(window.ethereum);
-                const contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
-
-                for (let agreement of milestoneAgreements) {
-                    const agreementIdNum = Number(agreement.agreement_id);
-                    const chainAgreement = await contract.methods.getAgreementBasic(agreementIdNum).call();
-
-                    agreement.blockchain_escrow = chainAgreement.escrowAmount;
-                    agreement.blockchain_escrow_remaining = chainAgreement.escrowRemaining;
-                    agreement.blockchain_shipper = chainAgreement.shipper;
-                    agreement.blockchain_carrier = chainAgreement.carrier;
-                    agreement.blockchain_status = Number(chainAgreement.status);
-                    agreement.blockchain_current_milestone = Number(chainAgreement.currentMilestone);
-
-                    const count = Number(await contract.methods.getMilestoneCount(agreementIdNum).call());
-                    const agreementMilestones = milestoneRows.filter(m => Number(m.agreement_id) === agreementIdNum);
-
-                    if (count === agreementMilestones.length) {
-                        for (let i = 0; i < count; i++) {
-                            const chain = await contract.methods.getMilestone(agreementIdNum, i).call();
-                            const targetMilestone = agreementMilestones.find(m => Number(m.milestone_index) === i);
-                            if (targetMilestone) {
-                                targetMilestone.completed = normalizeBool(chain.completed);
-                                targetMilestone.verified = normalizeBool(chain.verified);
-                                targetMilestone.paid = normalizeBool(chain.paid);
-                            }
-                        }
-                    }
-                }
-            } catch (chainErr) {
-                console.warn("Could not sync blockchain state for milestone page:", chainErr);
-            }
-        }
-
-
-        const milestoneMap = {};
-
-
-        (
-            milestoneRows || []
-        ).forEach(
-            milestone => {
-
-                const agreementId =
-                    Number(
-                        milestone.agreement_id
-                    );
-
-
-                if (
-                    !milestoneMap[
-                    agreementId
-                    ]
-                ) {
-
-                    milestoneMap[
-                        agreementId
-                    ] = [];
-
-                }
-
-
-                milestoneMap[
-                    agreementId
-                ].push(
-                    milestone
-                );
-
-            }
+      if (rejectionTransactions) {
+        const match = rejectionTransactions.find(
+          (tx) =>
+            Number(tx.agreement_id) === Number(milestone.agreement_id) &&
+            Number(tx.details?.milestone_index) ===
+              Number(milestone.milestone_index),
         );
+        if (match && !normalizeBool(milestone.completed)) {
+          milestone.isRejected = true;
+          milestone.rejectionReason = match.details.reason;
+        }
+      }
+    });
 
-
-        milestoneAgreements.forEach(
-            agreement => {
-
-                const agreementId =
-                    Number(
-                        agreement.agreement_id
-                    );
-
-
-                agreement.milestones =
-                    milestoneMap[
-                    agreementId
-                    ] || [];
-
-            }
-        );
-
-
-        renderAgreements();
-
+    if (milestoneError) {
+      throw milestoneError;
     }
 
-    catch (error) {
+    if (typeof window.ethereum !== "undefined") {
+      try {
+        const web3 = new Web3(window.ethereum);
+        const contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
 
-        console.error(
-            "Failed to load milestone items:",
-            error
+        for (let agreement of milestoneAgreements) {
+          const agreementIdNum = Number(agreement.agreement_id);
+          const chainAgreement = await contract.methods
+            .getAgreementBasic(agreementIdNum)
+            .call();
+
+          agreement.blockchain_escrow = chainAgreement.escrowAmount;
+          agreement.blockchain_escrow_remaining =
+            chainAgreement.escrowRemaining;
+          agreement.blockchain_shipper = chainAgreement.shipper;
+          agreement.blockchain_carrier = chainAgreement.carrier;
+          agreement.blockchain_status = Number(chainAgreement.status);
+          agreement.blockchain_current_milestone = Number(
+            chainAgreement.currentMilestone,
+          );
+
+          const count = Number(
+            await contract.methods.getMilestoneCount(agreementIdNum).call(),
+          );
+          const agreementMilestones = milestoneRows.filter(
+            (m) => Number(m.agreement_id) === agreementIdNum,
+          );
+
+          if (count === agreementMilestones.length) {
+            for (let i = 0; i < count; i++) {
+              const chain = await contract.methods
+                .getMilestone(agreementIdNum, i)
+                .call();
+              const targetMilestone = agreementMilestones.find(
+                (m) => Number(m.milestone_index) === i,
+              );
+              if (targetMilestone) {
+                targetMilestone.completed = normalizeBool(chain.completed);
+                targetMilestone.verified = normalizeBool(chain.verified);
+                targetMilestone.paid = normalizeBool(chain.paid);
+              }
+            }
+          }
+        }
+      } catch (chainErr) {
+        console.warn(
+          "Could not sync blockchain state for milestone page:",
+          chainErr,
         );
+      }
+    }
 
+    const milestoneMap = {};
 
-        container.innerHTML = `
+    (milestoneRows || []).forEach((milestone) => {
+      const agreementId = Number(milestone.agreement_id);
+
+      if (!milestoneMap[agreementId]) {
+        milestoneMap[agreementId] = [];
+      }
+
+      milestoneMap[agreementId].push(milestone);
+    });
+
+    milestoneAgreements.forEach((agreement) => {
+      const agreementId = Number(agreement.agreement_id);
+
+      agreement.milestones = milestoneMap[agreementId] || [];
+    });
+
+    renderAgreements();
+  } catch (error) {
+    console.error("Failed to load milestone items:", error);
+
+    container.innerHTML = `
 
             <div class="details-error">
 
                 Error loading milestones:
-                ${escapeHtml(
-            error?.message ||
-            String(error)
-        )}
+                ${escapeHtml(error?.message || String(error))}
 
             </div>
 
         `;
-
-    }
-
+  }
 }
-
 
 // =====================================================
 // RENDER AGREEMENTS
 // =====================================================
 
 function renderAgreements() {
+  renderVerificationReminderBar();
 
-    renderVerificationReminderBar();
+  const container = document.getElementById("milestones-page-container");
 
-    const container =
-        document.getElementById(
-            "milestones-page-container"
-        );
+  if (!container) {
+    return;
+  }
 
+  container.innerHTML = "";
 
-    if (!container) {
-        return;
+  milestoneAgreements.forEach((agreement) => {
+    const agreementId = Number(agreement.agreement_id);
+
+    const milestones = agreement.milestones || [];
+
+    const isExpanded = expandedAgreements.has(agreementId);
+
+    let completedPercentage = 0;
+
+    milestones.forEach((milestone) => {
+      const completed = normalizeBool(milestone.completed);
+      const verified = normalizeBool(milestone.verified);
+      const paid = normalizeBool(milestone.paid);
+
+      if (completed && verified && paid) {
+        completedPercentage += Number(milestone.percentage || 0);
+      }
+    });
+
+    let activeIndex = Number(agreement.blockchain_current_milestone);
+
+    if (
+      !Number.isInteger(activeIndex) ||
+      activeIndex < 0 ||
+      activeIndex >= milestones.length
+    ) {
+      activeIndex = -1;
+      for (let i = 0; i < milestones.length; i++) {
+        const paid = normalizeBool(milestones[i].paid);
+        if (!paid) {
+          activeIndex = i;
+          break;
+        }
+      }
     }
 
+    const currentMilestone = milestones[activeIndex];
+    const isCurrentCompleted = currentMilestone
+      ? normalizeBool(currentMilestone.completed)
+      : false;
+    const isCurrentVerified = currentMilestone
+      ? normalizeBool(currentMilestone.verified)
+      : false;
 
-    container.innerHTML = "";
+    let extraBadgeHtml = "";
 
-
-    milestoneAgreements.forEach(
-        agreement => {
-
-            const agreementId =
-                Number(
-                    agreement.agreement_id
-                );
-
-
-            const milestones =
-                agreement.milestones ||
-                [];
-
-
-            const isExpanded =
-                expandedAgreements.has(
-                    agreementId
-                );
-
-
-            let completedPercentage = 0;
-
-            milestones.forEach(
-                milestone => {
-                    const completed = normalizeBool(milestone.completed);
-                    const verified = normalizeBool(milestone.verified);
-                    const paid = normalizeBool(milestone.paid);
-
-                    if (completed && verified && paid) {
-                        completedPercentage += Number(milestone.percentage || 0);
-                    }
-                }
-            );
-
-
-            let activeIndex =
-                Number(
-                    agreement.blockchain_current_milestone
-                );
-
-            if (
-                !Number.isInteger(
-                    activeIndex
-                ) ||
-                activeIndex < 0 ||
-                activeIndex >= milestones.length
-            ) {
-                activeIndex = -1;
-                for (let i = 0; i < milestones.length; i++) {
-                    const paid = normalizeBool(milestones[i].paid);
-                    if (!paid) {
-                        activeIndex = i;
-                        break;
-                    }
-                }
-            }
-
-            const currentMilestone = milestones[activeIndex];
-            const isCurrentCompleted = currentMilestone ? normalizeBool(currentMilestone.completed) : false;
-            const isCurrentVerified = currentMilestone ? normalizeBool(currentMilestone.verified) : false;
-
-            let extraBadgeHtml = "";
-
-            if (milestoneRole === "shipper" && isCurrentCompleted && !isCurrentVerified) {
-                extraBadgeHtml = `
+    if (
+      milestoneRole === "shipper" &&
+      isCurrentCompleted &&
+      !isCurrentVerified
+    ) {
+      extraBadgeHtml = `
         <span class="status-badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">
             <span class="status-dot" style="background-color: #f59e0b;"></span>
             Awaiting Verification
         </span>
     `;
-            } else if (milestoneRole === "carrier") {
-                if (currentMilestone && currentMilestone.isRejected) {
-                    extraBadgeHtml = `
+    } else if (milestoneRole === "carrier") {
+      if (currentMilestone && currentMilestone.isRejected) {
+        extraBadgeHtml = `
             <span class="status-badge" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);">
                 <span class="status-dot" style="background-color: #ef4444;"></span>
                 Milestone Submission Rejected
             </span>
         `;
-                } else if (isCurrentCompleted && !isCurrentVerified) {
-                    extraBadgeHtml = `
+      } else if (isCurrentCompleted && !isCurrentVerified) {
+        extraBadgeHtml = `
             <span class="status-badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">
                 <span class="status-dot" style="background-color: #f59e0b;"></span>
                 Awaiting Verification
             </span>
         `;
-                } else {
-                    extraBadgeHtml = `
+      } else {
+        extraBadgeHtml = `
             <span class="status-badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3);">
                 <span class="status-dot" style="background-color: #3b82f6;"></span>
                 Pending Submission
             </span>
         `;
-                }
-            }
+      }
+    }
 
-            // Deadline and Extension checks
-            const deadline = Number(agreement.blockchain_deadline || agreement.deadline || 0);
-            const now = Math.floor(Date.now() / 1000);
-            const timeRemaining = deadline - now;
-            const ONE_DAY_IN_SECONDS = 86400;
-            const pendingExtension =
-                agreement.extension_requested_deadline !== null &&
-                agreement.extension_requested_deadline !== undefined &&
-                String(agreement.extension_requested_deadline).trim() !== "";
+    // Deadline and Extension checks
+    const deadline = Number(
+      agreement.blockchain_deadline || agreement.deadline || 0,
+    );
+    const now = Math.floor(Date.now() / 1000);
+    const timeRemaining = deadline - now;
+    const ONE_DAY_IN_SECONDS = 86400;
+    const pendingExtension =
+      agreement.extension_requested_deadline !== null &&
+      agreement.extension_requested_deadline !== undefined &&
+      String(agreement.extension_requested_deadline).trim() !== "";
 
-            const canRequestExtension =
-                milestoneRole === "carrier" &&
-                Number.isFinite(deadline) &&
-                timeRemaining > 0 &&
-                timeRemaining <= ONE_DAY_IN_SECONDS &&
-                !pendingExtension;
+    const canRequestExtension =
+      milestoneRole === "carrier" &&
+      Number.isFinite(deadline) &&
+      timeRemaining > 0 &&
+      timeRemaining <= ONE_DAY_IN_SECONDS &&
+      !pendingExtension;
 
-            let extensionActionHtml = "";
-            if (canRequestExtension) {
-                extensionActionHtml = `
+    let extensionActionHtml = "";
+    if (canRequestExtension) {
+      extensionActionHtml = `
                     <button type="button" class="primary-action-btn" style="margin-top: 18px; padding: 8px 14px; font-size: 12px;" onclick="event.stopPropagation(); openMilestoneExtensionModal(${agreementId}, ${deadline});">
                         <i class="fa-solid fa-hourglass-half"></i> Request Extension
                     </button>
                 `;
-            }
+    }
 
-            let shipperApprovalHtml = "";
-            if (milestoneRole === "shipper" && pendingExtension) {
-                shipperApprovalHtml = `
+    let shipperApprovalHtml = "";
+    if (milestoneRole === "shipper" && pendingExtension) {
+      shipperApprovalHtml = `
                     <div style="margin-top: 15px; padding: 12px; background: #fffbeb00; border: 1px solid #4d64fc; border-radius: 8px;" onclick="event.stopPropagation();">
                         <div style="font-weight: bold; color: #3b82f6; margin-bottom: 6px;">
                             <i class="fa-solid fa-clock-rotate-left"></i> Deadline Extension Requested
@@ -592,13 +423,13 @@ function renderAgreements() {
                         </div>
                     </div>
                 `;
-            }
+    }
 
-            const card = document.createElement("div");
-            card.className = "details-card";
-            card.style.marginBottom = "20px";
+    const card = document.createElement("div");
+    card.className = "details-card";
+    card.style.marginBottom = "20px";
 
-            card.innerHTML = `
+    card.innerHTML = `
                 <!-- AGREEMENT HEADER -->
                 <div onclick="toggleAgreementCard(${agreementId})" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
                     <div>
@@ -644,71 +475,49 @@ function renderAgreements() {
 
             `;
 
-            container.appendChild(card);
-
-        }
-    );
-
+    container.appendChild(card);
+  });
 }
 
 function checkReminderWindow(milestone) {
-    if (!milestone.completed_at || milestone.verified) return false;
-    const FIVE_MINUTES = 300; // 5 minutes in seconds
-    const submittedTime = new Date(milestone.completed_at).getTime() / 1000;
-    const now = Math.floor(Date.now() / 1000);
+  if (!milestone.completed_at || milestone.verified) return false;
+  const FIVE_MINUTES = 300; // 5 minutes in seconds
+  const submittedTime = new Date(milestone.completed_at).getTime() / 1000;
+  const now = Math.floor(Date.now() / 1000);
 
-    return now > (submittedTime + FIVE_MINUTES);
+  return now > submittedTime + FIVE_MINUTES;
 }
-
-
 
 // =====================================================
 // RENDER MILESTONE LIST
 // =====================================================
 
-function renderMilestoneList(
-    agreement,
-    activeIndex
-) {
+function renderMilestoneList(agreement, activeIndex) {
+  const milestones = agreement.milestones || [];
 
-    const milestones =
-        agreement.milestones ||
-        [];
-
-
-    if (
-        milestones.length === 0
-    ) {
-
-        return `
+  if (milestones.length === 0) {
+    return `
 
             <div class="milestone-empty">
                 No milestones found.
             </div>
 
         `;
+  }
 
-    }
-
-
-    return `
+  return `
 
         <div class="milestones-container">
 
-            ${milestones.map(
-        (milestone, index) =>
-            renderMilestone(
-                agreement,
-                milestone,
-                index,
-                activeIndex
-            )
-    ).join("")}
+            ${milestones
+              .map((milestone, index) =>
+                renderMilestone(agreement, milestone, index, activeIndex),
+              )
+              .join("")}
 
         </div>
 
     `;
-
 }
 
 // =====================================================
@@ -716,46 +525,48 @@ function renderMilestoneList(
 // =====================================================
 
 function renderVerificationReminderBar() {
-    const bar = document.getElementById("verification-reminder-bar");
-    const detail = document.getElementById("verification-bar-details");
+  const bar = document.getElementById("verification-reminder-bar");
+  const detail = document.getElementById("verification-bar-details");
 
-    if (!bar || !detail || milestoneRole !== "shipper") {
-        if (bar) bar.style.display = "none";
-        return;
-    }
+  if (!bar || !detail || milestoneRole !== "shipper") {
+    if (bar) bar.style.display = "none";
+    return;
+  }
 
-    let targetMilestoneInfo = null;
-    const FIVE_MINUTES = 300; // 5 minutes in seconds
-    const now = Math.floor(Date.now() / 1000);
+  let targetMilestoneInfo = null;
+  const FIVE_MINUTES = 300; // 5 minutes in seconds
+  const now = Math.floor(Date.now() / 1000);
 
-    for (const agreement of milestoneAgreements) {
-        if (!agreement.milestones) continue;
+  for (const agreement of milestoneAgreements) {
+    if (!agreement.milestones) continue;
 
-        for (const milestone of agreement.milestones) {
-            const completed = normalizeBool(milestone.completed);
-            const verified = normalizeBool(milestone.verified);
+    for (const milestone of agreement.milestones) {
+      const completed = normalizeBool(milestone.completed);
+      const verified = normalizeBool(milestone.verified);
 
-            if (completed && !verified && milestone.completed_at) {
-                const submittedTime = new Date(milestone.completed_at).getTime() / 1000;
-                if (now > (submittedTime + FIVE_MINUTES)) {
-                    targetMilestoneInfo = {
-                        agreementId: agreement.agreement_id,
-                        reference: agreement.reference_no,
-                        checkpoint: milestone.checkpoint || `Milestone ${(milestone.milestone_index || 0) + 1}`
-                    };
-                    break;
-                }
-            }
+      if (completed && !verified && milestone.completed_at) {
+        const submittedTime = new Date(milestone.completed_at).getTime() / 1000;
+        if (now > submittedTime + FIVE_MINUTES) {
+          targetMilestoneInfo = {
+            agreementId: agreement.agreement_id,
+            reference: agreement.reference_no,
+            checkpoint:
+              milestone.checkpoint ||
+              `Milestone ${(milestone.milestone_index || 0) + 1}`,
+          };
+          break;
         }
-        if (targetMilestoneInfo) break;
+      }
     }
+    if (targetMilestoneInfo) break;
+  }
 
-    if (!targetMilestoneInfo) {
-        bar.style.display = "none";
-        return;
-    }
+  if (!targetMilestoneInfo) {
+    bar.style.display = "none";
+    return;
+  }
 
-    detail.innerHTML = `
+  detail.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; width: 100%;">
         <div>
             Verification pending over 5 minutes. Please review and verify milestone <strong>"${escapeHtml(targetMilestoneInfo.checkpoint)}"</strong> for agreement #${escapeHtml(targetMilestoneInfo.reference)}.
@@ -765,129 +576,97 @@ function renderVerificationReminderBar() {
             </button>
         </div>
     `;
-    bar.style.display = "block";
+  bar.style.display = "block";
 }
-
 
 // Function to expand card and scroll to it
 function jumpToAgreementCard(agreementId) {
-    expandedAgreements.add(Number(agreementId));
-    renderAgreements();
+  expandedAgreements.add(Number(agreementId));
+  renderAgreements();
 
-    // Smooth scroll to the specific agreement card after rendering
-    setTimeout(() => {
-        const cardElement = document.getElementById(`milestones-${agreementId}`)?.closest(".details-card");
-        if (cardElement) {
-            cardElement.scrollIntoView({ behavior: "smooth", block: "center" });
-        }
-    }, 100);
+  // Smooth scroll to the specific agreement card after rendering
+  setTimeout(() => {
+    const cardElement = document
+      .getElementById(`milestones-${agreementId}`)
+      ?.closest(".details-card");
+    if (cardElement) {
+      cardElement.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, 100);
 }
 
 // =====================================================
 // RENDER SINGLE MILESTONE
 // =====================================================
 
-function renderMilestone(
-    agreement,
-    milestone,
-    milestoneIndex,
-    activeIndex
-) {
+function renderMilestone(agreement, milestone, milestoneIndex, activeIndex) {
+  const agreementId = Number(agreement.agreement_id);
 
-    const agreementId =
-        Number(
-            agreement.agreement_id
-        );
+  const completed = normalizeBool(milestone.completed);
 
+  const verified = normalizeBool(milestone.verified);
 
-    const completed =
-        normalizeBool(
-            milestone.completed
-        );
+  const paid = normalizeBool(milestone.paid);
 
+  const percentage = Number(milestone.percentage || 0);
 
-    const verified =
-        normalizeBool(
-            milestone.verified
-        );
+  const checkpoint = milestone.checkpoint || `Milestone ${milestoneIndex + 1}`;
 
+  const deadline = Number(
+    agreement.blockchain_deadline || agreement.deadline || 0,
+  );
+  const deadlinePassed =
+    deadline > 0 && Math.floor(Date.now() / 1000) > deadline;
 
-    const paid =
-        normalizeBool(
-            milestone.paid
-        );
+  const escrowEth = agreement.blockchain_escrow
+    ? Number(
+        Web3.utils.fromWei(agreement.blockchain_escrow.toString(), "ether"),
+      )
+    : Number(agreement?.escrow_amount || 0);
 
+  const amount = ((escrowEth * percentage) / 100).toFixed(3);
 
-    const percentage =
-        Number(
-            milestone.percentage ||
-            0
-        );
+  let state = "pending";
+  let stateText = "Pending";
 
+  if (completed && verified && paid) {
+    state = "completed";
+    stateText = "Completed & Paid";
+  } else if (milestone.isRejected) {
+    state = "cancelled";
+    stateText = "Rejected";
+  } else if (completed && !verified) {
+    state = "active";
+    stateText = "Awaiting Verification";
+  } else if (milestoneIndex === activeIndex) {
+    state = "active";
+    stateText = "Pending";
+  }
 
-    const checkpoint =
-        milestone.checkpoint ||
-        `Milestone ${milestoneIndex + 1}`;
-
-    const deadline = Number(
-        agreement.blockchain_deadline ||
-        agreement.deadline ||
-        0
-    );
-    const deadlinePassed = deadline > 0 &&
-        Math.floor(Date.now() / 1000) > deadline;
-
-
-    const escrowEth =
-        agreement.blockchain_escrow
-            ? Number(Web3.utils.fromWei(agreement.blockchain_escrow.toString(), "ether"))
-            : Number(agreement?.escrow_amount || 0);
-
-
-    const amount =
-        (
-            escrowEth *
-            percentage /
-            100
-        ).toFixed(3);
-
-
-    let state = "pending";
-    let stateText = "Pending";
-
-    if (completed && verified && paid) {
-        state = "completed";
-        stateText = "Completed & Paid";
-    } else if (milestone.isRejected) {
-        state = "cancelled";
-        stateText = "Rejected";
-    } else if (completed && !verified) {
-        state = "active";
-        stateText = "Awaiting Verification";
-    } else if (milestoneIndex === activeIndex) {
-        state = "active";
-        stateText = "Pending";
-    }
-
-    let reminderHtml = "";
-    if (milestoneRole === "shipper" && completed && !verified && checkReminderWindow(milestone)) {
-        reminderHtml = `
+  let reminderHtml = "";
+  if (
+    milestoneRole === "shipper" &&
+    completed &&
+    !verified &&
+    checkReminderWindow(milestone)
+  ) {
+    reminderHtml = `
             <div style="margin-top: 8px; padding: 8px 12px; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 6px; color: #fbbf24; font-size: 12px;">
                 <i class="fa-solid fa-triangle-exclamation"></i> Verification pending over 5 minutes. Please review and verify this milestone.
             </div>
         `;
-    }
+  }
 
+  let actionHtml = "";
+  const isCurrentActive = milestoneIndex === activeIndex;
 
-    let actionHtml = "";
-    const isCurrentActive = (milestoneIndex === activeIndex);
-
-    if (milestone.isRejected) {
-        const rejectionMode = milestoneRole === "shipper" ? "review" : "submit";
-        const rejectionLabel = milestoneRole === "shipper"
-            ? "View Rejection Reason"
-            : "View Rejection Reason & Re-submit";
-        actionHtml = `
+  if (milestone.isRejected) {
+    const rejectionMode = milestoneRole === "shipper" ? "review" : "submit";
+    const rejectionLabel =
+      milestoneRole === "shipper"
+        ? "View Rejection Reason"
+        : "View Rejection Reason & Re-submit";
+    actionHtml = `
             <button
                 type="button"
                 class="danger-action-btn"
@@ -905,8 +684,8 @@ function renderMilestone(
                 ${rejectionLabel}
             </button>
         `;
-    } else if (completed || verified) {
-        actionHtml = `
+  } else if (completed || verified) {
+    actionHtml = `
             <button
                 type="button"
                 class="view-btn"
@@ -924,8 +703,8 @@ function renderMilestone(
                 View Submission Details
             </button>
         `;
-    } else if (milestoneRole === "carrier" && !completed && isCurrentActive) {
-        actionHtml = `
+  } else if (milestoneRole === "carrier" && !completed && isCurrentActive) {
+    actionHtml = `
             <button
                 type="button"
                 class="primary-action-btn"
@@ -943,8 +722,13 @@ function renderMilestone(
                 Submit Completion
             </button>
         `;
-    } else if (milestoneRole === "shipper" && completed && !verified && isCurrentActive) {
-        actionHtml = `
+  } else if (
+    milestoneRole === "shipper" &&
+    completed &&
+    !verified &&
+    isCurrentActive
+  ) {
+    actionHtml = `
             <button
                 type="button"
                 class="primary-action-btn"
@@ -962,20 +746,14 @@ function renderMilestone(
                 Review Submission
             </button>
         `;
-    }
+  }
 
+  const numberContent =
+    completed && verified && paid
+      ? '<i class="fa-solid fa-check"></i>'
+      : milestoneIndex + 1;
 
-    const numberContent =
-        (
-            completed &&
-            verified &&
-            paid
-        )
-            ? '<i class="fa-solid fa-check"></i>'
-            : milestoneIndex + 1;
-
-
-    return `
+  return `
 
         <div class="milestone-item ${state}">
 
@@ -988,9 +766,7 @@ function renderMilestone(
                 <div class="milestone-info">
 
                     <h3>
-                        ${escapeHtml(
-        checkpoint
-    )}
+                        ${escapeHtml(checkpoint)}
                     </h3>
 
                     <div class="milestone-meta">
@@ -1009,9 +785,9 @@ function renderMilestone(
 
                     </div>
 
-                    ${completed &&
-            !verified
-            ? `
+                    ${
+                      completed && !verified
+                        ? `
                                 <small
                                     style="
                                         display:block;
@@ -1022,13 +798,12 @@ function renderMilestone(
                                     Carrier submitted completion.
                                 </small>
                               `
-            : ""
-        }
+                        : ""
+                    }
 
-                    ${completed &&
-            verified &&
-            paid
-            ? `
+                    ${
+                      completed && verified && paid
+                        ? `
                                 <small
                                     style="
                                         display:block;
@@ -1039,8 +814,8 @@ function renderMilestone(
                                     ${amount} ETH released to Carrier.
                                 </small>
                               `
-            : ""
-        }
+                        : ""
+                    }
 
                     ${reminderHtml}
                     ${actionHtml}
@@ -1064,75 +839,42 @@ function renderMilestone(
     `;
 }
 
-
 // =====================================================
 // TOGGLE AGREEMENT
 // =====================================================
 
-function toggleAgreementCard(
-    agreementId
-) {
+function toggleAgreementCard(agreementId) {
+  const id = Number(agreementId);
 
-    const id =
-        Number(
-            agreementId
-        );
+  if (expandedAgreements.has(id)) {
+    expandedAgreements.delete(id);
+  } else {
+    expandedAgreements.add(id);
+  }
 
-
-    if (
-        expandedAgreements.has(id)
-    ) {
-
-        expandedAgreements.delete(id);
-
-    }
-
-    else {
-
-        expandedAgreements.add(id);
-
-    }
-
-
-    renderAgreements();
-
+  renderAgreements();
 }
-
 
 // =====================================================
 // SUBMIT MILESTONE
 // =====================================================
 
-function openMilestoneSubmission(
-    agreementId,
-    milestoneIndex,
-    mode
-) {
-    window.location.href =
-        `milestoneSubmission.html?agreementId=${Number(agreementId)}&milestoneIndex=${Number(milestoneIndex)}&mode=${encodeURIComponent(mode)}`;
+function openMilestoneSubmission(agreementId, milestoneIndex, mode) {
+  window.location.href = `milestoneSubmission.html?agreementId=${Number(agreementId)}&milestoneIndex=${Number(milestoneIndex)}&mode=${encodeURIComponent(mode)}`;
 }
-
 
 // =====================================================
 // NO AGREEMENTS
 // =====================================================
 
 function renderNoAgreements() {
+  const container = document.getElementById("milestones-page-container");
 
-    const container =
-        document.getElementById(
-            "milestones-page-container"
-        );
+  if (!container) {
+    return;
+  }
 
-
-    if (!container) {
-
-        return;
-
-    }
-
-
-    container.innerHTML = `
+  container.innerHTML = `
 
         <div class="details-card" style="text-align:center; padding:50px; color:#8fa7c7;">
 
@@ -1159,71 +901,56 @@ function renderNoAgreements() {
         </div>
 
     `;
-
 }
-
 
 // =====================================================
 // SHOW ERROR
 // =====================================================
 
-function showPageError(
-    message
-) {
+function showPageError(message) {
+  const container = document.getElementById("milestones-page-container");
 
-    const container =
-        document.getElementById(
-            "milestones-page-container"
-        );
+  if (!container) {
+    return;
+  }
 
-
-    if (!container) {
-
-        return;
-
-    }
-
-
-    container.innerHTML = `
+  container.innerHTML = `
 
         <div class="details-error">
 
             Error loading milestones:
-            ${escapeHtml(
-        message
-    )}
+            ${escapeHtml(message)}
 
         </div>
 
     `;
-
 }
 
 function openMilestoneExtensionModal(agreementId, currentDeadline) {
-    let modal = document.getElementById("extension-request-modal");
+  let modal = document.getElementById("extension-request-modal");
 
-    if (!modal) {
-        modal = document.createElement("div");
-        modal.id = "extension-request-modal";
-        modal.className = "profile-modal";
-        document.body.appendChild(modal);
-    }
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "extension-request-modal";
+    modal.className = "profile-modal";
+    document.body.appendChild(modal);
+  }
 
-    const toLocalDateTimeValue = timestamp => {
-        const date = new Date(timestamp * 1000);
-        return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
-            .toISOString()
-            .slice(0, 16);
-    };
+  const toLocalDateTimeValue = (timestamp) => {
+    const date = new Date(timestamp * 1000);
+    return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+      .toISOString()
+      .slice(0, 16);
+  };
 
-    modal.innerHTML = `
+  modal.innerHTML = `
         <div class="profile-modal-card" role="dialog" aria-modal="true" aria-labelledby="extension-modal-title">
             <h3 id="extension-modal-title"><i class="fa-solid fa-clock"></i> Request Deadline Extension</h3>
             <label>
                 New Date & Time (up to 10 days after current deadline)
                 <input type="datetime-local" id="ext-date-input"
                     min="${toLocalDateTimeValue(currentDeadline)}"
-                    max="${toLocalDateTimeValue(currentDeadline + (10 * 86400))}" required>
+                    max="${toLocalDateTimeValue(currentDeadline + 10 * 86400)}" required>
             </label>
             <label style="margin-top: 12px;">
                 Reason for Extension
@@ -1237,100 +964,84 @@ function openMilestoneExtensionModal(agreementId, currentDeadline) {
         </div>
     `;
 
-    document.getElementById("cancel-ext-btn").onclick = () => { modal.hidden = true; };
-    document.getElementById("submit-ext-btn").onclick = () => submitMilestoneExtensionRequest(agreementId, currentDeadline);
+  document.getElementById("cancel-ext-btn").onclick = () => {
+    modal.hidden = true;
+  };
+  document.getElementById("submit-ext-btn").onclick = () =>
+    submitMilestoneExtensionRequest(agreementId, currentDeadline);
 
-    modal.hidden = false;
+  modal.hidden = false;
 }
 
 async function submitMilestoneExtensionRequest(agreementId, currentDeadline) {
-    const dateInput = document.getElementById("ext-date-input")?.value;
-    const reasonInput = document.getElementById("ext-reason-input")?.value.trim() || "";
-    const selectedTimestamp = Math.floor(new Date(dateInput).getTime() / 1000);
-    await sharedRequestExtension(agreementId, selectedTimestamp, reasonInput, milestoneWallet, () => window.location.reload());
+  const dateInput = document.getElementById("ext-date-input")?.value;
+  const reasonInput =
+    document.getElementById("ext-reason-input")?.value.trim() || "";
+  const selectedTimestamp = Math.floor(new Date(dateInput).getTime() / 1000);
+  await sharedRequestExtension(
+    agreementId,
+    selectedTimestamp,
+    reasonInput,
+    milestoneWallet,
+    () => window.location.reload(),
+  );
 }
 
 async function approveMilestoneExtension(agreementId, requestedDeadline) {
-    const agreement = milestoneAgreements.find(a => Number(a.agreement_id) === Number(agreementId));
-    await sharedApproveExtension(agreementId, agreement?.reference_no, requestedDeadline, () => window.location.reload());
+  const agreement = milestoneAgreements.find(
+    (a) => Number(a.agreement_id) === Number(agreementId),
+  );
+  await sharedApproveExtension(
+    agreementId,
+    agreement?.reference_no,
+    requestedDeadline,
+    () => window.location.reload(),
+  );
 }
 
 async function rejectMilestoneExtension(agreementId) {
-    const agreement = milestoneAgreements.find(a => Number(a.agreement_id) === Number(agreementId));
-    await sharedRejectExtension(agreementId, agreement?.reference_no, () => window.location.reload());
+  const agreement = milestoneAgreements.find(
+    (a) => Number(a.agreement_id) === Number(agreementId),
+  );
+  await sharedRejectExtension(agreementId, agreement?.reference_no, () =>
+    window.location.reload(),
+  );
 }
 
 function formatDate(timestamp) {
-    if (!timestamp) return "-";
-    return new Date(Number(timestamp) * 1000).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric"
-    });
+  if (!timestamp) return "-";
+  return new Date(Number(timestamp) * 1000).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
 }
-
 
 // =====================================================
 // NORMALIZE BOOLEAN
 // =====================================================
 
-function normalizeBool(
-    value
-) {
-
-    return (
-        value === true ||
-        value === "true" ||
-        value === 1 ||
-        value === "1"
-    );
-
+function normalizeBool(value) {
+  return value === true || value === "true" || value === 1 || value === "1";
 }
-
 
 // =====================================================
 // ESCAPE HTML
 // =====================================================
 
-function escapeHtml(
-    value
-) {
+function escapeHtml(value) {
+  if (value === null || value === undefined) {
+    return "";
+  }
 
-    if (
-        value === null ||
-        value === undefined
-    ) {
+  return String(value)
+    .replace(/&/g, "&amp;")
 
-        return "";
+    .replace(/</g, "&lt;")
 
-    }
+    .replace(/>/g, "&gt;")
 
+    .replace(/"/g, "&quot;")
 
-    return String(value)
-
-        .replace(
-            /&/g,
-            "&amp;"
-        )
-
-        .replace(
-            /</g,
-            "&lt;"
-        )
-
-        .replace(
-            />/g,
-            "&gt;"
-        )
-
-        .replace(
-            /"/g,
-            "&quot;"
-        )
-
-        .replace(
-            /'/g,
-            "&#039;"
-        );
-
+    .replace(/'/g, "&#039;");
 }
