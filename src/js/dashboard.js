@@ -1,258 +1,158 @@
 document.addEventListener("DOMContentLoaded", async () => {
+  try {
+    // =====================================
+    // 1. CHECK METAMASK
+    // =====================================
 
-    try {
+    if (typeof window.ethereum === "undefined") {
+      console.error("MetaMask is not installed.");
 
-        // =====================================
-        // 1. CHECK METAMASK
-        // =====================================
+      window.location.href = "index.html";
 
-        if (typeof window.ethereum === "undefined") {
+      return;
+    }
 
-            console.error("MetaMask is not installed.");
+    // =====================================
+    // 2. CONNECT TO METAMASK
+    // =====================================
 
-            window.location.href = "index.html";
+    const accounts = await window.ethereum.request({
+      method: "eth_accounts",
+    });
 
-            return;
-        }
+    if (!accounts || accounts.length === 0) {
+      console.error("No MetaMask account connected.");
 
+      window.location.href = "index.html";
 
-        // =====================================
-        // 2. CONNECT TO METAMASK
-        // =====================================
+      return;
+    }
 
-        const accounts =
-            await window.ethereum.request({
-                method: "eth_accounts"
-            });
+    const currentAccount = accounts[0];
 
+    console.log("Dashboard wallet:", currentAccount);
 
-        if (!accounts || accounts.length === 0) {
+    // =====================================
+    // 3. SAVE WALLET ADDRESS
+    // =====================================
 
-            console.error("No MetaMask account connected.");
+    localStorage.setItem("wallet", currentAccount);
 
-            window.location.href = "index.html";
+    // =====================================
+    // 4. DISPLAY WALLET ADDRESS
+    // =====================================
 
-            return;
-        }
+    const shortAddress =
+      currentAccount.substring(0, 6) +
+      "..." +
+      currentAccount.substring(currentAccount.length - 4);
 
+    const sidebarWallet = document.getElementById("sidebar-wallet-addr");
 
-        const currentAccount =
-            accounts[0];
+    const topWallet = document.getElementById("top-wallet-address");
 
+    if (sidebarWallet) {
+      sidebarWallet.innerText = shortAddress;
 
-        console.log(
-            "Dashboard wallet:",
-            currentAccount
-        );
+      sidebarWallet.title = currentAccount;
+    }
 
+    if (topWallet) {
+      topWallet.innerText = shortAddress;
 
-        // =====================================
-        // 3. SAVE WALLET ADDRESS
-        // =====================================
+      topWallet.title = currentAccount;
+    }
 
-        localStorage.setItem(
-            "wallet",
-            currentAccount
-        );
+    // =====================================
+    // 5. LOAD SHARED HEADER
+    // =====================================
 
+    const headerContainer = document.getElementById("shared-header");
 
-        // =====================================
-        // 4. DISPLAY WALLET ADDRESS
-        // =====================================
+    if (headerContainer) {
+      const headerResponse = await fetch("header.html");
 
-        const shortAddress =
-            currentAccount.substring(0, 6) +
-            "..." +
-            currentAccount.substring(
-                currentAccount.length - 4
-            );
+      headerContainer.innerHTML = await headerResponse.text();
 
+      const pageHeading = document.getElementById("page-heading");
 
-        const sidebarWallet =
-            document.getElementById(
-                "sidebar-wallet-addr"
-            );
+      if (pageHeading) {
+        pageHeading.innerText =
+          headerContainer.dataset.pageTitle || "Dashboard";
+      }
+    }
 
+    // =====================================
+    // 6. LOAD SIDEBAR
+    // =====================================
 
-        const topWallet =
-            document.getElementById(
-                "top-wallet-address"
-            );
+    const response = await fetch("sidebar.html");
 
+    const sidebarHtml = await response.text();
 
-        if (sidebarWallet) {
+    document.getElementById("sidebar-container").innerHTML = sidebarHtml;
 
-            sidebarWallet.innerText =
-                shortAddress;
+    // =====================================
+    // 7. GET USER ROLE
+    // =====================================
 
-            sidebarWallet.title =
-                currentAccount;
-        }
+    const urlParams = new URLSearchParams(window.location.search);
 
+    const userRole =
+      urlParams.get("role") ||
+      localStorage.getItem("userRole") ||
+      localStorage.getItem("role") ||
+      "shipper";
 
-        if (topWallet) {
+    const isCarrier = userRole.toLowerCase() === "carrier";
 
-            topWallet.innerText =
-                shortAddress;
+    localStorage.setItem("userRole", userRole);
 
-            topWallet.title =
-                currentAccount;
-        }
+    // =====================================
+    // 7. SIDEBAR ELEMENTS
+    // =====================================
 
+    const roleNameEl = document.getElementById("sidebar-role-name");
 
-        // =====================================
-        // 5. LOAD SHARED HEADER
-        // =====================================
+    const profileIconEl = document.getElementById("sidebar-profile-icon");
 
-        const headerContainer =
-            document.getElementById(
-                "shared-header"
-            );
+    const menuListEl = document.getElementById("sidebar-menu-list");
 
-        if (headerContainer) {
+    const searchInputEl = document.getElementById("search-input");
 
-            const headerResponse =
-                await fetch("header.html");
+    const sidebarWalletEl = document.getElementById("sidebar-wallet-addr");
 
-            headerContainer.innerHTML =
-                await headerResponse.text();
+    // =====================================
+    // 8. DISPLAY WALLET AFTER SIDEBAR LOAD
+    // =====================================
 
-            const pageHeading =
-                document.getElementById(
-                    "page-heading"
-                );
+    if (sidebarWalletEl) {
+      sidebarWalletEl.innerText = shortAddress;
 
-            if (pageHeading) {
-                pageHeading.innerText =
-                    headerContainer.dataset.pageTitle ||
-                    "Dashboard";
-            }
-        }
+      sidebarWalletEl.title = currentAccount;
+    }
 
+    // =====================================
+    // 9. CARRIER SIDEBAR
+    // =====================================
 
-        // =====================================
-        // 6. LOAD SIDEBAR
-        // =====================================
+    if (isCarrier) {
+      // Carrier dashboard lives in its own page.
+      // Keep other HTML pages unchanged.
+      const currentPage = window.location.pathname.split("/").pop();
 
-        const response =
-            await fetch("sidebar.html");
+      if (currentPage === "dashboard.html") {
+        window.location.replace("carrierDashboard.html");
+        return;
+      }
 
+      roleNameEl.innerText = "Carrier";
 
-        const sidebarHtml =
-            await response.text();
+      profileIconEl.className = "profile-icon carrier-icon-bg";
 
+      profileIconEl.innerHTML = '<i class="fa-solid fa-truck-fast"></i>';
 
-        document.getElementById(
-            "sidebar-container"
-        ).innerHTML = sidebarHtml;
-
-
-        // =====================================
-        // 7. GET USER ROLE
-        // =====================================
-
-        const urlParams =
-            new URLSearchParams(
-                window.location.search
-            );
-
-
-        const userRole =
-            urlParams.get("role") ||
-            localStorage.getItem("userRole") ||
-            localStorage.getItem("role") ||
-            "shipper";
-
-
-        const isCarrier =
-            userRole.toLowerCase() === "carrier";
-
-
-        localStorage.setItem(
-            "userRole",
-            userRole
-        );
-
-
-        // =====================================
-        // 7. SIDEBAR ELEMENTS
-        // =====================================
-
-        const roleNameEl =
-            document.getElementById(
-                "sidebar-role-name"
-            );
-
-
-        const profileIconEl =
-            document.getElementById(
-                "sidebar-profile-icon"
-            );
-
-
-        const menuListEl =
-            document.getElementById(
-                "sidebar-menu-list"
-            );
-
-
-        const searchInputEl =
-            document.getElementById(
-                "search-input"
-            );
-
-
-        const sidebarWalletEl =
-            document.getElementById(
-                "sidebar-wallet-addr"
-            );
-
-
-        // =====================================
-        // 8. DISPLAY WALLET AFTER SIDEBAR LOAD
-        // =====================================
-
-        if (sidebarWalletEl) {
-
-            sidebarWalletEl.innerText =
-                shortAddress;
-
-            sidebarWalletEl.title =
-                currentAccount;
-        }
-
-
-        // =====================================
-        // 9. CARRIER SIDEBAR
-        // =====================================
-
-        if (isCarrier) {
-
-            // Carrier dashboard lives in its own page.
-            // Keep other HTML pages unchanged.
-            const currentPage =
-                window.location.pathname
-                    .split("/")
-                    .pop();
-
-            if (currentPage === "dashboard.html") {
-                window.location.replace("carrierDashboard.html");
-                return;
-            }
-
-            roleNameEl.innerText =
-                "Carrier";
-
-
-            profileIconEl.className =
-                "profile-icon carrier-icon-bg";
-
-
-            profileIconEl.innerHTML =
-                '<i class="fa-solid fa-truck-fast"></i>';
-
-
-            menuListEl.innerHTML = `
+      menuListEl.innerHTML = `
 
                 <li>
                     <a href="carrierDashboard.html">
@@ -290,29 +190,19 @@ document.addEventListener("DOMContentLoaded", async () => {
                 </li>
 
             `;
+    }
 
-        }
+    // =====================================
+    // 10. SHIPPER SIDEBAR
+    // =====================================
+    else {
+      roleNameEl.innerText = "Shipper";
 
+      profileIconEl.className = "profile-icon";
 
-        // =====================================
-        // 10. SHIPPER SIDEBAR
-        // =====================================
+      profileIconEl.innerHTML = '<i class="fa-solid fa-box"></i>';
 
-        else {
-
-            roleNameEl.innerText =
-                "Shipper";
-
-
-            profileIconEl.className =
-                "profile-icon";
-
-
-            profileIconEl.innerHTML =
-                '<i class="fa-solid fa-box"></i>';
-
-
-            menuListEl.innerHTML = `
+      menuListEl.innerHTML = `
 
                 <li>
                     <a href="dashboard.html?role=shipper">
@@ -357,187 +247,104 @@ document.addEventListener("DOMContentLoaded", async () => {
                 </li>
 
             `;
-
-        }
-
-
-        // =====================================
-        // 11. HIGHLIGHT CURRENT PAGE
-        // =====================================
-
-        const currentPage =
-            window.location.pathname
-                .split("/")
-                .pop();
-
-        // Detail pages remain within their parent navigation workflows.
-        const activePageMap = {
-            "milestoneSubmission.html": "milestones.html",
-            "agreementDetails.html": "agreements.html",
-            "transactionDetails.html": "transactionHistory.html"
-        };
-        const activePage = activePageMap[currentPage] || currentPage;
-
-
-        menuListEl
-            .querySelectorAll("a")
-            .forEach(link => {
-
-                const linkPage =
-                    link
-                        .getAttribute("href")
-                        ?.split("?")[0];
-
-
-                if (linkPage === activePage) {
-                    link.classList.add("active");
-                }
-
-            });
-
-
-        // =====================================
-        // 12. RENDER LUCIDE ICONS
-        // =====================================
-
-        if (typeof lucide !== "undefined") {
-
-            lucide.createIcons();
-
-        }
-
-
-        // =====================================
-        // 13. LOAD NETWORK INFORMATION
-        // =====================================
-
-        const chainIdEl =
-            document.getElementById(
-                "chain-id"
-            );
-
-
-        const web3 =
-            new Web3(window.ethereum);
-
-
-        const chainId =
-            await web3.eth.getChainId();
-
-
-        if (chainIdEl) {
-
-            chainIdEl.innerText =
-                chainId;
-
-        }
-
-        const networkLabel =
-            document.getElementById(
-                "sidebar-network-label"
-            );
-
-        if (networkLabel) {
-            networkLabel.innerText =
-                (
-                    chainId === 1337 ||
-                    chainId === 5777
-                )
-                    ? "LOCAL GANACHE"
-                    : `CHAIN ${chainId}`;
-        }
-
-        // Top wallet badge (shared across shipper pages)
-        const topWalletBadge =
-            document.getElementById(
-                "top-wallet-address"
-            );
-
-        if (topWalletBadge) {
-            topWalletBadge.innerText =
-                shortAddress;
-            topWalletBadge.title =
-                currentAccount;
-        }
-
-        // Extra network stats when elements exist
-        try {
-            const gasWei =
-                await web3.eth.getGasPrice();
-            const gwei =
-                Number(
-                    web3.utils.fromWei(
-                        gasWei,
-                        "gwei"
-                    )
-                ).toFixed(0);
-            const gasEl =
-                document.getElementById(
-                    "gas-price"
-                );
-            if (gasEl) {
-                gasEl.innerText =
-                    `${gwei} Gwei`;
-            }
-        } catch (_) {}
-
-        try {
-            const priceRes =
-                await fetch(
-                    "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd"
-                );
-            const priceData =
-                await priceRes.json();
-            const usd =
-                priceData?.ethereum?.usd;
-            const ethEl =
-                document.getElementById(
-                    "eth-price"
-                );
-            if (ethEl && usd) {
-                ethEl.innerText =
-                    `$${Number(usd).toLocaleString()}`;
-            }
-        } catch (_) {}
-
-
-        // Carrier cannot open create agreement
-        const pageName =
-            window.location.pathname
-                .split("/")
-                .pop();
-
-        if (
-            isCarrier &&
-            pageName === "createAgreement.html"
-        ) {
-            alert(
-                "Only Shippers can create and fund agreements."
-            );
-            window.location.replace(
-                "carrierDashboard.html"
-            );
-            return;
-        }
-
-
-        console.log(
-            `Dashboard loaded successfully for ${userRole}`
-        );
-
-        console.log(
-            `Connected account: ${currentAccount}`
-        );
-
     }
 
-    catch (error) {
+    // =====================================
+    // 11. HIGHLIGHT CURRENT PAGE
+    // =====================================
 
-        console.error(
-            "Error loading dashboard:",
-            error
-        );
+    const currentPage = window.location.pathname.split("/").pop();
 
+    // Detail pages remain within their parent navigation workflows.
+    const activePageMap = {
+      "milestoneSubmission.html": "milestones.html",
+      "agreementDetails.html": "agreements.html",
+      "transactionDetails.html": "transactionHistory.html",
+    };
+    const activePage = activePageMap[currentPage] || currentPage;
+
+    menuListEl.querySelectorAll("a").forEach((link) => {
+      const linkPage = link.getAttribute("href")?.split("?")[0];
+
+      if (linkPage === activePage) {
+        link.classList.add("active");
+      }
+    });
+
+    // =====================================
+    // 12. RENDER LUCIDE ICONS
+    // =====================================
+
+    if (typeof lucide !== "undefined") {
+      lucide.createIcons();
     }
 
+    // =====================================
+    // 13. LOAD NETWORK INFORMATION
+    // =====================================
+
+    const chainIdEl = document.getElementById("chain-id");
+
+    const web3 = new Web3(window.ethereum);
+
+    const chainId = await web3.eth.getChainId();
+
+    if (chainIdEl) {
+      chainIdEl.innerText = chainId;
+    }
+
+    const networkLabel = document.getElementById("sidebar-network-label");
+
+    if (networkLabel) {
+      networkLabel.innerText =
+        chainId === 1337 || chainId === 5777
+          ? "LOCAL GANACHE"
+          : `CHAIN ${chainId}`;
+    }
+
+    // Top wallet badge (shared across shipper pages)
+    const topWalletBadge = document.getElementById("top-wallet-address");
+
+    if (topWalletBadge) {
+      topWalletBadge.innerText = shortAddress;
+      topWalletBadge.title = currentAccount;
+    }
+
+    // Extra network stats when elements exist
+    try {
+      const gasWei = await web3.eth.getGasPrice();
+      const gwei = Number(web3.utils.fromWei(gasWei, "gwei")).toFixed(0);
+      const gasEl = document.getElementById("gas-price");
+      if (gasEl) {
+        gasEl.innerText = `${gwei} Gwei`;
+      }
+    } catch (_) {}
+
+    try {
+      const priceRes = await fetch(
+        "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd",
+      );
+      const priceData = await priceRes.json();
+      const usd = priceData?.ethereum?.usd;
+      const ethEl = document.getElementById("eth-price");
+      if (ethEl && usd) {
+        ethEl.innerText = `$${Number(usd).toLocaleString()}`;
+      }
+    } catch (_) {}
+
+    // Carrier cannot open create agreement
+    const pageName = window.location.pathname.split("/").pop();
+
+    if (isCarrier && pageName === "createAgreement.html") {
+      alert("Only Shippers can create and fund agreements.");
+      window.location.replace("carrierDashboard.html");
+      return;
+    }
+
+    console.log(`Dashboard loaded successfully for ${userRole}`);
+
+    console.log(`Connected account: ${currentAccount}`);
+  } catch (error) {
+    console.error("Error loading dashboard:", error);
+  }
 });

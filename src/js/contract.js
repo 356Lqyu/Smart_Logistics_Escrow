@@ -1,1241 +1,1347 @@
-const CONTRACT_ADDRESS =
-  "0x8870605710Fe0dB658C4E970c74a75B846648bf0";
+const CONTRACT_ADDRESS = "0xcF23A306865B3BFbE232fd7778ffD52ACc2cD531";
 
-const TOKEN_CONTRACT_ADDRESS =
-  "0x99808E2A2A4207C9c6189C2B605764d5CF95a5C7";
-
+const TOKEN_CONTRACT_ADDRESS = "0x2d9cc5Da3CE0722b989eab33Bb0d06Dc0f56Ea92";
 
 const CONTRACT_ABI = [
   {
-    "inputs": [
+    inputs: [
       {
-        "internalType": "address",
-        "name": "tokenAddress",
-        "type": "address"
-      }
+        internalType: "address",
+        name: "tokenAddress",
+        type: "address",
+      },
     ],
-    "stateMutability": "nonpayable",
-    "type": "constructor"
+    stateMutability: "nonpayable",
+    type: "constructor",
   },
   {
-    "anonymous": false,
-    "inputs": [
+    anonymous: false,
+    inputs: [
       {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "agreementId",
-        "type": "uint256"
+        indexed: true,
+        internalType: "uint256",
+        name: "agreementId",
+        type: "uint256",
       },
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "carrier",
-        "type": "address"
-      }
+        indexed: true,
+        internalType: "address",
+        name: "carrier",
+        type: "address",
+      },
     ],
-    "name": "AgreementAccepted",
-    "type": "event"
+    name: "AgreementAccepted",
+    type: "event",
   },
   {
-    "anonymous": false,
-    "inputs": [
+    anonymous: false,
+    inputs: [
       {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "agreementId",
-        "type": "uint256"
-      }
+        indexed: true,
+        internalType: "uint256",
+        name: "agreementId",
+        type: "uint256",
+      },
     ],
-    "name": "AgreementCancelled",
-    "type": "event"
+    name: "AgreementCancelled",
+    type: "event",
   },
   {
-    "anonymous": false,
-    "inputs": [
+    anonymous: false,
+    inputs: [
       {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "agreementId",
-        "type": "uint256"
-      }
+        indexed: true,
+        internalType: "uint256",
+        name: "agreementId",
+        type: "uint256",
+      },
     ],
-    "name": "AgreementCompleted",
-    "type": "event"
+    name: "AgreementCompleted",
+    type: "event",
   },
   {
-    "anonymous": false,
-    "inputs": [
+    anonymous: false,
+    inputs: [
       {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "agreementId",
-        "type": "uint256"
+        indexed: true,
+        internalType: "uint256",
+        name: "agreementId",
+        type: "uint256",
       },
       {
-        "indexed": false,
-        "internalType": "string",
-        "name": "referenceNo",
-        "type": "string"
+        indexed: false,
+        internalType: "string",
+        name: "referenceNo",
+        type: "string",
       },
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "shipper",
-        "type": "address"
+        indexed: true,
+        internalType: "address",
+        name: "shipper",
+        type: "address",
       },
       {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "escrowAmount",
-        "type": "uint256"
-      }
+        indexed: false,
+        internalType: "uint256",
+        name: "escrowAmount",
+        type: "uint256",
+      },
     ],
-    "name": "AgreementCreated",
-    "type": "event"
+    name: "AgreementCreated",
+    type: "event",
   },
   {
-    "anonymous": false,
-    "inputs": [
+    anonymous: false,
+    inputs: [
       {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "agreementId",
-        "type": "uint256"
-      }
+        indexed: true,
+        internalType: "uint256",
+        name: "agreementId",
+        type: "uint256",
+      },
     ],
-    "name": "AgreementExpired",
-    "type": "event"
+    name: "AgreementExpired",
+    type: "event",
   },
   {
-    "anonymous": false,
-    "inputs": [
+    anonymous: false,
+    inputs: [
       {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "agreementId",
-        "type": "uint256"
+        indexed: true,
+        internalType: "uint256",
+        name: "agreementId",
+        type: "uint256",
       },
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "carrier",
-        "type": "address"
+        indexed: true,
+        internalType: "address",
+        name: "carrier",
+        type: "address",
       },
       {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      }
+        indexed: false,
+        internalType: "uint256",
+        name: "amount",
+        type: "uint256",
+      },
     ],
-    "name": "CarrierRewarded",
-    "type": "event"
+    name: "CarrierRewarded",
+    type: "event",
   },
   {
-    "anonymous": false,
-    "inputs": [
+    anonymous: false,
+    inputs: [
       {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "agreementId",
-        "type": "uint256"
+        indexed: true,
+        internalType: "uint256",
+        name: "agreementId",
+        type: "uint256",
       },
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "submitter",
-        "type": "address"
+        indexed: true,
+        internalType: "address",
+        name: "carrier",
+        type: "address",
       },
       {
-        "indexed": false,
-        "internalType": "bytes32",
-        "name": "documentHash",
-        "type": "bytes32"
-      }
+        indexed: false,
+        internalType: "uint256",
+        name: "amount",
+        type: "uint256",
+      },
     ],
-    "name": "CompletionDocumentSubmitted",
-    "type": "event"
+    name: "CarrierStakeDeposited",
+    type: "event",
   },
   {
-    "anonymous": false,
-    "inputs": [
+    anonymous: false,
+    inputs: [
       {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "agreementId",
-        "type": "uint256"
+        indexed: true,
+        internalType: "uint256",
+        name: "agreementId",
+        type: "uint256",
       },
       {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "newDeadline",
-        "type": "uint256"
+        indexed: true,
+        internalType: "address",
+        name: "shipper",
+        type: "address",
       },
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "shipper",
-        "type": "address"
-      }
+        indexed: false,
+        internalType: "uint256",
+        name: "amount",
+        type: "uint256",
+      },
     ],
-    "name": "DeadlineExtended",
-    "type": "event"
+    name: "CarrierStakeForfeited",
+    type: "event",
   },
   {
-    "anonymous": false,
-    "inputs": [
+    anonymous: false,
+    inputs: [
       {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "agreementId",
-        "type": "uint256"
+        indexed: true,
+        internalType: "uint256",
+        name: "agreementId",
+        type: "uint256",
       },
       {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      }
+        indexed: true,
+        internalType: "address",
+        name: "carrier",
+        type: "address",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "amount",
+        type: "uint256",
+      },
     ],
-    "name": "EscrowFunded",
-    "type": "event"
+    name: "CarrierStakeReturned",
+    type: "event",
   },
   {
-    "anonymous": false,
-    "inputs": [
+    anonymous: false,
+    inputs: [
       {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "agreementId",
-        "type": "uint256"
+        indexed: true,
+        internalType: "uint256",
+        name: "agreementId",
+        type: "uint256",
       },
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "shipper",
-        "type": "address"
+        indexed: true,
+        internalType: "address",
+        name: "submitter",
+        type: "address",
       },
       {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      }
+        indexed: false,
+        internalType: "bytes32",
+        name: "documentHash",
+        type: "bytes32",
+      },
     ],
-    "name": "EscrowRefunded",
-    "type": "event"
+    name: "CompletionDocumentSubmitted",
+    type: "event",
   },
   {
-    "anonymous": false,
-    "inputs": [
+    anonymous: false,
+    inputs: [
       {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "agreementId",
-        "type": "uint256"
+        indexed: true,
+        internalType: "uint256",
+        name: "agreementId",
+        type: "uint256",
       },
       {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "milestoneIndex",
-        "type": "uint256"
+        indexed: false,
+        internalType: "uint256",
+        name: "newDeadline",
+        type: "uint256",
       },
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "carrier",
-        "type": "address"
+        indexed: true,
+        internalType: "address",
+        name: "shipper",
+        type: "address",
       },
-      {
-        "indexed": false,
-        "internalType": "bytes32",
-        "name": "proofHash",
-        "type": "bytes32"
-      }
     ],
-    "name": "MilestoneCompletionSubmitted",
-    "type": "event"
+    name: "DeadlineExtended",
+    type: "event",
   },
   {
-    "anonymous": false,
-    "inputs": [
+    anonymous: false,
+    inputs: [
       {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "agreementId",
-        "type": "uint256"
+        indexed: true,
+        internalType: "uint256",
+        name: "agreementId",
+        type: "uint256",
       },
       {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "milestoneIndex",
-        "type": "uint256"
+        indexed: false,
+        internalType: "uint256",
+        name: "amount",
+        type: "uint256",
       },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "carrier",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      }
     ],
-    "name": "MilestonePayout",
-    "type": "event"
+    name: "EscrowFunded",
+    type: "event",
   },
   {
-    "anonymous": false,
-    "inputs": [
+    anonymous: false,
+    inputs: [
       {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "agreementId",
-        "type": "uint256"
+        indexed: true,
+        internalType: "uint256",
+        name: "agreementId",
+        type: "uint256",
       },
       {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "milestoneIndex",
-        "type": "uint256"
+        indexed: true,
+        internalType: "address",
+        name: "shipper",
+        type: "address",
       },
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "shipper",
-        "type": "address"
+        indexed: false,
+        internalType: "uint256",
+        name: "amount",
+        type: "uint256",
       },
-      {
-        "indexed": false,
-        "internalType": "string",
-        "name": "reason",
-        "type": "string"
-      }
     ],
-    "name": "MilestoneRejected",
-    "type": "event"
+    name: "EscrowRefunded",
+    type: "event",
   },
   {
-    "anonymous": false,
-    "inputs": [
+    anonymous: false,
+    inputs: [
       {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "agreementId",
-        "type": "uint256"
+        indexed: true,
+        internalType: "uint256",
+        name: "agreementId",
+        type: "uint256",
       },
       {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "milestoneIndex",
-        "type": "uint256"
+        indexed: true,
+        internalType: "uint256",
+        name: "milestoneIndex",
+        type: "uint256",
       },
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "shipper",
-        "type": "address"
+        indexed: true,
+        internalType: "address",
+        name: "carrier",
+        type: "address",
       },
       {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      }
+        indexed: false,
+        internalType: "bytes32",
+        name: "proofHash",
+        type: "bytes32",
+      },
     ],
-    "name": "MilestoneVerified",
-    "type": "event"
+    name: "MilestoneCompletionSubmitted",
+    type: "event",
   },
   {
-    "anonymous": false,
-    "inputs": [
+    anonymous: false,
+    inputs: [
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "user",
-        "type": "address"
-      }
+        indexed: true,
+        internalType: "uint256",
+        name: "agreementId",
+        type: "uint256",
+      },
+      {
+        indexed: true,
+        internalType: "uint256",
+        name: "milestoneIndex",
+        type: "uint256",
+      },
+      {
+        indexed: true,
+        internalType: "address",
+        name: "carrier",
+        type: "address",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "amount",
+        type: "uint256",
+      },
     ],
-    "name": "ProfilePictureUpdated",
-    "type": "event"
+    name: "MilestonePayout",
+    type: "event",
   },
   {
-    "anonymous": false,
-    "inputs": [
+    anonymous: false,
+    inputs: [
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "user",
-        "type": "address"
+        indexed: true,
+        internalType: "uint256",
+        name: "agreementId",
+        type: "uint256",
       },
       {
-        "indexed": false,
-        "internalType": "enum LogisticsEscrow.UserRole",
-        "name": "role",
-        "type": "uint8"
-      }
+        indexed: true,
+        internalType: "uint256",
+        name: "milestoneIndex",
+        type: "uint256",
+      },
+      {
+        indexed: true,
+        internalType: "address",
+        name: "shipper",
+        type: "address",
+      },
+      {
+        indexed: false,
+        internalType: "string",
+        name: "reason",
+        type: "string",
+      },
     ],
-    "name": "UserRegistered",
-    "type": "event"
+    name: "MilestoneRejected",
+    type: "event",
   },
   {
-    "inputs": [],
-    "name": "CARRIER_REWARD",
-    "outputs": [
+    anonymous: false,
+    inputs: [
       {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
+        indexed: true,
+        internalType: "uint256",
+        name: "agreementId",
+        type: "uint256",
+      },
+      {
+        indexed: true,
+        internalType: "uint256",
+        name: "milestoneIndex",
+        type: "uint256",
+      },
+      {
+        indexed: true,
+        internalType: "address",
+        name: "shipper",
+        type: "address",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "amount",
+        type: "uint256",
+      },
     ],
-    "stateMutability": "view",
-    "type": "function",
-    "constant": true
+    name: "MilestoneVerified",
+    type: "event",
   },
   {
-    "inputs": [],
-    "name": "agreementCounter",
-    "outputs": [
+    anonymous: false,
+    inputs: [
       {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
+        indexed: true,
+        internalType: "address",
+        name: "user",
+        type: "address",
+      },
     ],
-    "stateMutability": "view",
-    "type": "function",
-    "constant": true
+    name: "ProfilePictureUpdated",
+    type: "event",
   },
   {
-    "inputs": [
+    anonymous: false,
+    inputs: [
       {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
+        indexed: true,
+        internalType: "address",
+        name: "user",
+        type: "address",
       },
       {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
+        indexed: false,
+        internalType: "enum LogisticsEscrow.UserRole",
+        name: "role",
+        type: "uint8",
+      },
     ],
-    "name": "agreementMilestones",
-    "outputs": [
-      {
-        "internalType": "string",
-        "name": "checkpoint",
-        "type": "string"
-      },
-      {
-        "internalType": "uint256",
-        "name": "percentage",
-        "type": "uint256"
-      },
-      {
-        "internalType": "bool",
-        "name": "completed",
-        "type": "bool"
-      },
-      {
-        "internalType": "bool",
-        "name": "verified",
-        "type": "bool"
-      },
-      {
-        "internalType": "bool",
-        "name": "paid",
-        "type": "bool"
-      },
-      {
-        "internalType": "uint256",
-        "name": "completedAt",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "verifiedAt",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function",
-    "constant": true
+    name: "UserRegistered",
+    type: "event",
   },
   {
-    "inputs": [],
-    "name": "owner",
-    "outputs": [
+    inputs: [],
+    name: "CARRIER_REWARD",
+    outputs: [
       {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
     ],
-    "stateMutability": "view",
-    "type": "function",
-    "constant": true
+    stateMutability: "view",
+    type: "function",
+    constant: true,
   },
   {
-    "inputs": [],
-    "name": "rewardToken",
-    "outputs": [
+    inputs: [],
+    name: "CARRIER_STAKE_PERCENTAGE",
+    outputs: [
       {
-        "internalType": "contract ILogiTrustToken",
-        "name": "",
-        "type": "address"
-      }
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
     ],
-    "stateMutability": "view",
-    "type": "function",
-    "constant": true
+    stateMutability: "view",
+    type: "function",
+    constant: true,
   },
   {
-    "inputs": [
+    inputs: [],
+    name: "agreementCounter",
+    outputs: [
       {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "name": "users",
-    "outputs": [
-      {
-        "internalType": "string",
-        "name": "name",
-        "type": "string"
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
       },
-      {
-        "internalType": "enum LogisticsEscrow.UserRole",
-        "name": "role",
-        "type": "uint8"
-      },
-      {
-        "internalType": "bool",
-        "name": "registered",
-        "type": "bool"
-      }
     ],
-    "stateMutability": "view",
-    "type": "function",
-    "constant": true
+    stateMutability: "view",
+    type: "function",
+    constant: true,
   },
   {
-    "inputs": [
+    inputs: [
       {
-        "internalType": "string",
-        "name": "_name",
-        "type": "string"
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
       },
       {
-        "internalType": "enum LogisticsEscrow.UserRole",
-        "name": "_role",
-        "type": "uint8"
-      }
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
     ],
-    "name": "register",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
+    name: "agreementMilestones",
+    outputs: [
+      {
+        internalType: "string",
+        name: "checkpoint",
+        type: "string",
+      },
+      {
+        internalType: "uint256",
+        name: "percentage",
+        type: "uint256",
+      },
+      {
+        internalType: "bool",
+        name: "completed",
+        type: "bool",
+      },
+      {
+        internalType: "bool",
+        name: "verified",
+        type: "bool",
+      },
+      {
+        internalType: "bool",
+        name: "paid",
+        type: "bool",
+      },
+      {
+        internalType: "uint256",
+        name: "completedAt",
+        type: "uint256",
+      },
+      {
+        internalType: "uint256",
+        name: "verifiedAt",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+    constant: true,
   },
   {
-    "inputs": [
+    inputs: [],
+    name: "owner",
+    outputs: [
       {
-        "internalType": "bytes",
-        "name": "data",
-        "type": "bytes"
-      }
+        internalType: "address",
+        name: "",
+        type: "address",
+      },
     ],
-    "name": "setProfilePicture",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
+    stateMutability: "view",
+    type: "function",
+    constant: true,
   },
   {
-    "inputs": [
+    inputs: [],
+    name: "rewardToken",
+    outputs: [
       {
-        "internalType": "address",
-        "name": "user",
-        "type": "address"
-      }
+        internalType: "contract ILogiTrustToken",
+        name: "",
+        type: "address",
+      },
     ],
-    "name": "getProfilePicture",
-    "outputs": [
-      {
-        "internalType": "bytes",
-        "name": "",
-        "type": "bytes"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function",
-    "constant": true
+    stateMutability: "view",
+    type: "function",
+    constant: true,
   },
   {
-    "inputs": [
+    inputs: [
       {
-        "internalType": "uint256",
-        "name": "id",
-        "type": "uint256"
-      }
+        internalType: "address",
+        name: "",
+        type: "address",
+      },
     ],
-    "name": "getAgreementBasic",
-    "outputs": [
+    name: "users",
+    outputs: [
       {
-        "internalType": "uint256",
-        "name": "agreementId",
-        "type": "uint256"
+        internalType: "string",
+        name: "name",
+        type: "string",
       },
       {
-        "internalType": "string",
-        "name": "referenceNo",
-        "type": "string"
+        internalType: "enum LogisticsEscrow.UserRole",
+        name: "role",
+        type: "uint8",
       },
       {
-        "internalType": "address",
-        "name": "shipper",
-        "type": "address"
+        internalType: "bool",
+        name: "registered",
+        type: "bool",
       },
-      {
-        "internalType": "address",
-        "name": "carrier",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "escrowAmount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "escrowRemaining",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "deadline",
-        "type": "uint256"
-      },
-      {
-        "internalType": "enum LogisticsEscrow.Priority",
-        "name": "priority",
-        "type": "uint8"
-      },
-      {
-        "internalType": "enum LogisticsEscrow.AgreementStatus",
-        "name": "status",
-        "type": "uint8"
-      },
-      {
-        "internalType": "uint256",
-        "name": "currentMilestone",
-        "type": "uint256"
-      }
     ],
-    "stateMutability": "view",
-    "type": "function",
-    "constant": true
+    stateMutability: "view",
+    type: "function",
+    constant: true,
   },
   {
-    "inputs": [
+    inputs: [
       {
-        "internalType": "uint256",
-        "name": "agreementId",
-        "type": "uint256"
-      }
+        internalType: "address",
+        name: "carrier",
+        type: "address",
+      },
     ],
-    "name": "getMilestoneCount",
-    "outputs": [
+    name: "getCarrierLockedStake",
+    outputs: [
       {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
     ],
-    "stateMutability": "view",
-    "type": "function",
-    "constant": true
+    stateMutability: "view",
+    type: "function",
+    constant: true,
   },
   {
-    "inputs": [
+    inputs: [
       {
-        "internalType": "uint256",
-        "name": "agreementId",
-        "type": "uint256"
+        internalType: "string",
+        name: "_name",
+        type: "string",
       },
       {
-        "internalType": "uint256",
-        "name": "index",
-        "type": "uint256"
-      }
+        internalType: "enum LogisticsEscrow.UserRole",
+        name: "_role",
+        type: "uint8",
+      },
     ],
-    "name": "getMilestone",
-    "outputs": [
-      {
-        "internalType": "string",
-        "name": "checkpoint",
-        "type": "string"
-      },
-      {
-        "internalType": "uint256",
-        "name": "percentage",
-        "type": "uint256"
-      },
-      {
-        "internalType": "bool",
-        "name": "completed",
-        "type": "bool"
-      },
-      {
-        "internalType": "bool",
-        "name": "verified",
-        "type": "bool"
-      },
-      {
-        "internalType": "bool",
-        "name": "paid",
-        "type": "bool"
-      },
-      {
-        "internalType": "uint256",
-        "name": "completedAt",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "verifiedAt",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function",
-    "constant": true
+    name: "register",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
   },
   {
-    "inputs": [
+    inputs: [
       {
-        "internalType": "uint256",
-        "name": "agreementId",
-        "type": "uint256"
+        internalType: "bytes",
+        name: "data",
+        type: "bytes",
       },
-      {
-        "internalType": "uint256",
-        "name": "index",
-        "type": "uint256"
-      }
     ],
-    "name": "getMilestoneProofHash",
-    "outputs": [
-      {
-        "internalType": "bytes32",
-        "name": "",
-        "type": "bytes32"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function",
-    "constant": true
+    name: "setProfilePicture",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
   },
   {
-    "inputs": [
+    inputs: [
       {
-        "internalType": "string",
-        "name": "shipmentDetails",
-        "type": "string"
+        internalType: "address",
+        name: "user",
+        type: "address",
       },
-      {
-        "internalType": "uint256",
-        "name": "payloadValue",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "escrowAmount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "deadline",
-        "type": "uint256"
-      },
-      {
-        "internalType": "enum LogisticsEscrow.Priority",
-        "name": "priority",
-        "type": "uint8"
-      },
-      {
-        "internalType": "string[]",
-        "name": "checkpoints",
-        "type": "string[]"
-      },
-      {
-        "internalType": "uint256[]",
-        "name": "percentages",
-        "type": "uint256[]"
-      }
     ],
-    "name": "createAgreement",
-    "outputs": [
+    name: "getProfilePicture",
+    outputs: [
       {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
+        internalType: "bytes",
+        name: "",
+        type: "bytes",
+      },
     ],
-    "stateMutability": "payable",
-    "type": "function",
-    "payable": true
+    stateMutability: "view",
+    type: "function",
+    constant: true,
   },
   {
-    "inputs": [
+    inputs: [
       {
-        "internalType": "uint256",
-        "name": "agreementId",
-        "type": "uint256"
-      }
+        internalType: "uint256",
+        name: "id",
+        type: "uint256",
+      },
     ],
-    "name": "acceptAgreement",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
+    name: "getAgreementBasic",
+    outputs: [
       {
-        "internalType": "uint256",
-        "name": "agreementId",
-        "type": "uint256"
+        internalType: "uint256",
+        name: "agreementId",
+        type: "uint256",
       },
       {
-        "internalType": "bytes32",
-        "name": "proofHash",
-        "type": "bytes32"
-      }
-    ],
-    "name": "submitMilestoneCompletion",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "agreementId",
-        "type": "uint256"
-      }
-    ],
-    "name": "verifyMilestone",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "agreementId",
-        "type": "uint256"
+        internalType: "string",
+        name: "referenceNo",
+        type: "string",
       },
       {
-        "internalType": "string",
-        "name": "reason",
-        "type": "string"
-      }
-    ],
-    "name": "rejectMilestone",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "agreementId",
-        "type": "uint256"
-      }
-    ],
-    "name": "cancelAgreement",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "agreementId",
-        "type": "uint256"
-      }
-    ],
-    "name": "expireAgreement",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "agreementId",
-        "type": "uint256"
+        internalType: "address",
+        name: "shipper",
+        type: "address",
       },
       {
-        "internalType": "uint256",
-        "name": "newDeadline",
-        "type": "uint256"
-      }
-    ],
-    "name": "extendDeadline",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "agreementId",
-        "type": "uint256"
+        internalType: "address",
+        name: "carrier",
+        type: "address",
       },
       {
-        "internalType": "bytes32",
-        "name": "documentHash",
-        "type": "bytes32"
-      }
-    ],
-    "name": "submitCompletionDocument",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "agreementId",
-        "type": "uint256"
-      }
-    ],
-    "name": "getCompletionDocument",
-    "outputs": [
-      {
-        "internalType": "bytes32",
-        "name": "documentHash",
-        "type": "bytes32"
+        internalType: "uint256",
+        name: "escrowAmount",
+        type: "uint256",
       },
       {
-        "internalType": "address",
-        "name": "submitter",
-        "type": "address"
-      }
+        internalType: "uint256",
+        name: "escrowRemaining",
+        type: "uint256",
+      },
+      {
+        internalType: "uint256",
+        name: "deadline",
+        type: "uint256",
+      },
+      {
+        internalType: "enum LogisticsEscrow.Priority",
+        name: "priority",
+        type: "uint8",
+      },
+      {
+        internalType: "enum LogisticsEscrow.AgreementStatus",
+        name: "status",
+        type: "uint8",
+      },
+      {
+        internalType: "uint256",
+        name: "currentMilestone",
+        type: "uint256",
+      },
     ],
-    "stateMutability": "view",
-    "type": "function",
-    "constant": true
-  }
+    stateMutability: "view",
+    type: "function",
+    constant: true,
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "agreementId",
+        type: "uint256",
+      },
+    ],
+    name: "getMilestoneCount",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+    constant: true,
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "agreementId",
+        type: "uint256",
+      },
+      {
+        internalType: "uint256",
+        name: "index",
+        type: "uint256",
+      },
+    ],
+    name: "getMilestone",
+    outputs: [
+      {
+        internalType: "string",
+        name: "checkpoint",
+        type: "string",
+      },
+      {
+        internalType: "uint256",
+        name: "percentage",
+        type: "uint256",
+      },
+      {
+        internalType: "bool",
+        name: "completed",
+        type: "bool",
+      },
+      {
+        internalType: "bool",
+        name: "verified",
+        type: "bool",
+      },
+      {
+        internalType: "bool",
+        name: "paid",
+        type: "bool",
+      },
+      {
+        internalType: "uint256",
+        name: "completedAt",
+        type: "uint256",
+      },
+      {
+        internalType: "uint256",
+        name: "verifiedAt",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+    constant: true,
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "agreementId",
+        type: "uint256",
+      },
+      {
+        internalType: "uint256",
+        name: "index",
+        type: "uint256",
+      },
+    ],
+    name: "getMilestoneProofHash",
+    outputs: [
+      {
+        internalType: "bytes32",
+        name: "",
+        type: "bytes32",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+    constant: true,
+  },
+  {
+    inputs: [
+      {
+        internalType: "string",
+        name: "shipmentDetails",
+        type: "string",
+      },
+      {
+        internalType: "uint256",
+        name: "payloadValue",
+        type: "uint256",
+      },
+      {
+        internalType: "uint256",
+        name: "escrowAmount",
+        type: "uint256",
+      },
+      {
+        internalType: "uint256",
+        name: "deadline",
+        type: "uint256",
+      },
+      {
+        internalType: "enum LogisticsEscrow.Priority",
+        name: "priority",
+        type: "uint8",
+      },
+      {
+        internalType: "string[]",
+        name: "checkpoints",
+        type: "string[]",
+      },
+      {
+        internalType: "uint256[]",
+        name: "percentages",
+        type: "uint256[]",
+      },
+    ],
+    name: "createAgreement",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "payable",
+    type: "function",
+    payable: true,
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "agreementId",
+        type: "uint256",
+      },
+    ],
+    name: "acceptAgreement",
+    outputs: [],
+    stateMutability: "payable",
+    type: "function",
+    payable: true,
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "agreementId",
+        type: "uint256",
+      },
+      {
+        internalType: "bytes32",
+        name: "proofHash",
+        type: "bytes32",
+      },
+    ],
+    name: "submitMilestoneCompletion",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "agreementId",
+        type: "uint256",
+      },
+    ],
+    name: "verifyMilestone",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "agreementId",
+        type: "uint256",
+      },
+      {
+        internalType: "string",
+        name: "reason",
+        type: "string",
+      },
+    ],
+    name: "rejectMilestone",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "agreementId",
+        type: "uint256",
+      },
+    ],
+    name: "cancelAgreement",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "agreementId",
+        type: "uint256",
+      },
+    ],
+    name: "expireAgreement",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "agreementId",
+        type: "uint256",
+      },
+      {
+        internalType: "uint256",
+        name: "newDeadline",
+        type: "uint256",
+      },
+    ],
+    name: "extendDeadline",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "agreementId",
+        type: "uint256",
+      },
+      {
+        internalType: "bytes32",
+        name: "documentHash",
+        type: "bytes32",
+      },
+    ],
+    name: "submitCompletionDocument",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "agreementId",
+        type: "uint256",
+      },
+    ],
+    name: "getCompletionDocument",
+    outputs: [
+      {
+        internalType: "bytes32",
+        name: "documentHash",
+        type: "bytes32",
+      },
+      {
+        internalType: "address",
+        name: "submitter",
+        type: "address",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+    constant: true,
+  },
 ];
-
 
 const TOKEN_ABI = [
   {
-    "inputs": [],
-    "stateMutability": "nonpayable",
-    "type": "constructor"
+    inputs: [],
+    stateMutability: "nonpayable",
+    type: "constructor",
   },
   {
-    "anonymous": false,
-    "inputs": [
+    anonymous: false,
+    inputs: [
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "owner",
-        "type": "address"
+        indexed: true,
+        internalType: "address",
+        name: "owner",
+        type: "address",
       },
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "spender",
-        "type": "address"
+        indexed: true,
+        internalType: "address",
+        name: "spender",
+        type: "address",
       },
       {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "value",
-        "type": "uint256"
-      }
+        indexed: false,
+        internalType: "uint256",
+        name: "value",
+        type: "uint256",
+      },
     ],
-    "name": "Approval",
-    "type": "event"
+    name: "Approval",
+    type: "event",
   },
   {
-    "anonymous": false,
-    "inputs": [
+    anonymous: false,
+    inputs: [
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "previousOwner",
-        "type": "address"
+        indexed: true,
+        internalType: "address",
+        name: "previousOwner",
+        type: "address",
       },
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "newOwner",
-        "type": "address"
-      }
+        indexed: true,
+        internalType: "address",
+        name: "newOwner",
+        type: "address",
+      },
     ],
-    "name": "OwnershipTransferred",
-    "type": "event"
+    name: "OwnershipTransferred",
+    type: "event",
   },
   {
-    "anonymous": false,
-    "inputs": [
+    anonymous: false,
+    inputs: [
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "from",
-        "type": "address"
+        indexed: true,
+        internalType: "address",
+        name: "from",
+        type: "address",
       },
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "to",
-        "type": "address"
+        indexed: true,
+        internalType: "address",
+        name: "to",
+        type: "address",
       },
       {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "value",
-        "type": "uint256"
-      }
+        indexed: false,
+        internalType: "uint256",
+        name: "value",
+        type: "uint256",
+      },
     ],
-    "name": "Transfer",
-    "type": "event"
+    name: "Transfer",
+    type: "event",
   },
   {
-    "inputs": [
+    inputs: [
       {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
+        internalType: "address",
+        name: "",
+        type: "address",
       },
       {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
+        internalType: "address",
+        name: "",
+        type: "address",
+      },
     ],
-    "name": "allowance",
-    "outputs": [
+    name: "allowance",
+    outputs: [
       {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
     ],
-    "stateMutability": "view",
-    "type": "function",
-    "constant": true
+    stateMutability: "view",
+    type: "function",
+    constant: true,
   },
   {
-    "inputs": [
+    inputs: [
       {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
+        internalType: "address",
+        name: "",
+        type: "address",
+      },
     ],
-    "name": "balanceOf",
-    "outputs": [
+    name: "balanceOf",
+    outputs: [
       {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
     ],
-    "stateMutability": "view",
-    "type": "function",
-    "constant": true
+    stateMutability: "view",
+    type: "function",
+    constant: true,
   },
   {
-    "inputs": [],
-    "name": "decimals",
-    "outputs": [
+    inputs: [],
+    name: "decimals",
+    outputs: [
       {
-        "internalType": "uint8",
-        "name": "",
-        "type": "uint8"
-      }
+        internalType: "uint8",
+        name: "",
+        type: "uint8",
+      },
     ],
-    "stateMutability": "view",
-    "type": "function",
-    "constant": true
+    stateMutability: "view",
+    type: "function",
+    constant: true,
   },
   {
-    "inputs": [],
-    "name": "name",
-    "outputs": [
+    inputs: [],
+    name: "name",
+    outputs: [
       {
-        "internalType": "string",
-        "name": "",
-        "type": "string"
-      }
+        internalType: "string",
+        name: "",
+        type: "string",
+      },
     ],
-    "stateMutability": "view",
-    "type": "function",
-    "constant": true
+    stateMutability: "view",
+    type: "function",
+    constant: true,
   },
   {
-    "inputs": [],
-    "name": "owner",
-    "outputs": [
+    inputs: [],
+    name: "owner",
+    outputs: [
       {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
+        internalType: "address",
+        name: "",
+        type: "address",
+      },
     ],
-    "stateMutability": "view",
-    "type": "function",
-    "constant": true
+    stateMutability: "view",
+    type: "function",
+    constant: true,
   },
   {
-    "inputs": [],
-    "name": "symbol",
-    "outputs": [
+    inputs: [],
+    name: "symbol",
+    outputs: [
       {
-        "internalType": "string",
-        "name": "",
-        "type": "string"
-      }
+        internalType: "string",
+        name: "",
+        type: "string",
+      },
     ],
-    "stateMutability": "view",
-    "type": "function",
-    "constant": true
+    stateMutability: "view",
+    type: "function",
+    constant: true,
   },
   {
-    "inputs": [],
-    "name": "totalSupply",
-    "outputs": [
+    inputs: [],
+    name: "totalSupply",
+    outputs: [
       {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
     ],
-    "stateMutability": "view",
-    "type": "function",
-    "constant": true
+    stateMutability: "view",
+    type: "function",
+    constant: true,
   },
   {
-    "inputs": [
+    inputs: [
       {
-        "internalType": "address",
-        "name": "newOwner",
-        "type": "address"
-      }
+        internalType: "address",
+        name: "newOwner",
+        type: "address",
+      },
     ],
-    "name": "transferOwnership",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
+    name: "transferOwnership",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
   },
   {
-    "inputs": [
+    inputs: [
       {
-        "internalType": "address",
-        "name": "to",
-        "type": "address"
+        internalType: "address",
+        name: "to",
+        type: "address",
       },
       {
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      }
+        internalType: "uint256",
+        name: "amount",
+        type: "uint256",
+      },
     ],
-    "name": "mintReward",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
+    name: "mintReward",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
   },
   {
-    "inputs": [
+    inputs: [
       {
-        "internalType": "address",
-        "name": "to",
-        "type": "address"
+        internalType: "address",
+        name: "to",
+        type: "address",
       },
       {
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      }
+        internalType: "uint256",
+        name: "amount",
+        type: "uint256",
+      },
     ],
-    "name": "transfer",
-    "outputs": [
+    name: "transfer",
+    outputs: [
       {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
-      }
+        internalType: "bool",
+        name: "",
+        type: "bool",
+      },
     ],
-    "stateMutability": "nonpayable",
-    "type": "function"
+    stateMutability: "nonpayable",
+    type: "function",
   },
   {
-    "inputs": [
+    inputs: [
       {
-        "internalType": "address",
-        "name": "spender",
-        "type": "address"
+        internalType: "address",
+        name: "spender",
+        type: "address",
       },
       {
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      }
+        internalType: "uint256",
+        name: "amount",
+        type: "uint256",
+      },
     ],
-    "name": "approve",
-    "outputs": [
+    name: "approve",
+    outputs: [
       {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
-      }
+        internalType: "bool",
+        name: "",
+        type: "bool",
+      },
     ],
-    "stateMutability": "nonpayable",
-    "type": "function"
+    stateMutability: "nonpayable",
+    type: "function",
   },
   {
-    "inputs": [
+    inputs: [
       {
-        "internalType": "address",
-        "name": "from",
-        "type": "address"
+        internalType: "address",
+        name: "from",
+        type: "address",
       },
       {
-        "internalType": "address",
-        "name": "to",
-        "type": "address"
+        internalType: "address",
+        name: "to",
+        type: "address",
       },
       {
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      }
+        internalType: "uint256",
+        name: "amount",
+        type: "uint256",
+      },
     ],
-    "name": "transferFrom",
-    "outputs": [
+    name: "transferFrom",
+    outputs: [
       {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
-      }
+        internalType: "bool",
+        name: "",
+        type: "bool",
+      },
     ],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  }
+    stateMutability: "nonpayable",
+    type: "function",
+  },
 ];
