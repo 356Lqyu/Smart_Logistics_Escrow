@@ -1,6 +1,6 @@
-const CONTRACT_ADDRESS = "0xeD4F9972fB213294781de0C4188eE124397325DE";
+const CONTRACT_ADDRESS = "0x10a5592930716b4340a9530918E1C1a60234D0Ea";
 
-const TOKEN_CONTRACT_ADDRESS = "0xf36Ec525c8C6508b42842F3509C1bc3b92E0Fd4B";
+const TOKEN_CONTRACT_ADDRESS = "0x03cBD7b58d5C941317De57318c35cdDA6784dEb3";
 
 const CONTRACT_ABI = [
   {
@@ -463,61 +463,6 @@ const CONTRACT_ABI = [
       {
         "internalType": "uint256",
         "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function",
-    "constant": true
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "name": "agreementMilestones",
-    "outputs": [
-      {
-        "internalType": "string",
-        "name": "checkpoint",
-        "type": "string"
-      },
-      {
-        "internalType": "uint256",
-        "name": "percentage",
-        "type": "uint256"
-      },
-      {
-        "internalType": "bool",
-        "name": "completed",
-        "type": "bool"
-      },
-      {
-        "internalType": "bool",
-        "name": "verified",
-        "type": "bool"
-      },
-      {
-        "internalType": "bool",
-        "name": "paid",
-        "type": "bool"
-      },
-      {
-        "internalType": "uint256",
-        "name": "completedAt",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "verifiedAt",
         "type": "uint256"
       }
     ],
