@@ -267,9 +267,7 @@ async function syncExpiredAgreementToSupabase(
       return;
     }
 
-    // -------------------------------------------------
     // Save transaction
-
     if (transactionHash && actor) {
       await saveTransaction(transactionHash, "AgreementExpired", actor, {
         status: "Expired",
@@ -304,10 +302,7 @@ async function syncExpiredAgreementToSupabase(
   }
 }
 
-// =====================================================
 // LOAD MILESTONES
-// =====================================================
-
 async function loadMilestones() {
   const { data, error } = await supabaseClient
     .from("milestones")
@@ -361,16 +356,11 @@ async function loadMilestones() {
     }
   });
 
-  // -------------------------------------------------
   // Prefer blockchain milestone state
-  // -------------------------------------------------
-
   if (typeof window.ethereum !== "undefined") {
     try {
       const web3 = new Web3(window.ethereum);
-
       const contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
-
       const count = Number(
         await contract.methods.getMilestoneCount(Number(agreementId)).call(),
       );
@@ -380,15 +370,10 @@ async function loadMilestones() {
           const chain = await contract.methods
             .getMilestone(Number(agreementId), i)
             .call();
-
           milestoneData[i].completed = normalizeBool(chain.completed);
-
           milestoneData[i].verified = normalizeBool(chain.verified);
-
           milestoneData[i].paid = normalizeBool(chain.paid);
-
           milestoneData[i].completed_at = Number(chain.completedAt) || null;
-
           milestoneData[i].verified_at = Number(chain.verifiedAt) || null;
         }
       }
@@ -398,32 +383,22 @@ async function loadMilestones() {
   }
 }
 
-// =====================================================
 // RENDER AGREEMENT
-// =====================================================
-
 function renderAgreement() {
   const status = agreementData.status || getStatusFromBlockchain() || "Created";
-
   setText("agreement-reference", agreementData.reference_no || "-");
-
   setText("agreement-shipment", agreementData.shipment_details || "-");
-
   const statusElement = document.getElementById("agreement-status");
-
   if (statusElement) {
     statusElement.innerHTML = `
             <span class="status-dot"></span>
             ${escapeHtml(status)}
         `;
-
     statusElement.className = "status-badge " + getStatusClass(status);
   }
 
   const priority = agreementData.priority || "Normal";
-
   setText("agreement-priority", priority.toUpperCase());
-
   setText(
     "shipper-address",
     shortenAddress(
@@ -432,16 +407,10 @@ function renderAgreement() {
   );
 
   setText("carrier-address", getCarrierAddress());
-
-  // -------------------------------------------------
   // Escrow
-  // -------------------------------------------------
-
   const normalizedStatus = String(status).toLowerCase();
   const isExpired = normalizedStatus === "expired";
   const isCancelled = normalizedStatus === "cancelled";
-  // Terminal refunds clear the on-chain balance, but the original amount is
-  // still the funded escrow amount shown in the agreement record.
   const escrowEth =
     isExpired || isCancelled
       ? Number(agreementData.escrow_amount || 0)
@@ -452,16 +421,11 @@ function renderAgreement() {
 
   setText("escrow-amount", `${escrowEth.toFixed(3)} ETH`);
 
-  // -------------------------------------------------
   // Deadline
-  // -------------------------------------------------
-
   const deadline = Number(
     agreementData.blockchain_deadline || agreementData.deadline,
   );
-
   setText("agreement-deadline", formatDateTime(deadline));
-
   const countdownItem = document
     .getElementById("expiry-countdown")
     ?.closest(".summary-item");
@@ -473,30 +437,17 @@ function renderAgreement() {
     updateCountdown(deadline);
   }
 
-  // -------------------------------------------------
-  // Network
-  // -------------------------------------------------
-
   detectNetwork();
-
-  // -------------------------------------------------
   // Etherscan
-  // -------------------------------------------------
-
   const explorer = document.getElementById("etherscan-link");
 
   if (explorer) {
     explorer.href = `https://etherscan.io/address/${CONTRACT_ADDRESS}`;
   }
 
-  // -------------------------------------------------
   // Shipment details
-  // -------------------------------------------------
-
   setText("detail-shipment", agreementData.shipment_details || "-");
-
   const payload = Number(agreementData.payload_value || 0);
-
   setText(
     "detail-payload-value",
     `$${payload.toLocaleString(undefined, {
@@ -504,23 +455,14 @@ function renderAgreement() {
       maximumFractionDigits: 2,
     })}`,
   );
-
   setText("detail-priority", priority);
-
   setText("detail-origin", agreementData.origin || "-");
-
   setText("detail-destination", agreementData.destination || "-");
 
-  // -------------------------------------------------
   // Financial section visibility
-  // -------------------------------------------------
-
   const financialSection = document.querySelector(".shipment-agreement-card");
-
   const role = String(localStorage.getItem("role") || "").toLowerCase();
-
   const isCarrier = role === "2" || role === "carrier";
-
   if (financialSection) {
     const subsections = financialSection.querySelectorAll(".detail-subsection");
 
@@ -532,11 +474,6 @@ function renderAgreement() {
 
   setText("detail-escrow-amount", `${escrowEth.toFixed(3)} ETH`);
 
-  // An expiry transaction clears the contract's escrow balance. For an
-  // expired agreement, calculate the carrier payment from the milestones
-  // that were actually paid, rather than trusting a legacy escrow_released
-  // or refunded_amount value that may have treated the shipper refund as a
-  // carrier payout.
   const hasMilestoneData = milestoneData.length > 0;
   const paidMilestonePercentage = milestoneData.reduce(
     (total, milestone) =>
@@ -572,10 +509,7 @@ function renderAgreement() {
   );
 }
 
-// =====================================================
 // GET STATUS FROM BLOCKCHAIN
-// =====================================================
-
 function getStatusFromBlockchain() {
   const status = Number(agreementData?.blockchain_status);
 
@@ -600,10 +534,7 @@ function getStatusFromBlockchain() {
   }
 }
 
-// =====================================================
 // MILESTONES
-// =====================================================
-
 function renderMilestones() {
   const container = document.getElementById("milestones-container");
 
@@ -638,22 +569,14 @@ function renderMilestones() {
   }
 
   const role = String(localStorage.getItem("role") || "").toLowerCase();
-
   const isCarrier = role === "2" || role === "carrier";
-
   const isShipper = role === "1" || role === "shipper";
-
   milestoneData.forEach((milestone, index) => {
     const completed = normalizeBool(milestone.completed);
-
     const verified = normalizeBool(milestone.verified);
-
     const paid = normalizeBool(milestone.paid);
-
     const percentage = Number(milestone.percentage || 0);
-
     const checkpoint = milestone.checkpoint || `Milestone ${index + 1}`;
-
     const amount = calculateMilestoneAmount(percentage);
 
     let state = "pending";
@@ -663,14 +586,9 @@ function renderMilestones() {
       String(status).toLowerCase() === "expired" || isAgreementExpired();
 
     if (String(status).toLowerCase() === "cancelled") {
-      // A cancelled agreement has no actionable milestones. Keep
-      // every milestone visually neutral instead of marking the
-      // first one as active.
       state = "inactive";
       stateText = "Cancelled";
     } else if (isExpiredForDisplay) {
-      // Keep the factual milestone label, but render terminal
-      // agreement milestones in the neutral grey state.
       state = "inactive";
       if (completed && verified && paid) {
         stateText = "Completed & Paid";
@@ -700,9 +618,7 @@ function renderMilestones() {
 
     let action = "";
 
-    // -------------------------------------------------
     // Priority check for rejections
-    // -------------------------------------------------
     if (milestone.isRejected) {
       const rejectionMode = isShipper ? "review" : "submit";
       const rejectionLabel = isShipper
@@ -899,10 +815,7 @@ function isVerificationPendingOverFiveMinutes(completedAt) {
   );
 }
 
-// =====================================================
 // CHECK EXPIRY
-// =====================================================
-
 function isAgreementExpired() {
   const deadline = Number(
     agreementData?.blockchain_deadline || agreementData?.deadline || 0,
@@ -915,10 +828,7 @@ function isAgreementExpired() {
   return Math.floor(Date.now() / 1000) > deadline;
 }
 
-// =====================================================
 // CURRENT MILESTONE
-// =====================================================
-
 function getCurrentMilestoneIndex() {
   const blockchainIndex = Number(agreementData?.blockchain_current_milestone);
 
@@ -929,7 +839,6 @@ function getCurrentMilestoneIndex() {
   ) {
     return blockchainIndex;
   }
-
   return findFirstUnpaidMilestone();
 }
 
@@ -945,10 +854,7 @@ function findFirstUnpaidMilestone() {
   return -1;
 }
 
-// =====================================================
 // CALCULATE PAYOUT DISPLAY
-// =====================================================
-
 function calculateMilestoneAmount(percentage) {
   const terminalStatus = String(agreementData?.status || "").toLowerCase();
   const escrowEth = ["cancelled", "expired"].includes(terminalStatus)
@@ -961,24 +867,15 @@ function calculateMilestoneAmount(percentage) {
   return ((escrowEth * Number(percentage)) / 100).toFixed(3);
 }
 
-// =====================================================
 // OVERALL PROGRESS
-// =====================================================
-
 function updateOverallProgress() {
   const progressText = document.getElementById("overall-progress");
-
   const progressBar = document.getElementById("overall-progress-bar");
-
   let completedPercentage = 0;
-
   milestoneData.forEach((milestone) => {
     const completed = normalizeBool(milestone.completed);
-
     const verified = normalizeBool(milestone.verified);
-
     const paid = normalizeBool(milestone.paid);
-
     if (completed && verified && paid) {
       completedPercentage += Number(milestone.percentage || 0);
     }
@@ -993,10 +890,7 @@ function updateOverallProgress() {
   }
 }
 
-// =====================================================
 // LIFECYCLE
-// =====================================================
-
 function renderLifecycle() {
   const container = document.getElementById("lifecycle-timeline");
 
@@ -1005,28 +899,21 @@ function renderLifecycle() {
   }
 
   const status = agreementData.status || getStatusFromBlockchain() || "Created";
-
-  // -------------------------------------------------
   // CANCELLED
-  // -------------------------------------------------
-
   if (status === "Cancelled") {
     renderLifecycleStages(container, [
       {
         label: "Created",
-
         state: "completed",
       },
 
       {
         label: "Cancelled",
-
         state: "cancelled",
       },
 
       {
         label: "Refunded",
-
         state: "refunded",
       },
     ]);
@@ -1034,10 +921,7 @@ function renderLifecycle() {
     return;
   }
 
-  // -------------------------------------------------
   // EXPIRED
-  // -------------------------------------------------
-
   if (status === "Expired") {
     const carrier =
       agreementData.blockchain_carrier || agreementData.carrier_address;
@@ -1073,20 +957,15 @@ function renderLifecycle() {
     return;
   }
 
-  // -------------------------------------------------
   // NORMAL
-  // -------------------------------------------------
-
   const stages = [
     {
       label: "Created",
-
       state: "completed",
     },
 
     {
       label: "Accepted",
-
       state: "pending",
     },
   ];
@@ -1101,9 +980,7 @@ function renderLifecycle() {
 
   milestoneData.forEach((milestone) => {
     const completed = normalizeBool(milestone.completed);
-
     const verified = normalizeBool(milestone.verified);
-
     const paid = normalizeBool(milestone.paid);
 
     let stageState = "pending";
@@ -1130,10 +1007,7 @@ function renderLifecycle() {
   renderLifecycleStages(container, stages);
 }
 
-// =====================================================
 // RENDER LIFECYCLE STAGES
-// =====================================================
-
 function renderLifecycleStages(container, stages) {
   let html = "";
 
@@ -1182,10 +1056,7 @@ function renderLifecycleStages(container, stages) {
   container.innerHTML = html;
 }
 
-// =====================================================
 // ACTIONS
-// =====================================================
-
 function setupActions() {
   const cancelButton = document.getElementById("cancel-btn");
   const role = String(localStorage.getItem("role") || "")
@@ -1201,10 +1072,7 @@ function setupActions() {
     status === "active" ||
     Number(agreementData?.blockchain_status) === 1;
 
-  // -------------------------------------------------
   // EXPIRED
-  // -------------------------------------------------
-
   if (status === "expired") {
     if (cancelButton) {
       cancelButton.style.display = "none";
@@ -1214,7 +1082,7 @@ function setupActions() {
     return;
   }
 
-  // 2. Handle Cancel / Accept Buttons
+  // Handle Cancel / Accept Buttons
   if (cancelButton) {
     if (
       isShipper &&
@@ -1243,7 +1111,7 @@ function setupActions() {
     }
   }
 
-  // 3. Deadline Extension Request Trigger (Within 1 Day / 86400 Seconds)
+  // Deadline Extension Request Trigger (Within 1 Day / 86400 Seconds)
   const deadline = Number(
     agreementData.blockchain_deadline || agreementData.deadline,
   );
@@ -1270,10 +1138,7 @@ function setupActions() {
   }
 }
 
-// =====================================================
 // EXTENSION UI RENDERERS
-// =====================================================
-
 function showExtensionRequestButton() {
   const actionContainer = document.querySelector(".agreement-actions");
 
@@ -1448,10 +1313,7 @@ async function submitDeadlineExtensionRequest() {
   }
 }
 
-// =====================================================
 // ACCEPT AGREEMENT
-// =====================================================
-
 async function acceptAgreementAction() {
   if (isAgreementExpired()) {
     alert(
@@ -1479,10 +1341,7 @@ async function acceptAgreementAction() {
   );
 }
 
-// =====================================================
 // CANCEL AGREEMENT
-// =====================================================
-
 async function cancelAgreementAction() {
   const refund = Number(
     agreementData?.escrow_remaining || agreementData?.escrow_amount || 0,
@@ -1509,10 +1368,7 @@ async function requestDeadlineExtension(id) {
   );
 }
 
-// =====================================================
 // SAVE TRANSACTION
-// =====================================================
-
 async function saveTransaction(hash, eventType, actor, details) {
   const { error } = await supabaseClient.from("transactions").insert([
     {
@@ -1533,10 +1389,7 @@ async function saveTransaction(hash, eventType, actor, details) {
   }
 }
 
-// =====================================================
 // HELPERS
-// =====================================================
-
 function findMilestoneActionButton(text) {
   return Array.from(
     document.querySelectorAll("#milestones-container button"),
@@ -1604,10 +1457,7 @@ function formatDate(timestamp) {
   });
 }
 
-// =====================================================
 // STATUS CLASS
-// =====================================================
-
 function getStatusClass(status) {
   switch (status) {
     case "Created":
@@ -1651,10 +1501,7 @@ function formatDateTime(timestamp) {
   });
 }
 
-// =====================================================
 // COUNTDOWN
-// =====================================================
-
 function updateCountdown(deadline) {
   const element = document.getElementById("expiry-countdown");
 
@@ -1687,10 +1534,6 @@ function updateCountdown(deadline) {
   setInterval(update, 60000);
 }
 
-// =====================================================
-// NETWORK
-// =====================================================
-
 async function detectNetwork() {
   try {
     if (typeof window.ethereum === "undefined") {
@@ -1710,10 +1553,7 @@ async function detectNetwork() {
   }
 }
 
-// =====================================================
 // SHORTEN ADDRESS
-// =====================================================
-
 function shortenAddress(address) {
   if (!address) {
     return "-";
@@ -1728,10 +1568,7 @@ function shortenAddress(address) {
   );
 }
 
-// =====================================================
 // ESCAPE HTML
-// =====================================================
-
 function escapeHtml(value) {
   if (value === null || value === undefined) {
     return "";
@@ -1745,10 +1582,7 @@ function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
-// =====================================================
 // ERROR
-// =====================================================
-
 function showError(message) {
   const loading = document.getElementById("details-loading");
 

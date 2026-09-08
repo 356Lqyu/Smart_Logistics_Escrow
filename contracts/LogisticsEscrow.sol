@@ -73,8 +73,6 @@ contract LogisticsEscrow {
     mapping(uint => Milestone[]) public agreementMilestones;
     mapping(uint => mapping(uint => bytes32)) private milestoneProofHashes;
     mapping(bytes32 => bool) private agreementHashes;
-    mapping(uint => bytes32) private completionDocumentHashes;
-    mapping(uint => address) private completionDocumentSubmitter;
     mapping(address => uint) private activeAgreementsByCarrier;
     mapping(address => uint) private lockedStakeByCarrier;
 
@@ -93,7 +91,6 @@ contract LogisticsEscrow {
     event AgreementExpired(uint indexed agreementId);
     event EscrowRefunded(uint indexed agreementId, address indexed shipper, uint amount);
     event DeadlineExtended(uint indexed agreementId, uint newDeadline, address indexed shipper);
-    event CompletionDocumentSubmitted(uint indexed agreementId, address indexed submitter, bytes32 documentHash);
 
     function getCarrierLockedStake(address carrier) external view returns (uint) {
         return lockedStakeByCarrier[carrier];
@@ -439,24 +436,6 @@ contract LogisticsEscrow {
 
         agreement.deadline = newDeadline;
         emit DeadlineExtended(agreementId, newDeadline, msg.sender);
-    }
-
-    function submitCompletionDocument(uint agreementId, bytes32 documentHash) external {
-        Agreement storage agreement = agreements[agreementId];
-        require(agreement.agreementId != 0, "Agreement does not exist");
-        require(agreement.status == AgreementStatus.Completed, "Agreement is not completed");
-        require(msg.sender == agreement.shipper || msg.sender == agreement.carrier, "Not a party to this agreement");
-        require(completionDocumentHashes[agreementId] == bytes32(0), "Document already submitted");
-        require(documentHash != bytes32(0), "Invalid hash");
-
-        completionDocumentHashes[agreementId] = documentHash;
-        completionDocumentSubmitter[agreementId] = msg.sender;
-
-        emit CompletionDocumentSubmitted(agreementId, msg.sender, documentHash);
-    }
-
-    function getCompletionDocument(uint agreementId) external view returns (bytes32 documentHash, address submitter) {
-        return (completionDocumentHashes[agreementId], completionDocumentSubmitter[agreementId]);
     }
 
     function generateReferenceNo(uint id) internal pure returns (string memory) {
