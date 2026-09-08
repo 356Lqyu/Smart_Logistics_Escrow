@@ -11,35 +11,24 @@ contract LogisticsEscrow {
     uint public constant CARRIER_REWARD = 10 * 10 ** 18;
     uint public constant CARRIER_STAKE_PERCENTAGE = 30;
     uint private constant MAX_ACTIVE_AGREEMENTS_PER_CARRIER = 3;
+    uint public agreementCounter;
 
-    event CarrierRewarded(
-        uint indexed agreementId,
-        address indexed carrier,
-        uint amount
-    );
 
+    event CarrierRewarded(uint indexed agreementId,address indexed carrier,uint amount);
+    
     constructor(address tokenAddress) {
         owner = msg.sender;
         rewardToken = ILogiTrustToken(tokenAddress);
     }
 
     enum UserRole { None, Shipper, Carrier }
-
+    enum AgreementStatus { Created, InProgress, Completed, Cancelled, Expired }
+    enum Priority { Normal, Express, Urgent }
     struct User {
         string name;
         UserRole role;
         bool registered;
     }
-
-    mapping(address => User) public users;
-    mapping(address => bytes) private profilePictures;
-
-    event UserRegistered(address indexed user, UserRole role);
-    event ProfilePictureUpdated(address indexed user);
-
-    enum AgreementStatus { Created, InProgress, Completed, Cancelled, Expired }
-    enum Priority { Normal, Express, Urgent }
-
     struct Milestone {
         string checkpoint;
         uint percentage;
@@ -49,7 +38,6 @@ contract LogisticsEscrow {
         uint completedAt;
         uint verifiedAt;
     }
-
     struct Agreement {
         uint agreementId;
         string referenceNo;
@@ -67,15 +55,17 @@ contract LogisticsEscrow {
         uint currentMilestone;
     }
 
-    uint public agreementCounter;
-
+    mapping(address => User) public users;
+    mapping(address => bytes) private profilePictures;
     mapping(uint => Agreement) private agreements;
-    mapping(uint => Milestone[]) public agreementMilestones;
+    mapping(uint => Milestone[]) private agreementMilestones;
     mapping(uint => mapping(uint => bytes32)) private milestoneProofHashes;
     mapping(bytes32 => bool) private agreementHashes;
     mapping(address => uint) private activeAgreementsByCarrier;
     mapping(address => uint) private lockedStakeByCarrier;
 
+    event UserRegistered(address indexed user, UserRole role);
+    event ProfilePictureUpdated(address indexed user);
     event AgreementCreated(uint indexed agreementId, string referenceNo, address indexed shipper, uint escrowAmount);
     event EscrowFunded(uint indexed agreementId, uint amount);
     event AgreementAccepted(uint indexed agreementId, address indexed carrier);
@@ -190,6 +180,7 @@ contract LogisticsEscrow {
         string[] memory checkpoints,
         uint[] memory percentages
     ) public payable returns (uint256) {
+        require(users[msg.sender].role == UserRole.Shipper,"Only registered shippers can create agreements");
         require(escrowAmount >= 0.1 ether, "Minimum escrow is 0.1 ETH");
         require(msg.value == escrowAmount, "ETH sent must equal escrow amount");
         require(deadline > block.timestamp, "Invalid deadline");
@@ -255,6 +246,7 @@ contract LogisticsEscrow {
 
     function acceptAgreement(uint agreementId) external payable {
         Agreement storage agreement = agreements[agreementId];
+        require(users[msg.sender].role == UserRole.Carrier,"Only registered carriers can accept agreements");
         require(agreement.agreementId != 0, "Agreement does not exist");
         require(agreement.status == AgreementStatus.Created, "Agreement is not available for acceptance");
         require(msg.sender != agreement.shipper, "Shipper cannot be carrier");
@@ -361,8 +353,10 @@ contract LogisticsEscrow {
         require(agreement.status == AgreementStatus.InProgress, "Agreement is not in progress");
         require(msg.sender == agreement.shipper, "Only the shipper can reject milestones");
         require(block.timestamp <= agreement.deadline, "Agreement deadline has passed");
+        require(bytes(reason).length > 0,"Rejection reason is required");
 
         uint index = agreement.currentMilestone;
+        require(index < agreementMilestones[agreementId].length,"All milestones are complete");
         Milestone storage milestone = agreementMilestones[agreementId][index];
         require(milestone.completed, "Milestone has not been submitted");
         require(!milestone.verified, "Milestone already verified");
@@ -430,8 +424,9 @@ contract LogisticsEscrow {
     function extendDeadline(uint agreementId, uint newDeadline) external {
         Agreement storage agreement = agreements[agreementId];
         require(agreement.agreementId != 0, "Agreement does not exist");
-        require(msg.sender == agreement.shipper, "Only the shipper can extend deadline");
-        require(agreement.status == AgreementStatus.Created || agreement.status == AgreementStatus.InProgress, "Cannot extend deadline for this agreement status");
+        require(msg.sender == agreement.shipper, "Only the shipper can extend deadline");   
+        require(agreement.status == AgreementStatus.InProgress,"Agreement is not in progress");        
+        require(block.timestamp <= agreement.deadline,"Current deadline has already passed");
         require(newDeadline > agreement.deadline, "New deadline must be greater than current deadline");
 
         agreement.deadline = newDeadline;
