@@ -1,16 +1,19 @@
 # Smart Logistics Escrow
 
-A decentralized application (dApp) built on Ethereum using **Solidity** and **Web3.js** that enables shippers and carriers to manage escrow funds, verify logistics milestones on-chain, and automate progressive payouts or refunds.
+A decentralized application (dApp) built on the Ethereum blockchain using Solidity, Web3.js, Truffle, and Supabase. This platform eliminates centralized intermediaries in supply chain logistics by enabling shippers and carriers to manage escrow funds, stake performance collateral, verify  milestone completions on-chain, and automate progressive payouts or secure refunds.
 
 ---
 
 ## Features
 
-* **Role-Based Access Control:** Separate registration and workflow dashboards for Shippers and Carriers.
-* **Escrow Smart Contract Integration:** Shippers lock ETH into an escrow agreement upon creation, which is securely managed by the smart contract.
-* **Milestone Progress Management:** Progressive percentage-based milestone tracking, such as Pickup, Warehouse Arrival, and Final Delivery.
-* **Sequential Verification & Payouts:** Carriers submit milestone completion requests, while Shippers verify them to trigger programmatic ETH payouts.
-* **Transparent Transaction Ledger:** Real-time tracking of agreement lifecycles, milestone payouts, and agreement creation events.
+* **Role-Based Access Control**: Separate registration and authentication workflows for **Shippers** (buyers/creators) and **Carriers** (service providers), enforced both on-chain and off-chain.
+* **Escrow Smart Contract Integration**: Shippers fund and lock ETH into an escrow agreement upon creation (`createAgreement`).
+* **Strict Milestone & Payout Distribution**: Agreements require exactly three checkpoints structured around a mandatory **30%, 30%, and 40%** progressive payout distribution model (Goods Pickup, Warehouse Arrival, and Final Delivery).
+* **Carrier Performance Staking**: Carriers must lock an exact **30% performance stake** relative to the escrow amount when accepting an active agreement, capped at a maximum of 3 active agreements per carrier.
+* **Reputation Token Standard (ERC-20)**: Integration of a minimal ERC-20 reputation token (`LogiTrustToken.sol` — **LTT**), where the escrow contract holds minting rights to reward carriers (`mintReward`) upon successful agreement completion.
+* **Automated Expiry & Refund Handling**: If a carrier fails to meet milestones before the deadline, the contract triggers a secure expiry mechanism (`expireAgreement`), refunding remaining escrow to the shipper and forfeiting the carrier's performance stake.
+* **Cryptographic Proofs & File Integrity**: Milestone submissions link SHA-256 proof hashes recorded immutably on-chain with off-chain encrypted media stored via Supabase Storage.
+* **Comprehensive Transaction Ledger**: Complete synchronization of blockchain events (`AgreementCreated`, `MilestoneVerified`, `CarrierStakeReturned`, etc.) into Supabase for real-time tracking[cite: 5, 13, 15].
 
 ---
 
