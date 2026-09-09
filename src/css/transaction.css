@@ -467,6 +467,13 @@
   border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
+/* ACCEPTED */
+.transaction-status.status-accepted {
+  color: #a78bfa;
+  background: rgba(139, 92, 246, 0.12);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
 /* SUBMITTED / PENDING */
 .transaction-status.status-submitted {
   color: #38bdf8;

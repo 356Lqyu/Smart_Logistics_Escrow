@@ -843,6 +843,7 @@ function getStatusClass(status) {
     case "Stake Locked":
       return "status-funded";
     case "Accepted":
+      return "status-accepted";
     case "Stake Returned":
       return "status-active";
     case "Submitted":
