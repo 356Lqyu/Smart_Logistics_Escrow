@@ -7,374 +7,358 @@
 ========================================================= */
 
 .milestones-container {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
-
 
 .milestone-item {
-    min-height: 74px;
-    border-radius: 18px;
-    border: 1px solid #20324d;
-    background: #101e34;
-    padding: 15px 20px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 20px;
+  min-height: 74px;
+  border-radius: 18px;
+  border: 1px solid #20324d;
+  background: #101e34;
+  padding: 15px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
 }
-
 
 .milestone-item.completed {
-    background: rgba(0, 203, 136, 0.06);
-    border-color: rgba(0, 203, 136, 0.25);
+  background: rgba(0, 203, 136, 0.06);
+  border-color: rgba(0, 203, 136, 0.25);
 }
-
 
 .milestone-item.active {
-    background: rgba(36, 107, 255, 0.06);
-    border-color: rgba(36, 107, 255, 0.3);
+  background: rgba(36, 107, 255, 0.06);
+  border-color: rgba(36, 107, 255, 0.3);
 }
-
 
 .milestone-item.cancelled {
-    background: rgba(239, 68, 68, 0.06);
-    border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.06);
+  border-color: rgba(239, 68, 68, 0.3);
 }
 
+/* Cancelled agreements have no failed milestone; all milestones are simply
+   inactive after the escrow is refunded. */
+.milestone-item.inactive {
+  background: rgba(148, 163, 184, 0.07);
+  border-color: rgba(148, 163, 184, 0.28);
+}
 
 .milestone-left {
-    display: flex;
-    align-items: center;
-    gap: 15px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
 }
-
 
 .milestone-number {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: #26354c;
-    color: #8ca4c6;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 600;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #26354c;
+  color: #8ca4c6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
 }
-
 
 .milestone-item.completed .milestone-number {
-    background: #05c987;
-    color: white;
+  background: #05c987;
+  color: white;
 }
-
 
 .milestone-item.active .milestone-number {
-    background: #2168f3;
-    color: white;
+  background: #2168f3;
+  color: white;
 }
-
 
 .milestone-item.cancelled .milestone-number {
-    background: #dc2626;
-    color: white;
+  background: #dc2626;
+  color: white;
 }
 
+.milestone-item.inactive .milestone-number {
+  background: #475569;
+  color: #cbd5e1;
+}
 
 .milestone-info h3 {
-    margin: 0 0 5px;
-    color: #f2f6fc;
-    font-size: 16px;
+  margin: 0 0 5px;
+  color: #f2f6fc;
+  font-size: 16px;
 }
-
 
 .milestone-info span {
-    color: #627b9d;
-    font-size: 13px;
+  color: #627b9d;
+  font-size: 13px;
 }
-
 
 .milestone-status {
-    border-radius: 20px;
-    padding: 6px 13px;
-    font-size: 13px;
-    border: 1px solid #604c16;
-    color: #eab308;
-    background: rgba(234, 179, 8, 0.07);
-    white-space: nowrap;
+  border-radius: 20px;
+  padding: 6px 13px;
+  font-size: 13px;
+  border: 1px solid #604c16;
+  color: #eab308;
+  background: rgba(234, 179, 8, 0.07);
+  white-space: nowrap;
 }
-
 
 .milestone-status.completed {
-    color: #00d990;
-    border-color: rgba(0, 217, 144, 0.25);
-    background: rgba(0, 217, 144, 0.08);
+  color: #00d990;
+  border-color: rgba(0, 217, 144, 0.25);
+  background: rgba(0, 217, 144, 0.08);
 }
-
 
 .milestone-status.active {
-    color: #4f91ff;
-    border-color: rgba(79, 145, 255, 0.3);
-    background: rgba(79, 145, 255, 0.08);
+  color: #4f91ff;
+  border-color: rgba(79, 145, 255, 0.3);
+  background: rgba(79, 145, 255, 0.08);
 }
-
 
 .milestone-status.cancelled {
-    color: #f87171;
-    border-color: rgba(239, 68, 68, 0.3);
-    background: rgba(239, 68, 68, 0.08);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.08);
 }
 
+.milestone-status.inactive {
+  color: #94a3b8;
+  border-color: rgba(148, 163, 184, 0.28);
+  background: rgba(148, 163, 184, 0.08);
+}
 
 .milestone-status-dot {
-    display: inline-block;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: currentColor;
-    margin-right: 5px;
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  margin-right: 5px;
 }
-
 
 /* Icon-only upload trigger used on the milestone submission form. */
 .proof-file-input {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
-
 
 .proof-upload-icon {
-    width: 35px;
-    height: 35px;
-    border-radius: 15px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-left: 5px;
-    cursor: pointer;
-    color: #ffffff;
-    background: #62626246;
-    transition: background 0.2s ease, transform 0.2s ease;
+  width: 35px;
+  height: 35px;
+  border-radius: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 5px;
+  cursor: pointer;
+  color: #ffffff;
+  background: #62626246;
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
 }
-
 
 .proof-upload-icon:hover,
 .proof-upload-icon:focus-visible {
-    background: #1d4ed8;
-    transform: translateY(-1px);
+  background: #1d4ed8;
+  transform: translateY(-1px);
 }
-
 
 .proof-file-name {
-    margin-left: 10px;
-    color: #8ca4c6;
-    font-size: 13px;
-    overflow-wrap: anywhere;
+  margin-left: 10px;
+  color: #8ca4c6;
+  font-size: 13px;
+  overflow-wrap: anywhere;
 }
-
 
 /* =========================================================
    ACTIONS
 ========================================================= */
 
 .agreement-actions {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    border-top: 1px solid #1e2d43;
-    margin-top: 22px;
-    padding-top: 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-top: 1px solid #1e2d43;
+  margin-top: 22px;
+  padding-top: 20px;
 }
-
 
 .primary-action-btn,
 .secondary-action-btn,
 .danger-action-btn {
-    border: 0;
-    border-radius: 15px;
-    padding: 13px 20px;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 9px;
-    transition: 0.2s;
+  border: 0;
+  border-radius: 15px;
+  padding: 13px 20px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  transition: 0.2s;
 }
-
 
 .primary-action-btn {
-    background: #2168f3;
-    color: white;
+  background: #2168f3;
+  color: white;
 }
-
 
 .primary-action-btn:hover {
-    background: #3478ff;
+  background: #3478ff;
 }
-
 
 .secondary-action-btn {
-    background: #18263a;
-    border: 1px solid #2a3b55;
-    color: #bdcce0;
+  background: #18263a;
+  border: 1px solid #2a3b55;
+  color: #bdcce0;
 }
-
 
 .secondary-action-btn:hover {
-    background: #203149;
+  background: #203149;
 }
-
 
 .danger-action-btn {
-    background: #d00016;
-    color: white;
-    margin-left: auto;
+  background: #d00016;
+  color: white;
+  margin-left: auto;
 }
-
 
 .danger-action-btn:hover {
-    background: #ef1028;
+  background: #ef1028;
 }
-
 
 .primary-action-btn:disabled,
 .danger-action-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+  opacity: 0.5;
+  cursor: not-allowed;
 }
-
-
 
 /* =========================================================
    RESPONSIVE
 ========================================================= */
 
 @media (max-width: 900px) {
+  .agreement-summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 
-    .agreement-summary-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
+  .agreement-summary-header {
+    flex-direction: column;
+  }
 
-    .agreement-summary-header {
-        flex-direction: column;
-    }
+  .agreement-info-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 
-    .agreement-info-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
+  .info-item-wide {
+    grid-column: span 2;
+  }
 
-    .info-item-wide {
-        grid-column: span 2;
-    }
+  .route-details {
+    grid-template-columns: 1fr;
+  }
 
-    .route-details {
-        grid-template-columns: 1fr;
-    }
+  .route-line {
+    transform: rotate(90deg);
 
-    .route-line {
-        transform: rotate(90deg);
+    width: 70px;
 
-        width: 70px;
+    margin: -5px auto;
+  }
 
-        margin: -5px auto;
-    }
+  .financial-info-grid {
+    grid-template-columns: 1fr;
+  }
 
-    .financial-info-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .transaction-stats-grid {
-        grid-template-columns: 1fr;
-    }
-
+  .transaction-stats-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
-
 @media (max-width: 650px) {
+  .agreement-summary-grid {
+    grid-template-columns: 1fr;
+  }
 
-    .agreement-summary-grid {
-        grid-template-columns: 1fr;
-    }
+  .milestone-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 
-    .milestone-item {
-        align-items: flex-start;
-        flex-direction: column;
-    }
+  .agreement-actions {
+    flex-wrap: wrap;
+  }
 
-    .agreement-actions {
-        flex-wrap: wrap;
-    }
+  .danger-action-btn {
+    margin-left: 0;
+  }
 
-    .danger-action-btn {
-        margin-left: 0;
-    }
+  .agreement-info-grid {
+    grid-template-columns: 1fr;
+  }
 
-    .agreement-info-grid {
-        grid-template-columns: 1fr;
-    }
+  .info-item-wide {
+    grid-column: span 1;
+  }
 
-    .info-item-wide {
-        grid-column: span 1;
-    }
+  .shipment-agreement-card {
+    padding: 20px;
+  }
 
-    .shipment-agreement-card {
-        padding: 20px;
-    }
+  .details-section-header {
+    flex-direction: column;
+  }
 
-    .details-section-header {
-        flex-direction: column;
-    }
+  .shipment-info-grid {
+    grid-template-columns: 1fr;
+  }
 
-    .shipment-info-grid {
-        grid-template-columns: 1fr;
-    }
+  .transaction-history-page {
+    padding-left: 15px;
+    padding-right: 15px;
+  }
 
-    .transaction-history-page {
-        padding-left: 15px;
-        padding-right: 15px;
-    }
+  .transaction-stats-grid {
+    grid-template-columns: 1fr;
+  }
 
-    .transaction-stats-grid {
-        grid-template-columns: 1fr;
-    }
+  .transaction-stat-card {
+    min-height: 140px;
 
-    .transaction-stat-card {
-        min-height: 140px;
+    padding: 20px;
+  }
 
-        padding: 20px;
-    }
+  .transaction-filter-bar {
+    align-items: stretch;
 
-    .transaction-filter-bar {
-        align-items: stretch;
+    flex-direction: column;
+  }
 
-        flex-direction: column;
-    }
+  .transaction-search {
+    width: 100%;
+  }
 
-    .transaction-search {
-        width: 100%;
-    }
+  .transaction-filter-buttons {
+    width: 100%;
+  }
 
-    .transaction-filter-buttons {
-        width: 100%;
-    }
+  .transaction-filter-btn {
+    flex: 1;
+  }
 
-    .transaction-filter-btn {
-        flex: 1;
-    }
-
-    .transaction-tabs {
-        padding-left: 15px;
-        padding-right: 15px;
-        padding-bottom: 15px;
-    }
-
+  .transaction-tabs {
+    padding-left: 15px;
+    padding-right: 15px;
+    padding-bottom: 15px;
+  }
 }

@@ -1,204 +1,279 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Profile - LogisticsEscrow</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="css/dashboard.css">
-    <link rel="stylesheet" href="css/profile.css">
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="css/dashboard.css" />
+    <link rel="stylesheet" href="css/profile.css" />
     <script src="https://unpkg.com/lucide@latest"></script>
-</head>
-<body>
-
+  </head>
+  <body>
     <aside id="sidebar-container" class="sidebar"></aside>
 
     <main class="main-content">
-        <header class="top-navbar">
-            <div class="page-title-block">
-                <h1>Profile</h1>
-                <div class="network-stats">
-                    <span>Chain ID: <strong id="chain-id">—</strong></span>
-                    <span class="dot"></span>
-                    <span>Gas: <strong id="gas-price">—</strong></span>
-                    <span class="dot"></span>
-                    <span>ETH: <strong id="eth-price">—</strong></span>
+      <div id="shared-header" data-page-title="Profile"></div>
+
+      <div class="dashboard-body-placeholder profile-page">
+        <section class="profile-identity-card">
+          <div class="profile-identity-top">
+            <div class="profile-identity-left">
+              <div
+                class="profile-avatar-wrap"
+                style="position: relative; display: inline-block"
+              >
+                <div class="profile-avatar" id="profile-avatar">AI</div>
+                <button
+                  type="button"
+                  id="change-avatar-btn"
+                  title="Change profile picture"
+                  style="
+                    position: absolute;
+                    bottom: -4px;
+                    right: -4px;
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 50%;
+                    border: 2px solid #0f172a;
+                    background: #38bdf8;
+                    color: #0f172a;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                  "
+                >
+                  <i class="fa-solid fa-camera" style="font-size: 12px"></i>
+                </button>
+                <input
+                  type="file"
+                  id="avatar-file-input"
+                  accept="image/*"
+                  style="display: none"
+                />
+              </div>
+              <div>
+                <div class="profile-name-row">
+                  <h2 id="profile-name">Loading...</h2>
+                  <span class="profile-role-pill" id="profile-role-pill"
+                    >Role Locked</span
+                  >
                 </div>
+                <p class="profile-subtitle" id="profile-subtitle">
+                  On-chain logistics identity
+                </p>
+              </div>
             </div>
-
-            <div class="top-nav-right">
-                <div class="wallet-badge">
-                    <span class="wallet-glow-dot"></span>
-                    <span id="top-wallet-address">Connecting...</span>
-                    <span class="wallet-avatar" aria-hidden="true"></span>
-                </div>
+            <div style="display: flex; gap: 10px">
+              <button
+                type="button"
+                class="profile-edit-btn"
+                id="edit-profile-btn"
+              >
+                <i class="fa-solid fa-pen"></i>
+                Edit Profile
+              </button>
+              <button
+                type="button"
+                class="profile-edit-btn"
+                id="change-password-btn"
+              >
+                <i class="fa-solid fa-key"></i>
+                Change Password
+              </button>
             </div>
-        </header>
+          </div>
 
-        <div class="dashboard-body-placeholder profile-page">
+          <div class="profile-details-grid">
+            <div>
+              <span class="profile-detail-label">Wallet Address</span>
+              <strong id="profile-wallet">—</strong>
+            </div>
+            <div>
+              <span class="profile-detail-label">Contact Email</span>
+              <strong id="profile-email">Not set</strong>
+            </div>
+            <div>
+              <span class="profile-detail-label">Registration</span>
+              <strong id="profile-registered">—</strong>
+            </div>
+            <div>
+              <span class="profile-detail-label">Network</span>
+              <strong id="profile-network">Local Ganache</strong>
+            </div>
+          </div>
+        </section>
 
-            <section class="profile-identity-card">
-                <div class="profile-identity-top">
-                    <div class="profile-identity-left">
-                        <div class="profile-avatar-wrap" style="position:relative; display:inline-block;">
-                            <div class="profile-avatar" id="profile-avatar">AI</div>
-                            <button type="button" id="change-avatar-btn" title="Change profile picture"
-                                style="position:absolute; bottom:-4px; right:-4px; width:28px; height:28px; border-radius:50%; border:2px solid #0f172a; background:#38bdf8; color:#0f172a; cursor:pointer; display:flex; align-items:center; justify-content:center;">
-                                <i class="fa-solid fa-camera" style="font-size:12px;"></i>
-                            </button>
-                            <input type="file" id="avatar-file-input" accept="image/*" style="display:none;">
-                        </div>
-                        <div>
-                            <div class="profile-name-row">
-                                <h2 id="profile-name">Loading...</h2>
-                                <span class="profile-role-pill" id="profile-role-pill">Role Locked</span>
-                            </div>
-                            <p class="profile-subtitle" id="profile-subtitle">On-chain logistics identity</p>
-                        </div>
-                    </div>
-                    <div style="display:flex; gap:10px;">
-                        <button type="button" class="profile-edit-btn" id="edit-profile-btn">
-                            <i class="fa-solid fa-pen"></i>
-                            Edit Profile
-                        </button>
-                        <button type="button" class="profile-edit-btn" id="change-password-btn">
-                            <i class="fa-solid fa-key"></i>
-                            Change Password
-                        </button>
-                    </div>
-                </div>
+        <section class="profile-stats-grid">
+          <article class="profile-stat-card">
+            <div>
+              <span class="profile-stat-label">LogiTrust Tokens</span>
+              <div class="profile-stat-value" id="stat-tokens">0 LTT</div>
+              <span class="profile-stat-meta muted"
+                >Reputation rewards from completed agreements</span
+              >
+            </div>
+            <div class="profile-stat-icon purple">
+              <i class="fa-solid fa-trophy"></i>
+            </div>
+          </article>
 
-                <div class="profile-details-grid">
-                    <div>
-                        <span class="profile-detail-label">Wallet Address</span>
-                        <strong id="profile-wallet">—</strong>
-                    </div>
-                    <div>
-                        <span class="profile-detail-label">Contact Email</span>
-                        <strong id="profile-email">Not set</strong>
-                    </div>
-                    <div>
-                        <span class="profile-detail-label">Registration</span>
-                        <strong id="profile-registered">—</strong>
-                    </div>
-                    <div>
-                        <span class="profile-detail-label">Network</span>
-                        <strong id="profile-network">Local Ganache</strong>
-                    </div>
-                </div>
-            </section>
+          <article class="profile-stat-card">
+            <div>
+              <span class="profile-stat-label">Agreements</span>
+              <div class="profile-stat-value" id="stat-agreements">0</div>
+              <span class="profile-stat-meta positive" id="stat-agreements-meta"
+                >— this month</span
+              >
+            </div>
+            <div class="profile-stat-icon blue">
+              <i class="fa-regular fa-file-lines"></i>
+            </div>
+          </article>
 
-            <section class="profile-stats-grid">
-                <article class="profile-stat-card">
-                    <div>
-                        <span class="profile-stat-label">LogiTrust Tokens</span>
-                        <div class="profile-stat-value" id="stat-tokens">0 LTT</div>
-                        <span class="profile-stat-meta muted">Reputation rewards from completed agreements</span>
-                    </div>
-                    <div class="profile-stat-icon purple"><i class="fa-solid fa-trophy"></i></div>
-                </article>
+          <article class="profile-stat-card">
+            <div>
+              <span class="profile-stat-label">Completed</span>
+              <div class="profile-stat-value" id="stat-completed">0</div>
+              <span class="profile-stat-meta positive" id="stat-completed-meta"
+                >— success</span
+              >
+            </div>
+            <div class="profile-stat-icon green">
+              <i class="fa-solid fa-circle-check"></i>
+            </div>
+          </article>
 
-                <article class="profile-stat-card">
-                    <div>
-                        <span class="profile-stat-label">Agreements</span>
-                        <div class="profile-stat-value" id="stat-agreements">0</div>
-                        <span class="profile-stat-meta positive" id="stat-agreements-meta">— this month</span>
-                    </div>
-                    <div class="profile-stat-icon blue"><i class="fa-regular fa-file-lines"></i></div>
-                </article>
+          <article class="profile-stat-card">
+            <div>
+              <span class="profile-stat-label">Trust Score</span>
+              <div class="profile-stat-value" id="stat-trust">—/100</div>
+              <span class="profile-stat-meta positive" id="stat-trust-meta"
+                >Based on completion rate</span
+              >
+            </div>
+            <div class="profile-stat-icon gold">
+              <i class="fa-solid fa-star"></i>
+            </div>
+          </article>
+        </section>
 
-                <article class="profile-stat-card">
-                    <div>
-                        <span class="profile-stat-label">Completed</span>
-                        <div class="profile-stat-value" id="stat-completed">0</div>
-                        <span class="profile-stat-meta positive" id="stat-completed-meta">— success</span>
-                    </div>
-                    <div class="profile-stat-icon green"><i class="fa-solid fa-circle-check"></i></div>
-                </article>
+        <section class="profile-reputation-card">
+          <div class="profile-reputation-header">
+            <div>
+              <h3>On-Chain Reputation Score</h3>
+              <p>
+                Derived from completed agreements, refunds, and on-time
+                performance
+              </p>
+            </div>
+            <div class="profile-trust-big" id="trust-score-big">—/100</div>
+          </div>
 
-                <article class="profile-stat-card">
-                    <div>
-                        <span class="profile-stat-label">Trust Score</span>
-                        <div class="profile-stat-value" id="stat-trust">—/100</div>
-                        <span class="profile-stat-meta positive" id="stat-trust-meta">Based on completion rate</span>
-                    </div>
-                    <div class="profile-stat-icon gold"><i class="fa-solid fa-star"></i></div>
-                </article>
-            </section>
+          <div class="profile-reputation-bar">
+            <div
+              class="profile-reputation-fill"
+              id="trust-bar-fill"
+              style="width: 0%"
+            ></div>
+          </div>
 
-            <section class="profile-reputation-card">
-                <div class="profile-reputation-header">
-                    <div>
-                        <h3>On-Chain Reputation Score</h3>
-                        <p>Derived from completed agreements, refunds, and on-time performance</p>
-                    </div>
-                    <div class="profile-trust-big" id="trust-score-big">—/100</div>
-                </div>
-
-                <div class="profile-reputation-bar">
-                    <div class="profile-reputation-fill" id="trust-bar-fill" style="width: 0%"></div>
-                </div>
-
-                <div class="profile-metric-grid">
-                    <div class="profile-metric">
-                        <strong id="metric-ontime">—</strong>
-                        <span>On-Time Completions</span>
-                    </div>
-                    <div class="profile-metric">
-                        <strong id="metric-dispute">—</strong>
-                        <span>Dispute / Refund Rate</span>
-                    </div>
-                    <div class="profile-metric">
-                        <strong id="metric-active">—</strong>
-                        <span>Active Agreements</span>
-                    </div>
-                </div>
-            </section>
-
-        </div>
+          <div class="profile-metric-grid">
+            <div class="profile-metric">
+              <strong id="metric-ontime">—</strong>
+              <span>On-Time Completions</span>
+            </div>
+            <div class="profile-metric">
+              <strong id="metric-dispute">—</strong>
+              <span>Dispute / Refund Rate</span>
+            </div>
+            <div class="profile-metric">
+              <strong id="metric-active">—</strong>
+              <span>Active Agreements</span>
+            </div>
+          </div>
+        </section>
+      </div>
     </main>
 
     <div class="profile-modal" id="edit-profile-modal" hidden>
-        <div class="profile-modal-card">
-            <h3>Edit Profile</h3>
-            <label>
-                Display Name
-                <input type="text" id="edit-name-input" maxlength="80">
-            </label>
-            <label>
-                Contact Email
-                <input type="email" id="edit-email-input" maxlength="120" placeholder="ops@company.com">
-            </label>
-            <div class="profile-modal-actions">
-                <button type="button" class="profile-cancel-btn" id="cancel-edit-btn">Cancel</button>
-                <button type="button" class="profile-save-btn" id="save-edit-btn">Save</button>
-            </div>
-            <p class="profile-modal-note" id="edit-message"></p>
+      <div class="profile-modal-card">
+        <h3>Edit Profile</h3>
+        <label>
+          Display Name
+          <input type="text" id="edit-name-input" maxlength="80" />
+        </label>
+        <label>
+          Contact Email
+          <input
+            type="email"
+            id="edit-email-input"
+            maxlength="120"
+            placeholder="ops@company.com"
+          />
+        </label>
+        <div class="profile-modal-actions">
+          <button type="button" class="profile-cancel-btn" id="cancel-edit-btn">
+            Cancel
+          </button>
+          <button type="button" class="profile-save-btn" id="save-edit-btn">
+            Save
+          </button>
         </div>
+        <p class="profile-modal-note" id="edit-message"></p>
+      </div>
     </div>
 
     <div class="profile-modal" id="change-password-modal" hidden>
-        <div class="profile-modal-card">
-            <h3>Change Password</h3>
-            <label>
-                Current Password
-                <input type="password" id="current-password-input" autocomplete="current-password">
-            </label>
-            <label>
-                New Password
-                <input type="password" id="new-password-input" autocomplete="new-password" placeholder="At least 8 characters">
-            </label>
-            <label>
-                Confirm New Password
-                <input type="password" id="confirm-password-input" autocomplete="new-password">
-            </label>
-            <div class="profile-modal-actions">
-                <button type="button" class="profile-cancel-btn" id="cancel-password-btn">Cancel</button>
-                <button type="button" class="profile-save-btn" id="save-password-btn">Save</button>
-            </div>
-            <p class="profile-modal-note" id="password-message"></p>
+      <div class="profile-modal-card">
+        <h3>Change Password</h3>
+        <label>
+          Current Password
+          <input
+            type="password"
+            id="current-password-input"
+            autocomplete="current-password"
+          />
+        </label>
+        <label>
+          New Password
+          <input
+            type="password"
+            id="new-password-input"
+            autocomplete="new-password"
+            placeholder="At least 8 characters"
+          />
+        </label>
+        <label>
+          Confirm New Password
+          <input
+            type="password"
+            id="confirm-password-input"
+            autocomplete="new-password"
+          />
+        </label>
+        <div class="profile-modal-actions">
+          <button
+            type="button"
+            class="profile-cancel-btn"
+            id="cancel-password-btn"
+          >
+            Cancel
+          </button>
+          <button type="button" class="profile-save-btn" id="save-password-btn">
+            Save
+          </button>
         </div>
+        <p class="profile-modal-note" id="password-message"></p>
+      </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/web3@1.10.4/dist/web3.min.js"></script>
@@ -207,5 +282,5 @@
     <script src="js/contract.js"></script>
     <script src="js/dashboard.js"></script>
     <script src="js/profile.js"></script>
-</body>
+  </body>
 </html>

@@ -1,480 +1,287 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <title>Agreement Details - LogisticsEscrow</title>
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    />
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
 
-    <link rel="stylesheet" href="css/dashboard.css">
-    <link rel="stylesheet" href="css/agreement.css">
-    <link rel="stylesheet" href="css/milestone.css">
-    <link rel="stylesheet" href="css/profile.css">
+    <link rel="stylesheet" href="css/dashboard.css" />
+    <link rel="stylesheet" href="css/agreement.css" />
+    <link rel="stylesheet" href="css/milestone.css" />
+    <link rel="stylesheet" href="css/profile.css" />
 
     <script src="https://unpkg.com/lucide@latest"></script>
-</head>
+  </head>
 
-<body>
-
-    <!-- =========================
-         SIDEBAR
-    ========================== -->
+  <body>
     <aside id="sidebar-container" class="sidebar"></aside>
-
-
-    <!-- =========================
-         MAIN CONTENT
-    ========================== -->
-
     <main class="main-content">
-
-        <!-- Top Bar -->
-        <header class="top-navbar">
-            <div class="page-title-block">
-                <h1 id="page-heading">Agreement Details</h1>
-                <div class="network-stats">
-                    <span>Chain ID: <strong id="chain-id">—</strong></span>
-                    <span class="dot"></span>
-                    <span>Gas: <strong id="gas-price">—</strong></span>
-                    <span class="dot"></span>
-                    <span>ETH: <strong id="eth-price">—</strong></span>
-                </div>
-            </div>
-
-            <div class="top-nav-right">
-                <div class="wallet-badge">
-                    <span class="wallet-glow-dot"></span>
-                    <span id="top-wallet-address">Connecting...</span>
-                    <span class="wallet-avatar" aria-hidden="true"></span>
-                </div>
-            </div>
-        </header>
-
-
-
-        <!-- =========================
-             PAGE CONTENT
-        ========================== -->
-
-        <div class="dashboard-body-placeholder agreement-details-page">
-
-            <!-- Back -->
-
-            <div class="agreement-back">
-
-                <a href="agreements.html">
-
-                    <i class="fa-solid fa-arrow-left"></i>
-
-                    Back to Agreements
-
-                </a>
-
-            </div>
-
-
-
-            <!-- Loading -->
-
-            <div id="details-loading" class="details-loading">
-
-                <i class="fa-solid fa-spinner fa-spin"></i>
-
-                Loading agreement...
-
-            </div>
-
-
-
-            <!-- Error -->
-
-            <div id="details-error" class="details-error" style="display:none;"></div>
-
-
-
-            <!-- Main details -->
-
-            <div id="agreement-content" style="display:none;">
-
-                <!-- =========================
-                     AGREEMENT SUMMARY
-                ========================== -->
-
-                <section class="agreement-summary-card">
-
-                    <div class="agreement-summary-header">
-
-                        <div>
-
-                            <div class="agreement-title-row">
-
-                                <h2 id="agreement-reference">
-                                    LG-2026-0001
-                                </h2>
-
-                                <span id="agreement-status" class="status-badge status-active">
-                                    <span class="status-dot"></span>
-                                    Active
-                                </span>
-
-                                <span id="agreement-priority" class="priority-badge priority-express">
-                                    EXPRESS
-                                </span>
-
-                            </div>
-
-
-                            <p id="agreement-shipment" class="agreement-shipment">
-                                Shipment details
-                            </p>
-
-                        </div>
-
-
-                        <a id="etherscan-link" href="#" target="_blank" class="etherscan-btn">
-
-                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
-
-                            Etherscan
-
-                        </a>
-
-                    </div>
-
-
-
-                    <!-- Summary grid -->
-
-                    <div class="agreement-summary-grid">
-
-                        <div class="summary-item">
-
-                            <span>SHIPPER</span>
-
-                            <strong id="shipper-address">
-                                -
-                            </strong>
-
-                        </div>
-
-
-                        <div class="summary-item">
-
-                            <span>CARRIER</span>
-
-                            <strong id="carrier-address">
-                                Unassigned
-                            </strong>
-
-                        </div>
-
-
-                        <div class="summary-item">
-
-                            <span>ESCROW</span>
-
-                            <strong id="escrow-amount">
-                                0 ETH
-                            </strong>
-
-                        </div>
-
-
-                        <div class="summary-item">
-
-                            <span>DEADLINE</span>
-
-                            <strong id="agreement-deadline">
-                                -
-                            </strong>
-
-                        </div>
-
-
-                        <div class="summary-item">
-
-                            <span>EXPIRY COUNTDOWN</span>
-
-                            <strong id="expiry-countdown">
-                                -
-                            </strong>
-
-                        </div>
-
-
-                        <div class="summary-item">
-
-                            <span>NETWORK</span>
-
-                            <strong id="network-name">
-                                Ganache
-                            </strong>
-
-                        </div>
-
-                    </div>
-
-                </section>
-
-
-
-                <!-- =========================
-                     LIFECYCLE
-                ========================== -->
-
-                <section class="details-card">
-
-                    <h2>Lifecycle Timeline</h2>
-
-                    <div id="lifecycle-timeline" class="lifecycle-timeline">
-
-                        <!-- Generated by JS -->
-
-                    </div>
-
-                </section>
-
-
-
-                <!-- =========================
-                     MILESTONE PROGRESS
-                ========================== -->
-
-                <section class="details-card">
-
-                    <h2>Milestone Progress</h2>
-
-
-                    <div class="overall-progress-header">
-
-                        <span>
-                            Overall Completion
-                        </span>
-
-                        <strong id="overall-progress">
-                            0%
-                        </strong>
-
-                    </div>
-
-
-                    <div class="progress-track">
-
-                        <div id="overall-progress-bar" class="progress-fill" style="width:0%;"></div>
-
-                    </div>
-
-
-                    <!-- Milestones -->
-
-                    <div id="milestones-container" class="milestones-container">
-
-                        <!-- Generated by JS -->
-
-                    </div>
-
-
-                    <!-- Agreement Actions: also available on the Agreements list page. -->
-                    <div class="agreement-actions">
-
-                        <button id="cancel-btn" class="danger-action-btn" style="display:none;">
-
-                            <i class="fa-solid fa-xmark"></i>
-
-                            Cancel Agreement
-
-                        </button>
-
-                    </div>
-
-                </section>
-
-                <!-- =====================================================
-                SHIPMENT & AGREEMENT DETAILS
-                ====================================================== -->
-
-                <section class="details-card shipment-agreement-card agreement-record-card">
-
-                    <!-- Main section title -->
-                    <div class="details-section-header agreement-record-header">
-
-                        <div>
-                            <span class="section-eyebrow">
-                                AGREEMENT RECORD
-                            </span>
-
-                            <h2>Shipment & Agreement Details</h2>
-
-                            <p>
-                                Complete shipment, route and escrow information
-                                for this logistics agreement.
-                            </p>
-                        </div>
-
-
-                    </div>
-
-
-                    <!-- =================================================
-                    SUBSECTION 1 — SHIPMENT INFORMATION
-                    ================================================== -->
-
-                    <div class="detail-subsection">
-                        <div class="detail-subsection-header">
-                            <div class="detail-subsection-title">
-                                <div>
-                                    <h3>Shipment Information</h3>
-                                </div>
-                            </div>
-                        </div>
-
-
-                        <!-- Shipment description -->
-                        <div class="shipment-description-box">
-                            <span class="detail-label">
-                                <i class="fa-solid fa-box"></i>
-                                Shipment Details
-                            </span>
-                            <div id="detail-shipment" class="shipment-description">
-                                -
-                            </div>
-                        </div>
-
-                        <!-- Payload -->
-                        <div class="shipment-info-grid">
-                            <div class="detail-info-box">
-                                <span class="detail-label">
-                                    PAYLOAD VALUE
-                                </span>
-                                <strong id="detail-payload-value">
-                                    -
-                                </strong>
-                            </div>
-
-                            <div class="detail-info-box">
-                                <span class="detail-label">
-                                    PRIORITY
-                                </span>
-                                <strong id="detail-priority">
-                                    -
-                                </strong>
-                            </div>
-                        </div>
-                    </div>
-
-
-                    <!-- =================================================
-                    SUBSECTION 2 — ROUTE
-                    ================================================== -->
-
-                    <div class="detail-subsection">
-                        <div class="detail-subsection-header">
-                            <div class="detail-subsection-title">
-                                <div>
-                                    <h3>Logistics Route</h3>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="route-details">
-                            <!-- ORIGIN -->
-                            <div class="route-location-card">
-                                <div class="route-location-icon origin">
-                                    <i class="fa-solid fa-location-dot"></i>
-                                </div>
-
-                                <div class="route-location-content">
-                                    <span class="detail-label">
-                                        ORIGIN / PICKUP
-                                    </span>
-                                    <strong id="detail-origin">
-                                        -
-                                    </strong>
-                                </div>
-                            </div>
-
-                            <!-- CONNECTOR -->
-                            <div class="route-line">
-                                <span class="route-line-dot"></span>
-                                <div class="route-line-body"></div>
-                                <i class="fa-solid fa-truck route-truck-icon"></i>
-                                <div class="route-line-body"></div>
-                                <span class="route-line-dot"></span>
-                            </div>
-
-                            <!-- DESTINATION -->
-                            <div class="route-location-card">
-                                <div class="route-location-icon destination">
-                                    <i class="fa-solid fa-flag-checkered"></i>
-                                </div>
-                                <div class="route-location-content">
-                                    <span class="detail-label">
-                                        DESTINATION / DELIVERY
-                                    </span>
-                                    <strong id="detail-destination">
-                                        -
-                                    </strong>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-
-                    <!-- =================================================
-                    SUBSECTION 3 — FINANCIAL INFORMATION
-                     ================================================== -->
-                    <div class="detail-subsection" style="padding-bottom: 20px;">
-                        <div class="detail-subsection-header">
-                            <div class="detail-subsection-title">
-                                <div>
-                                    <h3>ESCROW</h3>
-                                </div>
-                            </div>
-                        </div>
-
-
-                        <div class="financial-info-grid">
-                            <!-- Escrow Amount -->
-                            <div class="financial-info-box">
-                                <span class="detail-label">
-                                    ESCROW AMOUNT
-                                </span>
-                                <strong id="detail-escrow-amount">
-                                    -
-                                </strong>
-                            </div>
-
-
-                            <!-- Released -->
-                            <div class="financial-info-box released">
-                                <span class="detail-label">
-                                    ESCROW RELEASED
-                                </span>
-                                <strong id="detail-escrow-released">
-                                    -
-                                </strong>
-                            </div>
-
-
-                            <!-- Remaining -->
-                            <div class="financial-info-box remaining">
-                                <span class="detail-label">
-                                    ESCROW REMAINING
-                                </span>
-                                <strong id="detail-escrow-remaining">
-                                    -
-                                </strong>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-            </div>
+      <div id="shared-header" data-page-title="Agreement Details"></div>
+      <div class="dashboard-body-placeholder agreement-details-page">
+        <div class="agreement-back">
+          <a href="agreements.html">
+            <i class="fa-solid fa-arrow-left"></i>
+            Back to Agreements
+          </a>
         </div>
+
+        <div id="details-loading" class="details-loading">
+          <i class="fa-solid fa-spinner fa-spin"></i>
+          Loading agreement...
+        </div>
+
+        <div
+          id="details-error"
+          class="details-error"
+          style="display: none"
+        ></div>
+
+        <div id="agreement-content" style="display: none">
+          <section class="agreement-summary-card">
+            <div class="agreement-summary-header">
+              <div>
+                <div class="agreement-title-row">
+                  <h2 id="agreement-reference">LG-2026-0001</h2>
+                  <span
+                    id="agreement-status"
+                    class="status-badge status-active"
+                  >
+                    <span class="status-dot"></span>
+                    Active
+                  </span>
+                  <span
+                    id="agreement-priority"
+                    class="priority-badge priority-express"
+                  >
+                    EXPRESS
+                  </span>
+                </div>
+                <p id="agreement-shipment" class="agreement-shipment">
+                  Shipment details
+                </p>
+              </div>
+              <a
+                id="etherscan-link"
+                href="#"
+                target="_blank"
+                class="etherscan-btn"
+              >
+                <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                Etherscan
+              </a>
+            </div>
+
+            <div class="agreement-summary-grid">
+              <div class="summary-item">
+                <span>SHIPPER</span>
+                <strong id="shipper-address"> - </strong>
+              </div>
+
+              <div class="summary-item">
+                <span>CARRIER</span>
+                <strong id="carrier-address"> Unassigned </strong>
+              </div>
+
+              <div class="summary-item">
+                <span>ESCROW</span>
+                <strong id="escrow-amount"> 0 ETH </strong>
+              </div>
+
+              <div class="summary-item">
+                <span>DEADLINE</span>
+                <strong id="agreement-deadline"> - </strong>
+              </div>
+
+              <div class="summary-item">
+                <span>EXPIRY COUNTDOWN</span>
+                <strong id="expiry-countdown"> - </strong>
+              </div>
+
+              <div class="summary-item">
+                <span>NETWORK</span>
+                <strong id="network-name"> Ganache </strong>
+              </div>
+            </div>
+          </section>
+
+          <section class="details-card">
+            <h2>Lifecycle Timeline</h2>
+            <div id="lifecycle-timeline" class="lifecycle-timeline">
+              <!-- Generated by JS -->
+            </div>
+          </section>
+
+          <section class="details-card">
+            <h2>Milestone Progress</h2>
+            <div class="overall-progress-header">
+              <span> Overall Completion </span>
+              <strong id="overall-progress"> 0% </strong>
+            </div>
+
+            <div class="progress-track">
+              <div
+                id="overall-progress-bar"
+                class="progress-fill"
+                style="width: 0%"
+              ></div>
+            </div>
+
+            <!-- Milestones -->
+            <div id="milestones-container" class="milestones-container">
+              <!-- Generated by JS -->
+            </div>
+
+            <!-- Agreement Actions: also available on the Agreements list page. -->
+            <div class="agreement-actions">
+              <button
+                id="cancel-btn"
+                class="danger-action-btn"
+                style="display: none"
+              >
+                <i class="fa-solid fa-xmark"></i>
+                Cancel Agreement
+              </button>
+            </div>
+          </section>
+
+          <!-- SHIPMENT & AGREEMENT DETAILS  -->
+          <section
+            class="details-card shipment-agreement-card agreement-record-card"
+          >
+            <div class="details-section-header agreement-record-header">
+              <div>
+                <span class="section-eyebrow"> AGREEMENT RECORD </span>
+                <h2>Shipment & Agreement Details</h2>
+                <p>
+                  Complete shipment, route and escrow information for this
+                  logistics agreement.
+                </p>
+              </div>
+            </div>
+
+            <div class="detail-subsection">
+              <div class="detail-subsection-header">
+                <div class="detail-subsection-title">
+                  <div>
+                    <h3>Shipment Information</h3>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Shipment description -->
+              <div class="shipment-description-box">
+                <span class="detail-label">
+                  <i class="fa-solid fa-box"></i>
+                  Shipment Details
+                </span>
+                <div id="detail-shipment" class="shipment-description">-</div>
+              </div>
+
+              <!-- Payload -->
+              <div class="shipment-info-grid">
+                <div class="detail-info-box">
+                  <span class="detail-label"> PAYLOAD VALUE </span>
+                  <strong id="detail-payload-value"> - </strong>
+                </div>
+
+                <div class="detail-info-box">
+                  <span class="detail-label"> PRIORITY </span>
+                  <strong id="detail-priority"> - </strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="detail-subsection">
+              <div class="detail-subsection-header">
+                <div class="detail-subsection-title">
+                  <div>
+                    <h3>Logistics Route</h3>
+                  </div>
+                </div>
+              </div>
+
+              <div class="route-details">
+                <!-- ORIGIN -->
+                <div class="route-location-card">
+                  <div class="route-location-icon origin">
+                    <i class="fa-solid fa-location-dot"></i>
+                  </div>
+
+                  <div class="route-location-content">
+                    <span class="detail-label"> ORIGIN / PICKUP </span>
+                    <strong id="detail-origin"> - </strong>
+                  </div>
+                </div>
+
+                <!-- CONNECTOR -->
+                <div class="route-line">
+                  <span class="route-line-dot"></span>
+                  <div class="route-line-body"></div>
+                  <i class="fa-solid fa-truck route-truck-icon"></i>
+                  <div class="route-line-body"></div>
+                  <span class="route-line-dot"></span>
+                </div>
+
+                <!-- DESTINATION -->
+                <div class="route-location-card">
+                  <div class="route-location-icon destination">
+                    <i class="fa-solid fa-flag-checkered"></i>
+                  </div>
+                  <div class="route-location-content">
+                    <span class="detail-label"> DESTINATION / DELIVERY </span>
+                    <strong id="detail-destination"> - </strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="detail-subsection" style="padding-bottom: 20px">
+              <div class="detail-subsection-header">
+                <div class="detail-subsection-title">
+                  <div>
+                    <h3>ESCROW</h3>
+                  </div>
+                </div>
+              </div>
+
+              <div class="financial-info-grid">
+                <!-- Escrow Amount -->
+                <div class="financial-info-box">
+                  <span class="detail-label"> ESCROW AMOUNT </span>
+                  <strong id="detail-escrow-amount"> - </strong>
+                </div>
+
+                <!-- Released -->
+                <div class="financial-info-box released">
+                  <span class="detail-label" id="detail-escrow-released-label">
+                    ESCROW RELEASED
+                  </span>
+                  <strong id="detail-escrow-released"> - </strong>
+                </div>
+
+                <!-- Remaining -->
+                <div class="financial-info-box remaining">
+                  <span class="detail-label" id="detail-escrow-remaining-label">
+                    ESCROW REMAINING
+                  </span>
+                  <strong id="detail-escrow-remaining"> - </strong>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
     </main>
     <script src="https://cdn.jsdelivr.net/npm/web3@1.10.4/dist/web3.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -483,5 +290,5 @@
     <script src="js/dashboard.js"></script>
     <script src="js/agreementDetails.js"></script>
     <script src="js/agreementActions.js"></script>
-</body>
+  </body>
 </html>
