@@ -25,6 +25,15 @@
       <div id="shared-header" data-page-title="Agreements"></div>
 
       <div class="dashboard-body-placeholder">
+        <div id="extension-rejected-reminder-bar" class="profile-identity-card" style="display:none; margin-bottom:20px; border-color:rgba(239,68,68,.4); background:linear-gradient(180deg,#1e2538 0%,#111827 100%);">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:16px; width:100%; flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:12px;min-width:0">
+              <div class="profile-stat-icon gold" style="width:40px;height:40px;flex:0 0 40px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:rgba(239,68,68,.15);color:#f87171"><i class="fa-solid fa-circle-xmark"></i></div>
+              <div><h3 style="color:#fff;font-size:16px;margin-bottom:2px">Deadline Extension Rejected</h3><p id="extension-rejected-bar-details" style="color:#8d99ae;font-size:13px;margin:0"></p></div>
+            </div>
+            <button type="button" id="dismiss-extension-rejected-btn" class="primary-action-btn" style="padding:8px 14px;font-size:13px;white-space:nowrap">Noted</button>
+          </div>
+        </div>
         <div
           id="extension-notification-bar"
           class="profile-identity-card"

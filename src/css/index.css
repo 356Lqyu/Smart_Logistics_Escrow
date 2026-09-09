@@ -356,27 +356,18 @@ footer {
 
   .registration-container {
     min-height: 100vh;
-
     display: flex;
-
     justify-content: center;
-
     align-items: center;
-
     padding: 40px;
   }
 
   .registration-card {
     width: 500px;
-
     padding: 40px;
-
     background: rgba(10, 20, 40, 0.95);
-
     border: 1px solid rgba(68, 174, 255, 0.3);
-
     border-radius: 20px;
-
     text-align: center;
   }
 
@@ -386,45 +377,29 @@ footer {
 
   .wallet-display {
     margin: 25px 0;
-
     padding: 15px;
-
     background: rgba(68, 174, 255, 0.1);
-
     border-radius: 10px;
-
     word-break: break-all;
   }
 
   .role-container {
     display: flex;
-
     gap: 15px;
-
     margin: 20px 0;
   }
 
   .role-btn {
     flex: 1;
-
     padding: 25px 15px;
-
     border: 2px solid rgba(255, 255, 255, 0.15);
-
     border-radius: 12px;
-
     background: rgba(255, 255, 255, 0.05);
-
     color: white;
-
     cursor: pointer;
-
     display: flex;
-
     flex-direction: column;
-
     gap: 10px;
-
     align-items: center;
   }
 
@@ -434,7 +409,6 @@ footer {
 
   .role-btn.selected {
     border-color: #44aeff;
-
     background: rgba(68, 174, 255, 0.15);
   }
 
@@ -444,25 +418,17 @@ footer {
 
   .register-btn {
     width: 100%;
-
     padding: 15px;
-
     border: none;
-
     border-radius: 10px;
-
     background: #44aeff;
-
     color: white;
-
     font-weight: bold;
-
     cursor: pointer;
   }
 
   .register-btn:disabled {
     opacity: 0.5;
-
     cursor: not-allowed;
   }
 

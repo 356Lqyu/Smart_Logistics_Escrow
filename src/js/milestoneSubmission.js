@@ -61,14 +61,13 @@ async function initialiseSubmissionPage() {
       .eq("event_type", "MilestoneRejected")
       .order("created_at", { ascending: false });
 
-    // The latest rejection may belong to a different milestone, so locate
-    // the latest rejection recorded for the milestone being viewed.
     const rejectionDetails = (rejectionTransactions || []).find(
       (transaction) =>
         Number(transaction.details?.milestone_index) ===
         submissionMilestoneIndex,
     )?.details;
-    const isThisMilestoneRejected = Boolean(rejectionDetails);
+    const isThisMilestoneRejected =
+      Boolean(rejectionDetails) && !normalizeBool(milestone.completed);
     rejectionReason = isThisMilestoneRejected ? rejectionDetails.reason : null;
 
     submissionAgreement = agreement;
@@ -96,7 +95,6 @@ async function loadMilestoneProofHash() {
 
     submissionProofHash = hash && !/^0x0+$/.test(hash) ? hash : null;
   } catch (error) {
-    // This can occur for records created before the proof-hash feature was deployed.
     console.warn("Could not read milestone proof hash:", error);
     submissionProofHash = null;
   }
@@ -111,6 +109,10 @@ function configureBackLink() {
     backLink.href = `agreementDetails.html?id=${encodeURIComponent(submissionAgreementId)}`;
     backLabel.textContent = "Back to Agreement Details";
   }
+}
+
+function normalizeBool(value) {
+  return value === true || value === "true" || value === 1 || value === "1";
 }
 
 function renderSubmissionPage() {
@@ -179,7 +181,7 @@ function renderSubmissionPage() {
                         </label>
                     </div>
 
-                    <button class="primary-action-btn" type="submit"><i class="fa-solid fa-upload"></i> Submit Evidence & Completion</button>
+                    <button id="submit-evidence-btn" class="primary-action-btn" type="submit" disabled><i class="fa-solid fa-upload"></i> Submit Evidence & Completion</button>
                 </div>
             </form>`
       : `<p style="color:#fbbf24; margin-top:15px;">Only the assigned Carrier can submit evidence for the active pending milestone.</p>`;
@@ -310,12 +312,22 @@ function renderSubmissionPage() {
   document
     .getElementById("evidence-form")
     ?.addEventListener("submit", submitEvidenceAndCompletion);
+  const updateEvidenceSubmitState = () => {
+    const notes = document.getElementById("progress-notes")?.value.trim();
+    const file = document.getElementById("proof-file")?.files?.[0];
+    const submitButton = document.getElementById("submit-evidence-btn");
+    if (submitButton) submitButton.disabled = !notes || !file;
+  };
+  document
+    .getElementById("progress-notes")
+    ?.addEventListener("input", updateEvidenceSubmitState);
   document.getElementById("proof-file")?.addEventListener("change", (event) => {
     const fileName = document.getElementById("proof-file-name");
     if (fileName) {
       fileName.textContent =
         event.target.files?.[0]?.name || "No photo selected";
     }
+    updateEvidenceSubmitState();
   });
   document
     .getElementById("verify-evidence-btn")
@@ -446,7 +458,7 @@ async function submitEvidenceAndCompletion(event) {
 
   const proofHash = await calculateSha256Hex(await file.arrayBuffer());
 
-  const button = event.submitter;
+  const button = document.getElementById("submit-evidence-btn") || event.submitter;
   button.disabled = true;
   button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Submitting…';
   try {
@@ -513,7 +525,7 @@ async function submitEvidenceAndCompletion(event) {
     window.location.href = "milestones.html";
   } catch (error) {
     alert(
-      `Submission failed: ${error?.code === 4001 ? "Transaction was rejected in MetaMask." : error.message || String(error)}`,
+      `Milestone submission failed:\n\n${error?.code === 4001 ? "Transaction was rejected in MetaMask." : error.message || String(error)}`,
     );
     button.disabled = false;
     button.innerHTML =
@@ -622,7 +634,7 @@ async function verifyEvidenceAndRelease() {
     window.location.href = "milestones.html";
   } catch (error) {
     alert(
-      `Verification failed: ${error?.code === 4001 ? "Transaction was rejected in MetaMask." : error.message || String(error)}`,
+      `Milestone verification failed:\n\n${error?.code === 4001 ? "Transaction was rejected in MetaMask." : error.message || String(error)}`,
     );
   }
 }
@@ -678,7 +690,7 @@ async function rejectEvidenceAndReset() {
     window.location.href = "milestones.html";
   } catch (error) {
     alert(
-      `Rejection failed: ${error?.code === 4001 ? "Transaction was rejected in MetaMask." : error.message || String(error)}`,
+      `Milestone rejection failed:\n\n${error?.code === 4001 ? "Transaction was rejected in MetaMask." : error.message || String(error)}`,
     );
   }
 }

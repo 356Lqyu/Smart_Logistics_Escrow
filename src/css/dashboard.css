@@ -218,7 +218,6 @@ body {
   display: inline-block;
 }
 
-/* Shared network-stat tooltips: hover with a mouse or focus with a keyboard. */
 .network-stat {
   position: relative;
   cursor: help;
