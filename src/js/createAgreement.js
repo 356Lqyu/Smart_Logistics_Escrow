@@ -1,7 +1,3 @@
-// =====================================================
-// CREATE AGREEMENT PAGE
-// =====================================================
-
 const FIXED_MILESTONE_PERCENTAGES = [30, 30, 40];
 const MINIMUM_ESCROW_BY_PRIORITY = {
   0: 5,
@@ -171,9 +167,7 @@ function validateDeadline() {
   return !isPastDeadline;
 }
 
-// =====================================================
 // MILESTONE PREVIEW
-// =====================================================
 
 function updateMilestones() {
   const [p1, p2, p3] = FIXED_MILESTONE_PERCENTAGES;
@@ -246,9 +240,7 @@ function updateMilestones() {
   });
 }
 
-// =====================================================
 // CREATE AGREEMENT + AUTO FUND
-// =====================================================
 
 async function handleCreateAgreement(event) {
   event.preventDefault();
@@ -287,17 +279,13 @@ async function handleCreateAgreement(event) {
       ?.value.trim();
 
     const origin = document.getElementById("origin")?.value.trim();
-
     const destination = document.getElementById("destination")?.value.trim();
-
     const payloadValue = Number(document.getElementById("payloadValue")?.value);
-
     const escrowAmount = parseFloat(
       document.getElementById("escrowAmount")?.value,
     );
 
     const priority = parseInt(document.getElementById("priority")?.value);
-
     const deadlineValue = document.getElementById("deadline")?.value;
 
     if (!shipmentDetails) {
@@ -348,7 +336,6 @@ async function handleCreateAgreement(event) {
     }
 
     const checkpoints = ["Goods Pickup", "Warehouse Arrival", "Final Delivery"];
-
     const percentages = [p1, p2, p3];
 
     if (submitBtn) {
@@ -383,20 +370,10 @@ async function handleCreateAgreement(event) {
     }
 
     const agreementId = Number(eventLog.returnValues.agreementId);
-
     const referenceNo = eventLog.returnValues.referenceNo;
-
     const priorityMap = ["Normal", "Express", "Urgent"];
 
-    // =================================================
     // SAVE AGREEMENT
-    //
-    // Created :
-    // - Agreement exists
-    // - Escrow is already locked
-    // - Carrier has not accepted yet
-    // =================================================
-
     const agreementRow = {
       agreement_id: agreementId,
       reference_no: referenceNo,
@@ -432,9 +409,7 @@ async function handleCreateAgreement(event) {
       );
     }
 
-    // =================================================
     // SAVE MILESTONES
-    // =================================================
 
     const milestoneRows = checkpoints.map((checkpoint, index) => ({
       agreement_id: agreementId,
@@ -460,23 +435,15 @@ async function handleCreateAgreement(event) {
       );
     }
 
-    // =================================================
     // TRANSACTION HISTORY
-    //
-    // One blockchain transaction performed both:
-    // AgreementCreated + EscrowFunded
-    // =================================================
+
 
     await supabaseClient.from("transactions").insert([
       {
         transaction_hash: tx.transactionHash,
-
         agreement_id: agreementId,
-
         event_type: "AgreementCreated",
-
         actor_address: currentAccount.toLowerCase(),
-
         details: {
           reference_no: referenceNo,
           escrow_amount: escrowAmount,

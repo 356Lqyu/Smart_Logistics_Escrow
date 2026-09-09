@@ -1,13 +1,5 @@
-// =====================================================
-// AGREEMENTS PAGE
-// =====================================================
-
 let allAgreements = [];
 let filteredAgreements = [];
-
-// =====================================================
-// INITIALIZE
-// =====================================================
 
 document.addEventListener("DOMContentLoaded", async () => {
   try {
@@ -28,9 +20,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 });
 
-// =====================================================
 // LOAD AGREEMENTS
-// =====================================================
 
 async function loadAgreements() {
   const currentWallet = localStorage.getItem("wallet");
@@ -47,9 +37,7 @@ async function loadAgreements() {
     throw error;
   }
 
-  // -------------------------------------------------
   // Strict Role-Based Post-Filtering
-  // -------------------------------------------------
   let agreements = rawAgreements || [];
   const roleStr = String(userRole || "").toLowerCase();
   const isCarrierUser = roleStr === "2" || roleStr === "carrier";
@@ -92,9 +80,7 @@ async function loadAgreements() {
 
   allAgreements = agreements;
 
-  // -------------------------------------------------
   // Load blockchain state
-  // -------------------------------------------------
 
   if (typeof window.ethereum !== "undefined") {
     const web3 = new Web3(window.ethereum);
@@ -110,15 +96,10 @@ async function loadAgreements() {
           .call();
 
         agreement.blockchain_escrow = chainAgreement.escrowAmount;
-
         agreement.blockchain_escrow_remaining = chainAgreement.escrowRemaining;
-
         agreement.blockchain_shipper = chainAgreement.shipper;
-
         agreement.blockchain_carrier = chainAgreement.carrier;
-
         agreement.blockchain_status = Number(chainAgreement.status);
-
         agreement.blockchain_current_milestone = Number(
           chainAgreement.currentMilestone,
         );
@@ -144,6 +125,28 @@ async function loadAgreements() {
         ),
     );
   }
+
+  await loadCarrierExtensionRejections(isCarrierUser);
+}
+
+async function loadCarrierExtensionRejections(isCarrierUser) {
+  if (!isCarrierUser || allAgreements.length === 0) return;
+  const ids = allAgreements.map((agreement) => Number(agreement.agreement_id));
+  const { data, error } = await supabaseClient
+    .from("transactions")
+    .select("agreement_id, details, created_at")
+    .in("agreement_id", ids)
+    .eq("event_type", "DeadlineExtensionRejected")
+    .order("created_at", { ascending: false });
+  if (error) {
+    console.warn("Could not load extension rejection notices:", error);
+    return;
+  }
+  allAgreements.forEach((agreement) => {
+    agreement.extensionRejection = (data || []).find(
+      (item) => Number(item.agreement_id) === Number(agreement.agreement_id),
+    );
+  });
 }
 
 function isAgreementPastDeadline(agreement) {
@@ -154,21 +157,11 @@ function isAgreementPastDeadline(agreement) {
   return deadline > 0 && Math.floor(Date.now() / 1000) > deadline;
 }
 
-// =====================================================
 // PROCESS EXPIRED AGREEMENTS
-// =====================================================
-//
-// This is intentionally called from the agreements page.
-//
-// Therefore:
-//
-// - Shipper opens Agreements page
 // - Expired agreement is detected and the Shipper is asked to confirm
 // - expireAgreement() is called by the Shipper
 // - Smart contract refunds Shipper
 // - Supabase status becomes Expired
-//
-// =====================================================
 
 async function processExpiredAgreements() {
   if (typeof window.ethereum === "undefined") {
@@ -178,9 +171,7 @@ async function processExpiredAgreements() {
   }
 
   const web3 = new Web3(window.ethereum);
-
   const contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
-
   const now = Math.floor(Date.now() / 1000);
 
   for (const agreement of allAgreements) {
@@ -199,25 +190,19 @@ async function processExpiredAgreements() {
 
     const blockchainStatus = Number(agreement.blockchain_status);
 
-    // -------------------------------------------------
     // Completed
-    // -------------------------------------------------
 
     if (blockchainStatus === 2) {
       continue;
     }
 
-    // -------------------------------------------------
     // Cancelled
-    // -------------------------------------------------
 
     if (blockchainStatus === 3) {
       continue;
     }
 
-    // -------------------------------------------------
     // Already expired
-    // -------------------------------------------------
 
     if (blockchainStatus === 4) {
       await syncExpiredAgreement(agreement, null, null);
@@ -225,9 +210,7 @@ async function processExpiredAgreements() {
       continue;
     }
 
-    // -------------------------------------------------
     // Need to expire
-    // -------------------------------------------------
 
     try {
       const accounts = await window.ethereum.request({
@@ -242,9 +225,7 @@ async function processExpiredAgreements() {
 
       const account = accounts[0];
 
-      // -------------------------------------------------
       // Re-check blockchain state
-      // -------------------------------------------------
 
       const chainAgreement = await contract.methods
         .getAgreementBasic(Number(agreement.agreement_id))
@@ -276,9 +257,7 @@ async function processExpiredAgreements() {
         continue;
       }
 
-      // -------------------------------------------------
       // Expiry transaction
-      // -------------------------------------------------
 
       const confirmed = confirm(
         `Agreement ${agreement.reference_no} has expired.\n\n` +
@@ -326,11 +305,14 @@ async function processExpiredAgreements() {
         stakeForfeited,
       );
 
+      const stakeMessage = stakeForfeited > 0
+        ? `Carrier stake forfeited to you: ${stakeForfeited.toFixed(3)} ETH\n\n`
+        : "";
       alert(
         `Agreement ${agreement.reference_no} expired successfully!\n\n` +
-          `Remaining escrow refunded: ${refundedAmount.toFixed(3)} ETH\n` +
-          `Carrier stake forfeited to you: ${stakeForfeited.toFixed(3)} ETH\n\n` +
-          "The expiry and stake-forfeiture records are now in transaction history.",
+          `Remaining escrow refunded: ${refundedAmount.toFixed(3)} ETH\n\n` +
+          stakeMessage +
+          "The expiry record is now in transaction history.",
       );
     } catch (error) {
       console.error(
@@ -340,16 +322,14 @@ async function processExpiredAgreements() {
 
       if (error?.code === 4001) {
         alert(
-          `Expiry transaction for ${agreement.reference_no} was rejected in MetaMask.`,
+          `Agreement ${agreement.reference_no} expiry failed:\n\nTransaction was rejected in MetaMask.`,
         );
       }
     }
   }
 }
 
-// =====================================================
 // SYNC EXPIRED AGREEMENT
-// =====================================================
 
 async function syncExpiredAgreement(
   agreement,
@@ -370,13 +350,9 @@ async function syncExpiredAgreement(
       .from("agreements")
       .update({
         status: "Expired",
-
         expired_at: Math.floor(Date.now() / 1000),
-
         refunded_amount: remaining,
-
         escrow_remaining: 0,
-
         // A shipper refund is not a carrier payout.
         escrow_released: Number(agreement.escrow_released || 0),
       })
@@ -389,33 +365,22 @@ async function syncExpiredAgreement(
     }
 
     agreement.status = "Expired";
-
     agreement.expired_at = Math.floor(Date.now() / 1000);
-
     agreement.escrow_remaining = 0;
-
     agreement.refunded_amount = remaining;
 
-    // -------------------------------------------------
     // Transaction record
-    // -------------------------------------------------
 
     if (transactionHash && actor) {
       await supabaseClient.from("transactions").insert([
         {
           transaction_hash: transactionHash,
-
           agreement_id: Number(agreement.agreement_id),
-
           event_type: "AgreementExpired",
-
           actor_address: actor.toLowerCase(),
-
           details: {
             status: "Expired",
-
             escrow_refunded: remaining,
-
             description:
               "Agreement expired after the deadline. Remaining escrow was refunded to the Shipper.",
           },
@@ -443,9 +408,7 @@ async function syncExpiredAgreement(
   }
 }
 
-// =====================================================
 // FILTERS
-// =====================================================
 
 function setupFilters() {
   const role = String(localStorage.getItem("role") || "").toLowerCase();
@@ -466,9 +429,7 @@ function setupFilters() {
   });
 }
 
-// =====================================================
 // SEARCH
-// =====================================================
 
 function setupSearch() {
   const searchInputs = [
@@ -486,12 +447,11 @@ function setupSearch() {
   });
 }
 
-// =====================================================
 // RENDER
-// =====================================================
 
 function renderAgreements() {
   renderExtensionRequestBar();
+  renderExtensionRejectionReminder();
 
   const tbody = document.getElementById("agreements-table-body");
 
@@ -512,11 +472,8 @@ function renderAgreements() {
 
   filteredAgreements = allAgreements.filter((agreement) => {
     const status = getEffectiveStatus(agreement);
-
     const reference = String(agreement.reference_no || "").toLowerCase();
-
     const payload = String(agreement.payload_value || "").toLowerCase();
-
     const searchMatch =
       !searchValue ||
       reference.includes(searchValue) ||
@@ -561,11 +518,8 @@ function renderAgreements() {
 
   filteredAgreements.forEach((agreement) => {
     const status = getEffectiveStatus(agreement);
-
     const shipper = agreement.blockchain_shipper || agreement.shipper_address;
-
     const carrier = agreement.blockchain_carrier || agreement.carrier_address;
-
     const escrow = ["cancelled", "expired"].includes(
       String(status).toLowerCase(),
     )
@@ -579,9 +533,7 @@ function renderAgreements() {
       agreement.blockchain_deadline || agreement.deadline,
     );
 
-    // =================================================
     // ACTION BUTTONS DEFINITION
-    // =================================================
 
     const userRole = localStorage.getItem("role") || "";
     const currentWallet = (localStorage.getItem("wallet") || "").toLowerCase();
@@ -687,9 +639,35 @@ function renderAgreements() {
   });
 }
 
-// =====================================================
+function renderExtensionRejectionReminder() {
+  const bar = document.getElementById("extension-rejected-reminder-bar");
+  const detail = document.getElementById("extension-rejected-bar-details");
+  const dismissButton = document.getElementById("dismiss-extension-rejected-btn");
+  const role = String(localStorage.getItem("role") || "").toLowerCase();
+  const rejected = allAgreements.find(
+    (agreement) =>
+      agreement.extensionRejection &&
+      !localStorage.getItem(getExtensionRejectionAcknowledgementKey(agreement)),
+  );
+  if (!bar || !detail || (role !== "2" && role !== "carrier") || !rejected) {
+    if (bar) bar.style.display = "none";
+    return;
+  }
+  detail.textContent = `Your extension request for ${rejected.reference_no} was rejected.`;
+  if (dismissButton) {
+    dismissButton.onclick = () => {
+      localStorage.setItem(getExtensionRejectionAcknowledgementKey(rejected), "true");
+      bar.style.display = "none";
+    };
+  }
+  bar.style.display = "block";
+}
+
+function getExtensionRejectionAcknowledgementKey(agreement) {
+  return `extension-rejection-acknowledged:${agreement.agreement_id}:${agreement.extensionRejection?.created_at || "unknown"}`;
+}
+
 // SHIPPER EXTENSION REQUEST BAR
-// =====================================================
 
 function renderExtensionRequestBar() {
   const bar = document.getElementById("extension-notification-bar");
@@ -815,9 +793,7 @@ async function acceptAgreementAction(agreementId) {
   );
 }
 
-// =====================================================
 // SHIPPER CANCEL AGREEMENT FROM LISTING PAGE
-// =====================================================
 
 async function cancelAgreementAction(agreementId) {
   const targetAgreement = allAgreements.find(
@@ -836,15 +812,10 @@ async function cancelAgreementAction(agreementId) {
   );
 }
 
-// =====================================================
 // EFFECTIVE STATUS
-// =====================================================
 
 function getEffectiveStatus(agreement) {
-  // -------------------------------------------------
   // Blockchain is authoritative
-  // -------------------------------------------------
-
   const blockchainStatus = Number(agreement.blockchain_status);
 
   switch (blockchainStatus) {
@@ -864,9 +835,7 @@ function getEffectiveStatus(agreement) {
       return "Expired";
   }
 
-  // -------------------------------------------------
   // Fallback deadline check
-  // -------------------------------------------------
 
   const deadline = Number(
     agreement.blockchain_deadline || agreement.deadline || 0,
@@ -884,17 +853,13 @@ function getEffectiveStatus(agreement) {
   return agreement.status || "Created";
 }
 
-// =====================================================
 // VIEW AGREEMENT
-// =====================================================
 
 function viewAgreement(id) {
   window.location.href = `agreementDetails.html?id=${Number(id)}`;
 }
 
-// =====================================================
 // HELPERS
-// =====================================================
 
 function getBlockchainEth(weiValue, fallbackEth) {
   if (weiValue !== undefined && weiValue !== null) {

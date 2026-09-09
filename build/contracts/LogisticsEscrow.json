@@ -49602,12 +49602,12 @@
     "5777": {
       "events": {},
       "links": {},
-      "address": "0x10a5592930716b4340a9530918E1C1a60234D0Ea",
-      "transactionHash": "0xcd59120bb682e6be6886e3a25330867a10e32263e01928f4d389b48b8eefbd43"
+      "address": "0xAeFDD7007b4fB2563d68a913c1e5a438B8fE2cb4",
+      "transactionHash": "0xddcb638a550096825d0773b87613391403b770f42e160e9d7a4ade0a62f9e010"
     }
   },
   "schemaVersion": "3.4.16",
-  "updatedAt": "2026-09-08T08:04:45.949Z",
+  "updatedAt": "2026-09-09T09:14:46.659Z",
   "networkType": "ethereum",
   "devdoc": {
     "kind": "dev",

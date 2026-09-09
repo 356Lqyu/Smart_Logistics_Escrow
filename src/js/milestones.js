@@ -1,20 +1,11 @@
-// =====================================================
-// MILESTONE MANAGEMENT PAGE
-// =====================================================
-
 let milestoneWallet = null;
 let milestoneRole = null;
 let milestoneAgreements = [];
 let expandedAgreements = new Set();
 
-// =====================================================
-// PAGE INITIALIZATION
-// =====================================================
-
 document.addEventListener("DOMContentLoaded", async () => {
   try {
     console.log("Milestone page initialization started...");
-
     await initialiseMilestonePage();
   } catch (error) {
     console.error("Milestone page initialization failed:", error);
@@ -23,13 +14,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 });
 
-// =====================================================
-// INITIALISE MILESTONE PAGE
-// =====================================================
-
 async function initialiseMilestonePage() {
   milestoneWallet = localStorage.getItem("wallet");
-
   if (!milestoneWallet) {
     throw new Error("Wallet information not found. Please reconnect MetaMask.");
   }
@@ -49,10 +35,7 @@ async function initialiseMilestonePage() {
   await loadInProgressAgreements();
 }
 
-// =====================================================
 // LOAD IN-PROGRESS AGREEMENTS
-// =====================================================
-
 async function loadInProgressAgreements() {
   const container = document.getElementById("milestones-page-container");
 
@@ -61,15 +44,11 @@ async function loadInProgressAgreements() {
   }
 
   container.innerHTML = `
-
         <div class="details-loading">
-
             <i class="fa-solid fa-spinner fa-spin"></i>
-
             <p style="margin-top: 10px;">
                 Loading in-progress agreements...
             </p>
-
         </div>
 
     `;
@@ -123,8 +102,6 @@ async function loadInProgressAgreements() {
       throw agreementError;
     }
 
-    // A deadline makes milestone work unavailable immediately, even when
-    // the shipper has not yet submitted the on-chain expiry transaction.
     const now = Math.floor(Date.now() / 1000);
     milestoneAgreements = (agreementRows || []).filter(
       (agreement) => Number(agreement.deadline || 0) > now,
@@ -169,6 +146,17 @@ async function loadInProgressAgreements() {
       .in("agreement_id", agreementIds)
       .eq("event_type", "MilestoneRejected")
       .order("created_at", { ascending: false });
+
+    const { data: extensionRejections, error: extensionRejectionError } =
+      await supabaseClient
+        .from("transactions")
+        .select("agreement_id, details, created_at")
+        .in("agreement_id", agreementIds)
+        .eq("event_type", "DeadlineExtensionRejected")
+        .order("created_at", { ascending: false });
+    if (extensionRejectionError) {
+      console.warn("Could not load extension rejection notices:", extensionRejectionError);
+    }
 
     milestoneRows.forEach((milestone) => {
       milestone.isRejected = false;
@@ -258,8 +246,10 @@ async function loadInProgressAgreements() {
 
     milestoneAgreements.forEach((agreement) => {
       const agreementId = Number(agreement.agreement_id);
-
       agreement.milestones = milestoneMap[agreementId] || [];
+      agreement.extensionRejection = (extensionRejections || []).find(
+        (item) => Number(item.agreement_id) === agreementId,
+      );
     });
 
     renderAgreements();
@@ -269,7 +259,6 @@ async function loadInProgressAgreements() {
     container.innerHTML = `
 
             <div class="details-error">
-
                 Error loading milestones:
                 ${escapeHtml(error?.message || String(error))}
 
@@ -279,13 +268,9 @@ async function loadInProgressAgreements() {
   }
 }
 
-// =====================================================
-// RENDER AGREEMENTS
-// =====================================================
-
 function renderAgreements() {
   renderVerificationReminderBar();
-
+  renderExtensionRejectionReminder();
   const container = document.getElementById("milestones-page-container");
 
   if (!container) {
@@ -296,13 +281,9 @@ function renderAgreements() {
 
   milestoneAgreements.forEach((agreement) => {
     const agreementId = Number(agreement.agreement_id);
-
     const milestones = agreement.milestones || [];
-
     const isExpanded = expandedAgreements.has(agreementId);
-
     let completedPercentage = 0;
-
     milestones.forEach((milestone) => {
       const completed = normalizeBool(milestone.completed);
       const verified = normalizeBool(milestone.verified);
@@ -479,6 +460,33 @@ function renderAgreements() {
   });
 }
 
+function renderExtensionRejectionReminder() {
+  const bar = document.getElementById("extension-rejected-reminder-bar");
+  const detail = document.getElementById("extension-rejected-bar-details");
+  const dismissButton = document.getElementById("dismiss-extension-rejected-btn");
+  const rejected = milestoneAgreements.find(
+    (agreement) =>
+      agreement.extensionRejection &&
+      !localStorage.getItem(getExtensionRejectionAcknowledgementKey(agreement)),
+  );
+  if (!bar || !detail || milestoneRole !== "carrier" || !rejected) {
+    if (bar) bar.style.display = "none";
+    return;
+  }
+  detail.textContent = `Your extension request for ${rejected.reference_no} was rejected.`;
+  if (dismissButton) {
+    dismissButton.onclick = () => {
+      localStorage.setItem(getExtensionRejectionAcknowledgementKey(rejected), "true");
+      bar.style.display = "none";
+    };
+  }
+  bar.style.display = "block";
+}
+
+function getExtensionRejectionAcknowledgementKey(agreement) {
+  return `extension-rejection-acknowledged:${agreement.agreement_id}:${agreement.extensionRejection?.created_at || "unknown"}`;
+}
+
 function checkReminderWindow(milestone) {
   if (!milestone.completed_at || milestone.verified) return false;
   const FIVE_MINUTES = 300; // 5 minutes in seconds
@@ -488,9 +496,6 @@ function checkReminderWindow(milestone) {
   return now > submittedTime + FIVE_MINUTES;
 }
 
-// =====================================================
-// RENDER MILESTONE LIST
-// =====================================================
 
 function renderMilestoneList(agreement, activeIndex) {
   const milestones = agreement.milestones || [];
@@ -520,9 +525,7 @@ function renderMilestoneList(agreement, activeIndex) {
     `;
 }
 
-// =====================================================
 // VERIFICATION PENDING REMINDER BAR
-// =====================================================
 
 function renderVerificationReminderBar() {
   const bar = document.getElementById("verification-reminder-bar");
@@ -595,23 +598,15 @@ function jumpToAgreementCard(agreementId) {
   }, 100);
 }
 
-// =====================================================
 // RENDER SINGLE MILESTONE
-// =====================================================
 
 function renderMilestone(agreement, milestone, milestoneIndex, activeIndex) {
   const agreementId = Number(agreement.agreement_id);
-
   const completed = normalizeBool(milestone.completed);
-
   const verified = normalizeBool(milestone.verified);
-
   const paid = normalizeBool(milestone.paid);
-
   const percentage = Number(milestone.percentage || 0);
-
   const checkpoint = milestone.checkpoint || `Milestone ${milestoneIndex + 1}`;
-
   const deadline = Number(
     agreement.blockchain_deadline || agreement.deadline || 0,
   );
@@ -756,29 +751,21 @@ function renderMilestone(agreement, milestone, milestoneIndex, activeIndex) {
   return `
 
         <div class="milestone-item ${state}">
-
             <div class="milestone-left">
-
                 <div class="milestone-number">
                     ${numberContent}
                 </div>
-
                 <div class="milestone-info">
-
                     <h3>
                         ${escapeHtml(checkpoint)}
                     </h3>
-
                     <div class="milestone-meta">
-
                         <span>
                             ${percentage}%
                         </span>
-
                         <span class="milestone-separator">
                             •
                         </span>
-
                         <span>
                             ${amount} ETH
                         </span>
@@ -821,27 +808,18 @@ function renderMilestone(agreement, milestone, milestoneIndex, activeIndex) {
                     ${actionHtml}
 
                 </div>
-
             </div>
-
             <div class="milestone-status ${state}">
-
                 <span class="milestone-status-dot"></span>
-
                 <span>
                     ${stateText}
                 </span>
-
             </div>
-
         </div>
-
     `;
 }
 
-// =====================================================
 // TOGGLE AGREEMENT
-// =====================================================
 
 function toggleAgreementCard(agreementId) {
   const id = Number(agreementId);
@@ -855,18 +833,12 @@ function toggleAgreementCard(agreementId) {
   renderAgreements();
 }
 
-// =====================================================
 // SUBMIT MILESTONE
-// =====================================================
-
 function openMilestoneSubmission(agreementId, milestoneIndex, mode) {
   window.location.href = `milestoneSubmission.html?agreementId=${Number(agreementId)}&milestoneIndex=${Number(milestoneIndex)}&mode=${encodeURIComponent(mode)}`;
 }
 
-// =====================================================
 // NO AGREEMENTS
-// =====================================================
-
 function renderNoAgreements() {
   const container = document.getElementById("milestones-page-container");
 
@@ -903,10 +875,7 @@ function renderNoAgreements() {
     `;
 }
 
-// =====================================================
 // SHOW ERROR
-// =====================================================
-
 function showPageError(message) {
   const container = document.getElementById("milestones-page-container");
 
@@ -949,9 +918,9 @@ function openMilestoneExtensionModal(agreementId, currentDeadline) {
             <label>
                 New Date & Time (up to 10 days after current deadline)
                 <input type="datetime-local" id="ext-date-input"
-                    min="${toLocalDateTimeValue(currentDeadline)}"
                     max="${toLocalDateTimeValue(currentDeadline + 10 * 86400)}" required>
             </label>
+            <p id="ext-date-error" class="profile-modal-note" role="alert" style="margin-top: 6px; color: #f87171;"></p>
             <label style="margin-top: 12px;">
                 Reason for Extension
                 <input type="text" id="ext-reason-input" placeholder="e.g. Customs delay, bad weather" maxlength="200">
@@ -959,7 +928,7 @@ function openMilestoneExtensionModal(agreementId, currentDeadline) {
             <p id="ext-modal-message" class="profile-modal-note" role="alert"></p>
             <div class="profile-modal-actions">
                 <button type="button" class="profile-cancel-btn" id="cancel-ext-btn">Cancel</button>
-                <button type="button" class="profile-save-btn" id="submit-ext-btn">Submit Request</button>
+                <button type="button" class="profile-save-btn" id="submit-ext-btn" disabled>Submit Request</button>
             </div>
         </div>
     `;
@@ -970,6 +939,27 @@ function openMilestoneExtensionModal(agreementId, currentDeadline) {
   document.getElementById("submit-ext-btn").onclick = () =>
     submitMilestoneExtensionRequest(agreementId, currentDeadline);
 
+  const dateInput = document.getElementById("ext-date-input");
+  const reasonInput = document.getElementById("ext-reason-input");
+  const submitButton = document.getElementById("submit-ext-btn");
+  const dateError = document.getElementById("ext-date-error");
+  const validateExtensionForm = () => {
+    const selected = Math.floor(new Date(dateInput?.value || "").getTime() / 1000);
+    let error = "";
+    if (dateInput?.value && (!Number.isFinite(selected) || selected <= Math.floor(Date.now() / 1000))) {
+      error = "The new deadline cannot be in the past.";
+    } else if (dateInput?.value && selected <= currentDeadline) {
+      error = "The new deadline must be after the current deadline.";
+    } else if (dateInput?.value && selected > currentDeadline + 10 * 86400) {
+      error = "Extension cannot exceed 10 days beyond the current deadline.";
+    }
+    if (dateError) dateError.textContent = error;
+    if (submitButton) submitButton.disabled = Boolean(error) || !dateInput?.value || !reasonInput?.value.trim();
+  };
+  dateInput?.addEventListener("input", validateExtensionForm);
+  dateInput?.addEventListener("change", validateExtensionForm);
+  reasonInput?.addEventListener("input", validateExtensionForm);
+
   modal.hidden = false;
 }
 
@@ -978,6 +968,12 @@ async function submitMilestoneExtensionRequest(agreementId, currentDeadline) {
   const reasonInput =
     document.getElementById("ext-reason-input")?.value.trim() || "";
   const selectedTimestamp = Math.floor(new Date(dateInput).getTime() / 1000);
+  if (!dateInput || !Number.isFinite(selectedTimestamp) || selectedTimestamp <= Math.floor(Date.now() / 1000)) {
+    const error = document.getElementById("ext-date-error");
+    if (error) error.textContent = "The new deadline cannot be in the past.";
+    return;
+  }
+  if (!reasonInput) return;
   await sharedRequestExtension(
     agreementId,
     selectedTimestamp,
@@ -1017,17 +1013,10 @@ function formatDate(timestamp) {
   });
 }
 
-// =====================================================
-// NORMALIZE BOOLEAN
-// =====================================================
 
 function normalizeBool(value) {
   return value === true || value === "true" || value === 1 || value === "1";
 }
-
-// =====================================================
-// ESCAPE HTML
-// =====================================================
 
 function escapeHtml(value) {
   if (value === null || value === undefined) {
@@ -1036,12 +1025,8 @@ function escapeHtml(value) {
 
   return String(value)
     .replace(/&/g, "&amp;")
-
     .replace(/</g, "&lt;")
-
     .replace(/>/g, "&gt;")
-
     .replace(/"/g, "&quot;")
-
     .replace(/'/g, "&#039;");
 }

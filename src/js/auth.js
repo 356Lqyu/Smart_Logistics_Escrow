@@ -20,17 +20,11 @@ async function connectWallet() {
   }
 
   try {
-    // =====================================
-    // 1. Switch / add Ganache (5777 or 1337)
-    // =====================================
-
+    // Switch / add Ganache (5777 or 1337)
     await ensureGanacheNetworkForAuth();
-
     console.log("Switched to Ganache");
 
-    // =====================================
-    // 2. Check current network
-    // =====================================
+    // Check current network
 
     const chainId = await window.ethereum.request({
       method: "eth_chainId",
@@ -38,10 +32,7 @@ async function connectWallet() {
 
     console.log("MetaMask chain:", chainId);
 
-    // =====================================
-    // 3. Connect wallet
-    // =====================================
-
+    // Connect wallet
     const accounts = await window.ethereum.request({
       method: "eth_requestAccounts",
     });
@@ -50,9 +41,7 @@ async function connectWallet() {
 
     console.log("Wallet:", currentAccount);
 
-    // =====================================
-    // 4. Create Web3 using MetaMask
-    // =====================================
+    // Create Web3 using MetaMask
 
     web3 = new Web3(window.ethereum);
 
