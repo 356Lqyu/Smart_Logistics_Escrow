@@ -7,34 +7,26 @@ A decentralized application (dApp) built on the Ethereum blockchain using Solidi
 ## Features
 
 * **Role-Based Access Control**: Separate registration and authentication workflows for **Shippers** (buyers/creators) and **Carriers** (service providers), enforced both on-chain and off-chain.
-* **Escrow Smart Contract Integration**: Shippers fund and lock ETH into an escrow agreement upon creation (`createAgreement`).
+* **Escrow Smart Contract Integration**: Shippers fund and lock ETH into an escrow agreement upon creation.
 * **Strict Milestone & Payout Distribution**: Agreements require exactly three checkpoints structured around a mandatory **30%, 30%, and 40%** progressive payout distribution model (Goods Pickup, Warehouse Arrival, and Final Delivery).
 * **Carrier Performance Staking**: Carriers must lock an exact **30% performance stake** relative to the escrow amount when accepting an active agreement, capped at a maximum of 3 active agreements per carrier.
-* **Reputation Token Standard (ERC-20)**: Integration of a minimal ERC-20 reputation token (`LogiTrustToken.sol` — **LTT**), where the escrow contract holds minting rights to reward carriers (`mintReward`) upon successful agreement completion.
-* **Automated Expiry & Refund Handling**: If a carrier fails to meet milestones before the deadline, the contract triggers a secure expiry mechanism (`expireAgreement`), refunding remaining escrow to the shipper and forfeiting the carrier's performance stake.
+* **Reputation Token Standard (ERC-20)**: Integration of a minimal ERC-20 reputation token, where the escrow contract holds minting rights to reward carriers  upon successful agreement completion.
+* **Automated Expiry & Refund Handling**: If a carrier fails to meet milestones before the deadline, the contract triggers a secure expiry mechanism, refunding remaining escrow to the shipper and forfeiting the carrier's performance stake.
 * **Cryptographic Proofs & File Integrity**: Milestone submissions link SHA-256 proof hashes recorded immutably on-chain with off-chain encrypted media stored via Supabase Storage.
-* **Comprehensive Transaction Ledger**: Complete synchronization of blockchain events (`AgreementCreated`, `MilestoneVerified`, `CarrierStakeReturned`, etc.) into Supabase for real-time tracking[cite: 5, 13, 15].
+* **Comprehensive Transaction Ledger**: Complete synchronization of blockchain events into Supabase for real-time tracking.
 
 ---
 
 ## Getting Started & Smart Contract Deployment
-
-Follow the steps below to set up, compile, and deploy the smart contracts locally using **Truffle** and **Ganache**, or deploy them to the **Sepolia Testnet** for presentation.
 
 ### Prerequisites
 
 Make sure the following software is installed:
 
 * [Node.js](https://nodejs.org/) (v16+ recommended)
-* Truffle
+* Truffle (npm install -g truffle)
 * MetaMask browser extension
-* Ganache
-
-Install Truffle globally if it is not already installed:
-
-```bash
-npm install -g truffle
-```
+* Ganache (Local workspace running on http://127.0.0.1:8545)
 
 ---
 
@@ -59,34 +51,20 @@ npm install
 
 ---
 
-# Environment Setup: Testing vs. Presentation
+# Environment Setup: Local  vs. Live
 
-The application supports two deployment environments:
+The project supports two deployment workflows depending on whether you are running local diagnostics or presenting a live demo.
 
-* **Option A:** Local Testing using Ganache
+* **Option A:** Local Testing (Ganache)
 * **Option B:** Live Presentation using the Sepolia Testnet
 
 ---
 
 ## Option A: Local Testing (Ganache)
 
-Use this setup for local development and functional testing.
-
 ### 1. Start Ganache
 
-Open your Ganache workspace and start the local Ethereum blockchain.
-
-The commonly used network IDs are:
-
-```text
-1337
-```
-
-or
-
-```text
-5777
-```
+Open your local workspace. Ensure the RPC server runs at http://127.0.0.1:8545 with Chain ID 1337 or 5777
 
 ### 2. Configure MetaMask
 
@@ -117,49 +95,24 @@ After successful deployment, Truffle will display the deployed contract addresse
 
 ### 5. Update the Contract Address
 
-Copy the deployed smart contract address from the terminal and update the `CONTRACT_ADDRESS` value in:
-
-```text
-js/contract.js
-```
-
-For example:
+Copy the deployed contract addresses for both LogisticsEscrow and LogiTrustToken from the terminal output, then update CONTRACT_ADDRESS and TOKEN_CONTRACT_ADDRESS in js/contract.js
 
 ```javascript
-const CONTRACT_ADDRESS = "YOUR_DEPLOYED_CONTRACT_ADDRESS";
+const CONTRACT_ADDRESS = "YOUR_DEPLOYED_GANACHE_ESCROW_ADDRESS";
+const TOKEN_CONTRACT_ADDRESS = "YOUR_DEPLOYED_GANACHE_TOKEN_ADDRESS";
 ```
 
 ---
 
 ## Option B: Live Presentation (Sepolia Testnet)
 
-Use this setup when presenting the project to judges, instructors, or other users.
-
 ### 1. Configure MetaMask
 
-Switch MetaMask to the:
-
-```text
-Sepolia Testnet
-```
-
-Make sure the deployment wallet has sufficient **Sepolia ETH** for transaction fees.
-
-Sepolia ETH can be obtained from a compatible Sepolia faucet.
+Switch MetaMask to the Sepolia Testnet and ensure your deployment wallet has sufficient Sepolia ETH from a faucet.
 
 ### 2. Configure Truffle
 
-Open:
-
-```text
-truffle-config.js
-```
-
-Ensure that your Sepolia network configuration is correctly configured.
-
-For example, the configuration may use an RPC provider such as **Infura** or **Alchemy** and a deployment wallet.
-
-> **Security:** Never commit your wallet's private key, seed phrase, API key, or other sensitive credentials to GitHub. Use environment variables or a `.env` file that is excluded through `.gitignore`.
+Verify your truffle-config.js contains your Sepolia network credentials (Infura/Alchemy RPC provider and deployment mnemonic/private key).
 
 ### 3. Deploy to Sepolia
 
@@ -173,16 +126,11 @@ After deployment completes, Truffle will display the deployed contract address.
 
 ### 4. Update the Contract Address
 
-Copy the newly deployed Sepolia contract address and update:
+Update both CONTRACT_ADDRESS and TOKEN_CONTRACT_ADDRESS inside js/contract.js with your verified Sepolia contract addresses:
 
-```text
-js/contract.js
-```
-
-For example:
-
-```javascript
-const CONTRACT_ADDRESS = "YOUR_SEPOLIA_CONTRACT_ADDRESS";
+```bash
+const CONTRACT_ADDRESS = "YOUR_VERIFIED_SEPOLIA_ESCROW_ADDRESS";
+const TOKEN_CONTRACT_ADDRESS = "YOUR_VERIFIED_SEPOLIA_TOKEN_ADDRESS";
 ```
 
 ---
@@ -243,36 +191,22 @@ Once the application is running:
 
 ---
 
-# Smart Contract Workflow
-
-The overall escrow workflow is:
+## Smart Contract Workflow
 
 ```text
-Shipper
-   │
-   │ Create Agreement + Fund Escrow
-   ▼
-Smart Contract
-   │
-   │ Agreement Created
-   ▼
-Carrier
-   │
-   │ Accept Agreement
-   ▼
-Carrier
-   │
-   │ Submit Milestone
-   ▼
-Shipper
-   │
-   │ Verify Milestone
-   ▼
-Smart Contract
-   │
-   │ Release Milestone Payment
-   ▼
-Carrier
+Shipper ──(Create Agreement + Fund Escrow)──► Smart Contract
+                                                    │
+                                                    ▼
+                                            Carrier (Accepts + Stakes 30%)
+                                                    │
+                                                    ▼
+                                            Carrier (Submit Milestone + Proof Hash)
+                                                    │
+                                                    ▼
+                                            Shipper (Verify Milestone & Release Payout)
+                                                    │
+                                                    ▼
+                                            Smart Contract (Releases ETH / Mints LTT)
 ```
 
 The process continues until all required milestones are completed.
@@ -281,15 +215,7 @@ The process continues until all required milestones are completed.
 
 # Technology Stack
 
-| Technology                  | Purpose                                   |
-| --------------------------- | ----------------------------------------- |
-| **Ethereum**                | Blockchain network                        |
-| **Solidity**                | Smart contract development                |
-| **Web3.js**                 | Blockchain interaction from the frontend  |
-| **Truffle**                 | Smart contract compilation and deployment |
-| **Ganache**                 | Local Ethereum blockchain for testing     |
-| **MetaMask**                | Wallet and transaction signing            |
-| **Sepolia**                 | Ethereum testnet for live presentation    |
-| **JavaScript / HTML / CSS** | Frontend application                      |
+Blockchain Network: Ethereum (Local Ganache for testing, Sepolia Testnet for live demonstration) 
+Smart Contracts: Solidity ^0.8.0 (Truffle Framework)  Frontend Integration: Web3.js, HTML5, CSS3, JavaScript  Database & Storage: Supabase (Relational metadata, transaction audit trails, and milestone evidence caching)  Wallet Management: MetaMask
 
 ---
