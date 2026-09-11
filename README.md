@@ -25,7 +25,7 @@ A decentralized application (dApp) built on the Ethereum blockchain using Solidi
   If a carrier fails to meet milestones before the deadline, the contract triggers a secure expiry mechanism, refunding remaining escrow to the shipper and forfeiting the carrier's performance stake.
 
 - **Cryptographic Proofs & File Integrity**  
-  Milestone submissions link SHA-256 proof hashes recorded immutably on-chain with off-chain encrypted media stored via Supabase Storage.
+  Milestone submissions link SHA-256 proof hashes recorded immutably on-chain with the underlying evidence photo stored off-chain in Supabase Storage. Recalculating the digest on review can detect if the stored file has changed, though it does not independently prove the physical logistics activity occurred.
 
 - **Comprehensive Transaction Ledger**  
   Complete synchronization of blockchain events into Supabase for real-time tracking.
@@ -50,7 +50,7 @@ Make sure the following software is installed:
 Clone the repository and navigate to the project directory:
 
 ```bash
-git clone https://github.com/your-username/Smart_Logistics_Escrow.git
+git clone https://github.com/356Lqyu/Smart_Logistics_Escrow.git
 cd Smart_Logistics_Escrow
 ```
 
@@ -58,11 +58,7 @@ cd Smart_Logistics_Escrow
 
 ## 2. Install Dependencies
 
-Install the required project packages:
-
-```bash
-npm install
-```
+No local npm packages are required — the frontend loads Web3.js, Supabase, and all other libraries directly via CDN `<script>` tags, and there's no `package.json` in this project. You only need the Truffle CLI installed globally (see Prerequisites) to compile and deploy the contracts.
 
 ---
 
@@ -81,7 +77,7 @@ The project supports two deployment workflows depending on whether you are runni
 
 ## 1. Start Ganache
 
-Open your local workspace. Ensure the RPC server runs at `http://127.0.0.1:8545` with Chain ID `1337` or `5777`.
+Open your local workspace. Ensure the RPC server runs at `http://127.0.0.1:7545` with Chain ID `5777` — this must match the `development` network in `truffle-config.js` (host `127.0.0.1`, port `7545`), which is what `truffle migrate --reset` connects to by default. The frontend itself is more flexible (it also accepts `8545`/Chain ID `1337`), but the migration step specifically requires port `7545` unless you edit `truffle-config.js` or pass a different `--network`.
 
 ## 2. Configure MetaMask
 
@@ -112,11 +108,20 @@ After successful deployment, Truffle will display the deployed contract addresse
 
 ## 5. Update the Contract Address
 
-Copy the deployed contract addresses for both LogisticsEscrow and LogiTrustToken from the terminal output, then update `CONTRACT_ADDRESS` and `TOKEN_CONTRACT_ADDRESS` in `js/contract.js`.
+Copy the deployed contract addresses for both LogisticsEscrow and LogiTrustToken from the terminal output, then update the Ganache entries inside `NETWORK_ADDRESSES` in `js/contract.js` — `CONTRACT_ADDRESS`/`TOKEN_CONTRACT_ADDRESS` are computed automatically from this map based on whichever network MetaMask is connected to, so don't edit those directly.
 
 ```javascript
-const CONTRACT_ADDRESS = "YOUR_DEPLOYED_GANACHE_ESCROW_ADDRESS";
-const TOKEN_CONTRACT_ADDRESS = "YOUR_DEPLOYED_GANACHE_TOKEN_ADDRESS";
+const NETWORK_ADDRESSES = {
+  1337: {
+    contract: "YOUR_DEPLOYED_GANACHE_ESCROW_ADDRESS",
+    token: "YOUR_DEPLOYED_GANACHE_TOKEN_ADDRESS",
+  },
+  5777: {
+    contract: "YOUR_DEPLOYED_GANACHE_ESCROW_ADDRESS",
+    token: "YOUR_DEPLOYED_GANACHE_TOKEN_ADDRESS",
+  },
+  // ...
+};
 ```
 
 ---
