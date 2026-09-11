@@ -1,5 +1,8 @@
 let currentProfileEmail = null;
 
+const IC_PATTERN = /^\d{6}-?\d{2}-?\d{4}$/;
+const PHONE_PATTERN = /^\+?[0-9\s-]{7,15}$/;
+
 document.addEventListener("DOMContentLoaded", async () => {
   try {
     if (typeof window.ethereum === "undefined") {
@@ -94,8 +97,13 @@ async function loadProfile(wallet) {
     "profile-subtitle",
     isCarrier ? "Carrier logistics identity" : "Shipper logistics identity",
   );
+  const icNumber = user?.ic_number || "Not set";
+  const phone = user?.phone || "Not set";
+
   setText("profile-wallet", wallet);
   setText("profile-email", email);
+  setText("profile-ic", icNumber);
+  setText("profile-phone", phone);
   setText(
     "profile-registered",
     registeredAt
@@ -114,17 +122,13 @@ async function loadProfile(wallet) {
 
   await loadProfilePicture(wallet);
   await loadTokenBalance(wallet);
+  await loadWalletBalance(wallet);
 
   if (typeof web3 !== "undefined" || window.ethereum) {
     try {
       const w3 = new Web3(window.ethereum);
       const chainId = await w3.eth.getChainId();
-      setText(
-        "profile-network",
-        chainId === 1337 || chainId === 5777
-          ? `Local Ganache (${chainId})`
-          : `Chain ${chainId}`,
-      );
+      setText("profile-network", describeNetwork(chainId));
     } catch (error) {
       console.warn("Network lookup failed:", error);
     }
@@ -135,12 +139,16 @@ async function loadProfile(wallet) {
 
   const editName = document.getElementById("edit-name-input");
   const editEmail = document.getElementById("edit-email-input");
+  const editIc = document.getElementById("edit-ic-input");
+  const editPhone = document.getElementById("edit-phone-input");
   if (editName)
     editName.value =
       displayName === "Shipper Account" || displayName === "Carrier Account"
         ? ""
         : displayName;
   if (editEmail) editEmail.value = email === "Not set" ? "" : email;
+  if (editIc) editIc.value = icNumber === "Not set" ? "" : icNumber;
+  if (editPhone) editPhone.value = phone === "Not set" ? "" : phone;
 }
 
 async function loadRoleAgreements(walletLower, isCarrier) {
@@ -276,9 +284,25 @@ function setupEditModal(wallet) {
     const name = document.getElementById("edit-name-input")?.value.trim() || "";
     const email =
       document.getElementById("edit-email-input")?.value.trim() || "";
+    const icNumber =
+      document.getElementById("edit-ic-input")?.value.trim() || "";
+    const phone =
+      document.getElementById("edit-phone-input")?.value.trim() || "";
 
     if (!name) {
       if (message) message.innerText = "Display name is required.";
+      return;
+    }
+
+    if (icNumber && !IC_PATTERN.test(icNumber)) {
+      if (message)
+        message.innerText =
+          "Please enter a valid IC number (e.g. 990101-01-1234).";
+      return;
+    }
+
+    if (phone && !PHONE_PATTERN.test(phone)) {
+      if (message) message.innerText = "Please enter a valid phone number.";
       return;
     }
 
@@ -291,6 +315,8 @@ function setupEditModal(wallet) {
       const payload = {
         name,
         email: email || null,
+        ic_number: icNumber || null,
+        phone: phone || null,
       };
 
       const { error } = await supabaseClient
@@ -299,7 +325,7 @@ function setupEditModal(wallet) {
         .eq("wallet_address", wallet.toLowerCase());
 
       if (error) {
-        // Email column may not exist — try name only
+        // Some columns may not exist on this schema — fall back to name only.
         const { error: nameError } = await supabaseClient
           .from("users")
           .update({ name })
@@ -458,6 +484,12 @@ function normalize(value) {
     .toLowerCase();
 }
 
+function describeNetwork(chainId) {
+  if (chainId === 1337 || chainId === 5777) return `Local Ganache (${chainId})`;
+  if (chainId === 11155111) return "Sepolia Testnet";
+  return `Chain ${chainId}`;
+}
+
 function setText(id, value) {
   const el = document.getElementById(id);
   if (el) el.innerText = value;
@@ -514,6 +546,19 @@ async function loadTokenBalance(wallet) {
   } catch (error) {
     console.warn("Could not load LTT balance:", error);
     setText("stat-tokens", "0 LTT");
+  }
+}
+
+async function loadWalletBalance(wallet) {
+  try {
+    const w3 = new Web3(window.ethereum);
+    const balanceWei = await w3.eth.getBalance(wallet);
+    const balance = Web3.utils.fromWei(balanceWei, "ether");
+    const rounded = Math.round(Number(balance) * 10000) / 10000;
+    setText("stat-eth-balance", `${rounded} ETH`);
+  } catch (error) {
+    console.warn("Could not load wallet ETH balance:", error);
+    setText("stat-eth-balance", "— ETH");
   }
 }
 

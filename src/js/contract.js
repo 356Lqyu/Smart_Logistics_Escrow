@@ -1,6 +1,151 @@
-const CONTRACT_ADDRESS = "0xAeFDD7007b4fB2563d68a913c1e5a438B8fE2cb4";
+// =====================================================
+// NETWORK-AWARE CONTRACT ADDRESSES
+//
+// Local Ganache (dev/testing) and Sepolia (live presentation)
+// run separate deployments of the same contracts. Whichever
+// network MetaMask is connected to when this page loads
+// decides which pair of addresses CONTRACT_ADDRESS /
+// TOKEN_CONTRACT_ADDRESS resolve to, so every other file can
+// keep using those two constants unchanged.
+// =====================================================
 
-const TOKEN_CONTRACT_ADDRESS = "0xBed8024feeE2675893DF9AE8dC82b19Db93a1017";
+const NETWORK_ADDRESSES = {
+  1337: {
+    contract: "0xAeFDD7007b4fB2563d68a913c1e5a438B8fE2cb4",
+    token: "0xBed8024feeE2675893DF9AE8dC82b19Db93a1017",
+  },
+  5777: {
+    contract: "0xAeFDD7007b4fB2563d68a913c1e5a438B8fE2cb4",
+    token: "0xBed8024feeE2675893DF9AE8dC82b19Db93a1017",
+  },
+  // Sepolia (chain ID 11155111) — live presentation deployment.
+  11155111: {
+    contract: "0xb67f1444Ea74F5e6F374FBEebEb6220a1bB9DbaB",
+    token: "0xd52338cf25C1aF2AA27d347Ba1CEdb732Fcd28E2",
+  },
+};
+
+const SUPPORTED_CHAIN_IDS = Object.keys(NETWORK_ADDRESSES).map(Number);
+
+function resolveActiveChainId() {
+  try {
+    if (window.ethereum && window.ethereum.chainId) {
+      return parseInt(window.ethereum.chainId, 16);
+    }
+  } catch (_) { }
+  return 1337;
+}
+
+const ACTIVE_CHAIN_ID = resolveActiveChainId();
+const ACTIVE_NETWORK =
+  NETWORK_ADDRESSES[ACTIVE_CHAIN_ID] || NETWORK_ADDRESSES[1337];
+
+const CONTRACT_ADDRESS = ACTIVE_NETWORK.contract;
+const TOKEN_CONTRACT_ADDRESS = ACTIVE_NETWORK.token;
+
+// CONTRACT_ADDRESS/TOKEN_CONTRACT_ADDRESS above are fixed at page load
+// time from whichever network MetaMask happened to be on then. Flows
+// that actively switch MetaMask to a different network mid-call (e.g.
+// picking "Register on Sepolia" while still on Ganache) must NOT keep
+// using those stale constants afterwards -- look the right pair up for
+// the chain actually being used with this instead.
+function getNetworkAddresses(chainId) {
+  return NETWORK_ADDRESSES[chainId] || NETWORK_ADDRESSES[1337];
+}
+
+// =====================================================
+// READ-ONLY WEB3 (bypasses MetaMask's own RPC layer)
+//
+// MetaMask keeps an internal error counter per network and will
+// start refusing ALL requests ("RPC endpoint returned too many
+// errors, retrying in X minutes") once it trips -- even against a
+// perfectly healthy RPC -- if enough calls get routed through it in
+// a short window. Read-only calls (balance checks, "is this user
+// registered" lookups, etc.) don't need a wallet at all, so on a
+// public network they go straight to a public RPC over plain HTTP
+// instead, leaving MetaMask free for the calls that actually need
+// it: eth_requestAccounts and signed transactions.
+// =====================================================
+
+// Multiple providers per chain -- if a viewer's network/ISP/browser can't
+// reach one of these (which does happen; it's not a sign the endpoint is
+// actually down), the fallback helper below tries the next one instead of
+// failing outright.
+const PUBLIC_RPC_URLS = {
+  11155111: [
+    "https://ethereum-sepolia-rpc.publicnode.com",
+    "https://1rpc.io/sepolia",
+    "https://eth-sepolia.public.blastapi.io",
+    "https://sepolia.gateway.tenderly.co",
+    "https://rpc2.sepolia.org",
+  ],
+};
+
+function getReadOnlyWeb3(chainId, urlIndex = 0) {
+  const urls = PUBLIC_RPC_URLS[chainId];
+  if (urls && urls.length) {
+    return new Web3(new Web3.providers.HttpProvider(urls[urlIndex % urls.length]));
+  }
+  return new Web3(window.ethereum);
+}
+
+// Runs a read-only contract call, trying each public RPC in
+// PUBLIC_RPC_URLS[chainId] in turn until one succeeds. On chains with no
+// public RPC list (e.g. Ganache) it just falls back to window.ethereum.
+async function withPublicRpcFallback(chainId, contractAbi, contractAddress, callFn) {
+  const urls = PUBLIC_RPC_URLS[chainId];
+
+  if (!urls || urls.length === 0) {
+    const web3 = getReadOnlyWeb3(chainId);
+    const contract = new web3.eth.Contract(contractAbi, contractAddress);
+    return withRpcRetry(() => callFn(web3, contract));
+  }
+
+  let lastError;
+  for (let i = 0; i < urls.length; i++) {
+    try {
+      const web3 = new Web3(new Web3.providers.HttpProvider(urls[i]));
+      const contract = new web3.eth.Contract(contractAbi, contractAddress);
+      return await withRpcRetry(() => callFn(web3, contract), 1, 500);
+    } catch (error) {
+      lastError = error;
+      console.warn(`Public RPC failed (${urls[i]}):`, error?.message || error);
+    }
+  }
+
+  throw lastError;
+}
+
+// Retries a read-only call a few times with backoff when it fails
+// with the same transient/rate-limit signature MetaMask surfaces.
+async function withRpcRetry(fn, retries = 3, baseDelayMs = 700) {
+  let lastError;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      const msg = String(error?.message || error);
+      const isTransient =
+        /too many errors/i.test(msg) ||
+        /failed to fetch/i.test(msg) ||
+        /retrying in/i.test(msg) ||
+        error?.code === -32603 ||
+        error?.code === -32002;
+      if (!isTransient || attempt === retries) throw error;
+      await new Promise((resolve) =>
+        setTimeout(resolve, baseDelayMs * (attempt + 1)),
+      );
+    }
+  }
+  throw lastError;
+}
+
+// If the user switches network in MetaMask mid-session, reload so
+// every constant above is recomputed for the newly active chain.
+if (window.ethereum && typeof window.ethereum.on === "function") {
+  window.ethereum.on("chainChanged", () => window.location.reload());
+}
 
 const CONTRACT_ABI = [
   {
@@ -925,300 +1070,300 @@ const CONTRACT_ABI = [
 
 const TOKEN_ABI = [
   {
-    inputs: [],
-    stateMutability: "nonpayable",
-    type: "constructor",
+    "inputs": [],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
   },
   {
-    anonymous: false,
-    inputs: [
+    "anonymous": false,
+    "inputs": [
       {
-        indexed: true,
-        internalType: "address",
-        name: "owner",
-        type: "address",
+        "indexed": true,
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
       },
       {
-        indexed: true,
-        internalType: "address",
-        name: "spender",
-        type: "address",
+        "indexed": true,
+        "internalType": "address",
+        "name": "spender",
+        "type": "address"
       },
       {
-        indexed: false,
-        internalType: "uint256",
-        name: "value",
-        type: "uint256",
-      },
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "value",
+        "type": "uint256"
+      }
     ],
-    name: "Approval",
-    type: "event",
+    "name": "Approval",
+    "type": "event"
   },
   {
-    anonymous: false,
-    inputs: [
+    "anonymous": false,
+    "inputs": [
       {
-        indexed: true,
-        internalType: "address",
-        name: "previousOwner",
-        type: "address",
+        "indexed": true,
+        "internalType": "address",
+        "name": "previousOwner",
+        "type": "address"
       },
       {
-        indexed: true,
-        internalType: "address",
-        name: "newOwner",
-        type: "address",
-      },
+        "indexed": true,
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
     ],
-    name: "OwnershipTransferred",
-    type: "event",
+    "name": "OwnershipTransferred",
+    "type": "event"
   },
   {
-    anonymous: false,
-    inputs: [
+    "anonymous": false,
+    "inputs": [
       {
-        indexed: true,
-        internalType: "address",
-        name: "from",
-        type: "address",
+        "indexed": true,
+        "internalType": "address",
+        "name": "from",
+        "type": "address"
       },
       {
-        indexed: true,
-        internalType: "address",
-        name: "to",
-        type: "address",
+        "indexed": true,
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
       },
       {
-        indexed: false,
-        internalType: "uint256",
-        name: "value",
-        type: "uint256",
-      },
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "value",
+        "type": "uint256"
+      }
     ],
-    name: "Transfer",
-    type: "event",
+    "name": "Transfer",
+    "type": "event"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "",
-        type: "address",
+        "internalType": "address",
+        "name": "",
+        "type": "address"
       },
       {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
     ],
-    name: "allowance",
-    outputs: [
+    "name": "allowance",
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
-    constant: true,
+    "stateMutability": "view",
+    "type": "function",
+    "constant": true
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
     ],
-    name: "balanceOf",
-    outputs: [
+    "name": "balanceOf",
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
-    constant: true,
+    "stateMutability": "view",
+    "type": "function",
+    "constant": true
   },
   {
-    inputs: [],
-    name: "decimals",
-    outputs: [
+    "inputs": [],
+    "name": "decimals",
+    "outputs": [
       {
-        internalType: "uint8",
-        name: "",
-        type: "uint8",
-      },
+        "internalType": "uint8",
+        "name": "",
+        "type": "uint8"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
-    constant: true,
+    "stateMutability": "view",
+    "type": "function",
+    "constant": true
   },
   {
-    inputs: [],
-    name: "name",
-    outputs: [
+    "inputs": [],
+    "name": "name",
+    "outputs": [
       {
-        internalType: "string",
-        name: "",
-        type: "string",
-      },
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
-    constant: true,
+    "stateMutability": "view",
+    "type": "function",
+    "constant": true
   },
   {
-    inputs: [],
-    name: "owner",
-    outputs: [
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
       {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
-    constant: true,
+    "stateMutability": "view",
+    "type": "function",
+    "constant": true
   },
   {
-    inputs: [],
-    name: "symbol",
-    outputs: [
+    "inputs": [],
+    "name": "symbol",
+    "outputs": [
       {
-        internalType: "string",
-        name: "",
-        type: "string",
-      },
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
-    constant: true,
+    "stateMutability": "view",
+    "type": "function",
+    "constant": true
   },
   {
-    inputs: [],
-    name: "totalSupply",
-    outputs: [
+    "inputs": [],
+    "name": "totalSupply",
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
-    constant: true,
+    "stateMutability": "view",
+    "type": "function",
+    "constant": true
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "newOwner",
-        type: "address",
-      },
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
     ],
-    name: "transferOwnership",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "name": "transferOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "to",
-        type: "address",
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
       },
       {
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
     ],
-    name: "mintReward",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "name": "mintReward",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "to",
-        type: "address",
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
       },
       {
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
     ],
-    name: "transfer",
-    outputs: [
+    "name": "transfer",
+    "outputs": [
       {
-        internalType: "bool",
-        name: "",
-        type: "bool",
-      },
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
     ],
-    stateMutability: "nonpayable",
-    type: "function",
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "spender",
-        type: "address",
+        "internalType": "address",
+        "name": "spender",
+        "type": "address"
       },
       {
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
     ],
-    name: "approve",
-    outputs: [
+    "name": "approve",
+    "outputs": [
       {
-        internalType: "bool",
-        name: "",
-        type: "bool",
-      },
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
     ],
-    stateMutability: "nonpayable",
-    type: "function",
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "from",
-        type: "address",
+        "internalType": "address",
+        "name": "from",
+        "type": "address"
       },
       {
-        internalType: "address",
-        name: "to",
-        type: "address",
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
       },
       {
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
     ],
-    name: "transferFrom",
-    outputs: [
+    "name": "transferFrom",
+    "outputs": [
       {
-        internalType: "bool",
-        name: "",
-        type: "bool",
-      },
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
     ],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
 ];

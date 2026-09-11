@@ -120,10 +120,11 @@
                 </label>
                 <input
                   type="number"
-                  min="10"
+                  min="0"
                   step="0.001"
                   id="escrowAmount"
-                  placeholder="10 ETH min"
+                  value="0.200"
+                  placeholder="Enter an amount greater than 0"
                   required
                   class="ca-inline-6637f260"
                   aria-describedby="escrowAmountError"
@@ -134,8 +135,7 @@
                   role="alert"
                   hidden
                 >
-                  The minimum total escrow amount for Express delivery is 10
-                  ETH.
+                  Total escrow amount must be greater than 0 ETH.
                 </p>
               </div>
 

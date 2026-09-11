@@ -1,4 +1,23 @@
 const MAX_CONCURRENT_JOBS = 3;
+const WEI_PER_ETH = 10n ** 18n;
+
+function formatExactEthAmount(amount, minimumFractionDigits = 3) {
+  const match = String(amount ?? "0").trim().match(/^(\d+)(?:\.(\d{1,18}))?$/);
+
+  if (!match) return `0.${"0".repeat(minimumFractionDigits)}`;
+
+  const [, whole, fraction = ""] = match;
+  const wei =
+    BigInt(whole) * WEI_PER_ETH + BigInt(fraction.padEnd(18, "0"));
+  const integerPart = wei / WEI_PER_ETH;
+  const decimalPart = (wei % WEI_PER_ETH)
+    .toString()
+    .padStart(18, "0")
+    .replace(/0+$/, "")
+    .padEnd(minimumFractionDigits, "0");
+
+  return decimalPart ? `${integerPart}.${decimalPart}` : integerPart.toString();
+}
 
 document.addEventListener("DOMContentLoaded", async () => {
   try {
@@ -389,7 +408,7 @@ function renderAvailableJobs(jobs, activeCount, currentAccount) {
     .map((job) => {
       const ref = job.reference_no || `LG-${job.agreement_id}`;
       const payload = truncate(job.shipment_details || "—", 40);
-      const payment = Number(job.escrow_amount || 0).toFixed(2);
+      const payment = formatExactEthAmount(job.escrow_amount || 0);
       const priority = String(job.priority || "Normal").toUpperCase();
       const deadline = formatDeadline(job.deadline);
       const id = Number(job.agreement_id);

@@ -1,3 +1,26 @@
+const WEI_PER_ETH = 10n ** 18n;
+
+function ethAmountToWei(amount) {
+  const match = String(amount ?? "0").trim().match(/^(\d+)(?:\.(\d{1,18}))?$/);
+
+  if (!match) return 0n;
+
+  const [, whole, fraction = ""] = match;
+  return BigInt(whole) * WEI_PER_ETH + BigInt(fraction.padEnd(18, "0"));
+}
+
+function formatExactEth(weiAmount, minimumFractionDigits = 3) {
+  const wei = BigInt(weiAmount);
+  const whole = wei / WEI_PER_ETH;
+  const fraction = (wei % WEI_PER_ETH)
+    .toString()
+    .padStart(18, "0")
+    .replace(/0+$/, "")
+    .padEnd(minimumFractionDigits, "0");
+
+  return fraction ? `${whole}.${fraction}` : whole.toString();
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
   // Wait for dashboard.js sidebar boot, then load shipper stats.
   // dashboard.js already handles wallet + shipper sidebar for this page.
@@ -89,9 +112,10 @@ async function loadShipperDashboard() {
     );
   });
 
-  const escrow = active.reduce(
-    (sum, a) => sum + Number(a.escrow_remaining ?? a.escrow_amount ?? 0),
-    0,
+  const escrowWei = active.reduce(
+    (sum, a) =>
+      sum + ethAmountToWei(a.escrow_remaining ?? a.escrow_amount ?? 0),
+    0n,
   );
 
   const now = new Date();
@@ -114,7 +138,7 @@ async function loadShipperDashboard() {
     "shipper-kpi-active-meta",
     `${active.filter((a) => normalize(a.status) === "in progress").length} in progress`,
   );
-  setText("shipper-kpi-escrow", escrow.toFixed(2));
+  setText("shipper-kpi-escrow", formatExactEth(escrowWei));
   setText("shipper-kpi-completed", String(completed.length));
   setText("shipper-kpi-completed-meta", `${successRate}% success rate`);
 
@@ -145,7 +169,7 @@ function renderShipperAgreements(list) {
         ? shorten(a.carrier_address)
         : "Unassigned";
       const payload = truncate(a.shipment_details || "—", 28);
-      const escrow = Number(a.escrow_amount || 0).toFixed(2);
+      const escrow = formatExactEth(ethAmountToWei(a.escrow_amount || 0));
       const deadline = formatDeadline(a.deadline);
       const status = displayStatus(a.status);
 

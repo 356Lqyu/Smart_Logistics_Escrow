@@ -1,3 +1,50 @@
+// ===============================
+// LOGOUT
+// Clears the cached session (wallet/role/name/email) instead of just
+// navigating away, so a different wallet connecting afterwards in the
+// same browser never inherits the previous user's role or identity.
+// ===============================
+
+function logout() {
+  localStorage.removeItem("wallet");
+  localStorage.removeItem("role");
+  localStorage.removeItem("userRole");
+  localStorage.removeItem("name");
+  localStorage.removeItem("profileEmail");
+  window.location.href = "index.html";
+}
+
+// ===============================
+// WALLET-SWITCH DETECTION
+// If the user switches MetaMask accounts while already "logged in" here
+// (without going through logout()), the page would otherwise keep
+// showing the previous wallet's role/name/stats until something else
+// happened to reload it. Force a clean re-login instead.
+// ===============================
+
+if (window.ethereum && typeof window.ethereum.on === "function") {
+  window.ethereum.on("accountsChanged", (accounts) => {
+    const storedWallet = (localStorage.getItem("wallet") || "").toLowerCase();
+    const newAccount =
+      accounts && accounts[0] ? accounts[0].toLowerCase() : null;
+
+    if (!storedWallet) return;
+
+    if (!newAccount) {
+      // MetaMask locked / fully disconnected.
+      logout();
+      return;
+    }
+
+    if (newAccount !== storedWallet) {
+      alert(
+        "MetaMask account changed. You've been logged out — please log in again with the correct wallet.",
+      );
+      logout();
+    }
+  });
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
   try {
     // CHECK METAMASK
@@ -247,7 +294,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       networkLabel.innerText =
         chainId === 1337 || chainId === 5777
           ? "LOCAL GANACHE"
-          : `CHAIN ${chainId}`;
+          : chainId === 11155111
+            ? "SEPOLIA TESTNET"
+            : `CHAIN ${chainId}`;
     }
 
     // Top wallet badge (shared across shipper pages)

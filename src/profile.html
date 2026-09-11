@@ -102,6 +102,14 @@
               <strong id="profile-email">Not set</strong>
             </div>
             <div>
+              <span class="profile-detail-label">IC Number</span>
+              <strong id="profile-ic">Not set</strong>
+            </div>
+            <div>
+              <span class="profile-detail-label">Phone Number</span>
+              <strong id="profile-phone">Not set</strong>
+            </div>
+            <div>
               <span class="profile-detail-label">Registration</span>
               <strong id="profile-registered">—</strong>
             </div>
@@ -164,6 +172,21 @@
               <i class="fa-solid fa-star"></i>
             </div>
           </article>
+
+          <article class="profile-stat-card">
+            <div>
+              <span class="profile-stat-label">Wallet Balance</span>
+              <div class="profile-stat-value" id="stat-eth-balance">
+                — ETH
+              </div>
+              <span class="profile-stat-meta muted" id="stat-eth-balance-meta"
+                >Available for funding & staking</span
+              >
+            </div>
+            <div class="profile-stat-icon blue">
+              <i class="fa-brands fa-ethereum"></i>
+            </div>
+          </article>
         </section>
 
         <section class="profile-reputation-card">
@@ -218,6 +241,24 @@
             id="edit-email-input"
             maxlength="120"
             placeholder="ops@company.com"
+          />
+        </label>
+        <label>
+          IC Number
+          <input
+            type="text"
+            id="edit-ic-input"
+            maxlength="20"
+            placeholder="e.g. 990101-01-1234"
+          />
+        </label>
+        <label>
+          Phone Number
+          <input
+            type="tel"
+            id="edit-phone-input"
+            maxlength="20"
+            placeholder="e.g. 012-3456789"
           />
         </label>
         <div class="profile-modal-actions">
