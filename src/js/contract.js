@@ -43,6 +43,16 @@ const ACTIVE_NETWORK =
 const CONTRACT_ADDRESS = ACTIVE_NETWORK.contract;
 const TOKEN_CONTRACT_ADDRESS = ACTIVE_NETWORK.token;
 
+// CONTRACT_ADDRESS/TOKEN_CONTRACT_ADDRESS above are fixed at page load
+// time from whichever network MetaMask happened to be on then. Flows
+// that actively switch MetaMask to a different network mid-call (e.g.
+// picking "Register on Sepolia" while still on Ganache) must NOT keep
+// using those stale constants afterwards -- look the right pair up for
+// the chain actually being used with this instead.
+function getNetworkAddresses(chainId) {
+  return NETWORK_ADDRESSES[chainId] || NETWORK_ADDRESSES[1337];
+}
+
 // =====================================================
 // READ-ONLY WEB3 (bypasses MetaMask's own RPC layer)
 //
@@ -57,16 +67,53 @@ const TOKEN_CONTRACT_ADDRESS = ACTIVE_NETWORK.token;
 // it: eth_requestAccounts and signed transactions.
 // =====================================================
 
+// Multiple providers per chain -- if a viewer's network/ISP/browser can't
+// reach one of these (which does happen; it's not a sign the endpoint is
+// actually down), the fallback helper below tries the next one instead of
+// failing outright.
 const PUBLIC_RPC_URLS = {
-  11155111: "https://ethereum-sepolia-rpc.publicnode.com",
+  11155111: [
+    "https://ethereum-sepolia-rpc.publicnode.com",
+    "https://1rpc.io/sepolia",
+    "https://eth-sepolia.public.blastapi.io",
+    "https://sepolia.gateway.tenderly.co",
+    "https://rpc2.sepolia.org",
+  ],
 };
 
-function getReadOnlyWeb3(chainId) {
-  const rpcUrl = PUBLIC_RPC_URLS[chainId];
-  if (rpcUrl) {
-    return new Web3(new Web3.providers.HttpProvider(rpcUrl));
+function getReadOnlyWeb3(chainId, urlIndex = 0) {
+  const urls = PUBLIC_RPC_URLS[chainId];
+  if (urls && urls.length) {
+    return new Web3(new Web3.providers.HttpProvider(urls[urlIndex % urls.length]));
   }
   return new Web3(window.ethereum);
+}
+
+// Runs a read-only contract call, trying each public RPC in
+// PUBLIC_RPC_URLS[chainId] in turn until one succeeds. On chains with no
+// public RPC list (e.g. Ganache) it just falls back to window.ethereum.
+async function withPublicRpcFallback(chainId, contractAbi, contractAddress, callFn) {
+  const urls = PUBLIC_RPC_URLS[chainId];
+
+  if (!urls || urls.length === 0) {
+    const web3 = getReadOnlyWeb3(chainId);
+    const contract = new web3.eth.Contract(contractAbi, contractAddress);
+    return withRpcRetry(() => callFn(web3, contract));
+  }
+
+  let lastError;
+  for (let i = 0; i < urls.length; i++) {
+    try {
+      const web3 = new Web3(new Web3.providers.HttpProvider(urls[i]));
+      const contract = new web3.eth.Contract(contractAbi, contractAddress);
+      return await withRpcRetry(() => callFn(web3, contract), 1, 500);
+    } catch (error) {
+      lastError = error;
+      console.warn(`Public RPC failed (${urls[i]}):`, error?.message || error);
+    }
+  }
+
+  throw lastError;
 }
 
 // Retries a read-only call a few times with backoff when it fails

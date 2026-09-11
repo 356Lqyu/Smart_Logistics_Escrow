@@ -23,6 +23,35 @@
       <div id="shared-header" data-page-title="Profile"></div>
 
       <div class="dashboard-body-placeholder profile-page">
+        <div
+          id="profile-view-banner"
+          hidden
+          style="
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #cbd5e1;
+            padding: 10px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+          "
+        >
+          <span
+            ><i class="fa-solid fa-eye"></i>
+            You're viewing another user's public profile (read-only).</span
+          >
+          <a
+            href="#"
+            onclick="history.back(); return false;"
+            style="color: #38bdf8"
+            >&larr; Back</a
+          >
+        </div>
+
         <section class="profile-identity-card">
           <div class="profile-identity-top">
             <div class="profile-identity-left">
@@ -102,6 +131,14 @@
               <strong id="profile-email">Not set</strong>
             </div>
             <div>
+              <span class="profile-detail-label">IC Number</span>
+              <strong id="profile-ic">Not set</strong>
+            </div>
+            <div>
+              <span class="profile-detail-label">Phone Number</span>
+              <strong id="profile-phone">Not set</strong>
+            </div>
+            <div>
               <span class="profile-detail-label">Registration</span>
               <strong id="profile-registered">—</strong>
             </div>
@@ -164,6 +201,21 @@
               <i class="fa-solid fa-star"></i>
             </div>
           </article>
+
+          <article class="profile-stat-card">
+            <div>
+              <span class="profile-stat-label">Wallet Balance</span>
+              <div class="profile-stat-value" id="stat-eth-balance">
+                — ETH
+              </div>
+              <span class="profile-stat-meta muted" id="stat-eth-balance-meta"
+                >Available for funding & staking</span
+              >
+            </div>
+            <div class="profile-stat-icon blue">
+              <i class="fa-brands fa-ethereum"></i>
+            </div>
+          </article>
         </section>
 
         <section class="profile-reputation-card">
@@ -218,6 +270,24 @@
             id="edit-email-input"
             maxlength="120"
             placeholder="ops@company.com"
+          />
+        </label>
+        <label>
+          IC Number
+          <input
+            type="text"
+            id="edit-ic-input"
+            maxlength="20"
+            placeholder="e.g. 990101-01-1234"
+          />
+        </label>
+        <label>
+          Phone Number
+          <input
+            type="tel"
+            id="edit-phone-input"
+            maxlength="20"
+            placeholder="e.g. 012-3456789"
           />
         </label>
         <div class="profile-modal-actions">

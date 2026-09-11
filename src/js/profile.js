@@ -1,5 +1,8 @@
 let currentProfileEmail = null;
 
+const IC_PATTERN = /^\d{6}-?\d{2}-?\d{4}$/;
+const PHONE_PATTERN = /^\+?[0-9\s-]{7,15}$/;
+
 document.addEventListener("DOMContentLoaded", async () => {
   try {
     if (typeof window.ethereum === "undefined") {
@@ -16,22 +19,50 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    const wallet = accounts[0];
-    localStorage.setItem("wallet", wallet);
+    const connectedWallet = accounts[0];
+    localStorage.setItem("wallet", connectedWallet);
 
     const short =
-      wallet.substring(0, 6) + "..." + wallet.substring(wallet.length - 4);
+      connectedWallet.substring(0, 6) +
+      "..." +
+      connectedWallet.substring(connectedWallet.length - 4);
 
     const topWallet = document.getElementById("top-wallet-address");
     if (topWallet) {
       topWallet.innerText = short;
-      topWallet.title = wallet;
+      topWallet.title = connectedWallet;
     }
 
-    await loadProfile(wallet);
-    setupEditModal(wallet);
-    setupChangePasswordModal();
-    setupAvatarUpload(wallet);
+    // ?wallet=0x... lets a shipper view a carrier's public profile (or
+    // vice versa) before accepting/dealing with them -- read-only, no
+    // edit/password/avatar-upload controls, no private email shown.
+    const urlParams = new URLSearchParams(window.location.search);
+    const requestedWallet = urlParams.get("wallet");
+    const viewedWallet =
+      requestedWallet &&
+      requestedWallet.toLowerCase() !== connectedWallet.toLowerCase()
+        ? requestedWallet
+        : connectedWallet;
+    const isOwnProfile =
+      viewedWallet.toLowerCase() === connectedWallet.toLowerCase();
+
+    const viewBanner = document.getElementById("profile-view-banner");
+    if (viewBanner) viewBanner.hidden = isOwnProfile;
+
+    await loadProfile(viewedWallet, isOwnProfile);
+
+    if (isOwnProfile) {
+      setupEditModal(viewedWallet);
+      setupChangePasswordModal();
+      setupAvatarUpload(viewedWallet);
+    } else {
+      ["edit-profile-btn", "change-password-btn", "change-avatar-btn"].forEach(
+        (id) => {
+          const el = document.getElementById(id);
+          if (el) el.style.display = "none";
+        },
+      );
+    }
 
     const searchInput = document.getElementById("search-input");
     if (searchInput) {
@@ -50,14 +81,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 });
 
-async function loadProfile(wallet) {
+async function loadProfile(wallet, isOwnProfile = true) {
   const walletLower = wallet.toLowerCase();
-  const roleRaw =
-    localStorage.getItem("userRole") ||
-    localStorage.getItem("role") ||
-    "shipper";
-  const isCarrier =
-    String(roleRaw).toLowerCase() === "carrier" || String(roleRaw) === "2";
 
   let user = null;
 
@@ -73,29 +98,52 @@ async function loadProfile(wallet) {
     console.warn("Could not load user profile:", error);
   }
 
+  // The viewed user's role always comes from their own data (Supabase
+  // row, which mirrors the on-chain role) -- localStorage only makes
+  // sense as a fallback for the viewer's OWN profile, never someone
+  // else's, or a carrier's profile would render using the viewer's role.
+  const roleRaw =
+    user?.role ||
+    (isOwnProfile
+      ? localStorage.getItem("userRole") || localStorage.getItem("role")
+      : null) ||
+    "shipper";
+  const isCarrier =
+    String(roleRaw).toLowerCase() === "carrier" || String(roleRaw) === "2";
+
   const displayName =
     user?.name ||
-    localStorage.getItem("name") ||
+    (isOwnProfile ? localStorage.getItem("name") : null) ||
     (isCarrier ? "Carrier Account" : "Shipper Account");
 
-  const email =
-    user?.email || localStorage.getItem("profileEmail") || "Not set";
+  const email = isOwnProfile
+    ? user?.email || localStorage.getItem("profileEmail") || "Not set"
+    : "Private";
 
-  currentProfileEmail = user?.email || null;
+  currentProfileEmail = isOwnProfile ? user?.email || null : null;
 
   const registeredAt = user?.created_at || user?.registered_at || null;
 
   setText("profile-name", displayName);
   setText(
     "profile-role-pill",
-    `Role Locked — ${isCarrier ? "Carrier" : "Shipper"}`,
+    isOwnProfile
+      ? `Role Locked — ${isCarrier ? "Carrier" : "Shipper"}`
+      : isCarrier
+        ? "Carrier"
+        : "Shipper",
   );
   setText(
     "profile-subtitle",
     isCarrier ? "Carrier logistics identity" : "Shipper logistics identity",
   );
+  const icNumber = isOwnProfile ? user?.ic_number || "Not set" : "Private";
+  const phone = isOwnProfile ? user?.phone || "Not set" : "Private";
+
   setText("profile-wallet", wallet);
   setText("profile-email", email);
+  setText("profile-ic", icNumber);
+  setText("profile-phone", phone);
   setText(
     "profile-registered",
     registeredAt
@@ -114,6 +162,7 @@ async function loadProfile(wallet) {
 
   await loadProfilePicture(wallet);
   await loadTokenBalance(wallet);
+  await loadWalletBalance(wallet);
 
   if (typeof web3 !== "undefined" || window.ethereum) {
     try {
@@ -130,12 +179,16 @@ async function loadProfile(wallet) {
 
   const editName = document.getElementById("edit-name-input");
   const editEmail = document.getElementById("edit-email-input");
+  const editIc = document.getElementById("edit-ic-input");
+  const editPhone = document.getElementById("edit-phone-input");
   if (editName)
     editName.value =
       displayName === "Shipper Account" || displayName === "Carrier Account"
         ? ""
         : displayName;
   if (editEmail) editEmail.value = email === "Not set" ? "" : email;
+  if (editIc) editIc.value = icNumber === "Not set" ? "" : icNumber;
+  if (editPhone) editPhone.value = phone === "Not set" ? "" : phone;
 }
 
 async function loadRoleAgreements(walletLower, isCarrier) {
@@ -271,9 +324,25 @@ function setupEditModal(wallet) {
     const name = document.getElementById("edit-name-input")?.value.trim() || "";
     const email =
       document.getElementById("edit-email-input")?.value.trim() || "";
+    const icNumber =
+      document.getElementById("edit-ic-input")?.value.trim() || "";
+    const phone =
+      document.getElementById("edit-phone-input")?.value.trim() || "";
 
     if (!name) {
       if (message) message.innerText = "Display name is required.";
+      return;
+    }
+
+    if (icNumber && !IC_PATTERN.test(icNumber)) {
+      if (message)
+        message.innerText =
+          "Please enter a valid IC number (e.g. 990101-01-1234).";
+      return;
+    }
+
+    if (phone && !PHONE_PATTERN.test(phone)) {
+      if (message) message.innerText = "Please enter a valid phone number.";
       return;
     }
 
@@ -286,6 +355,8 @@ function setupEditModal(wallet) {
       const payload = {
         name,
         email: email || null,
+        ic_number: icNumber || null,
+        phone: phone || null,
       };
 
       const { error } = await supabaseClient
@@ -294,7 +365,7 @@ function setupEditModal(wallet) {
         .eq("wallet_address", wallet.toLowerCase());
 
       if (error) {
-        // Email column may not exist — try name only
+        // Some columns may not exist on this schema — fall back to name only.
         const { error: nameError } = await supabaseClient
           .from("users")
           .update({ name })
@@ -515,6 +586,19 @@ async function loadTokenBalance(wallet) {
   } catch (error) {
     console.warn("Could not load LTT balance:", error);
     setText("stat-tokens", "0 LTT");
+  }
+}
+
+async function loadWalletBalance(wallet) {
+  try {
+    const w3 = new Web3(window.ethereum);
+    const balanceWei = await w3.eth.getBalance(wallet);
+    const balance = Web3.utils.fromWei(balanceWei, "ether");
+    const rounded = Math.round(Number(balance) * 10000) / 10000;
+    setText("stat-eth-balance", `${rounded} ETH`);
+  } catch (error) {
+    console.warn("Could not load wallet ETH balance:", error);
+    setText("stat-eth-balance", "— ETH");
   }
 }
 

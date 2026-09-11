@@ -35,6 +35,26 @@
         </p>
 
         <form id="registerForm" autocomplete="off">
+          <button
+            type="button"
+            id="autofillBtn"
+            onclick="autofillTestData()"
+            style="
+              width: 100%;
+              margin-bottom: 16px;
+              padding: 8px;
+              background: #fff3cd;
+              border: 1px dashed #d4a017;
+              border-radius: 6px;
+              color: #7a5c00;
+              cursor: pointer;
+              font-size: 0.85rem;
+            "
+          >
+            <i class="fa-solid fa-flask"></i>
+            Autofill test data (dev only)
+          </button>
+
           <div class="section-label">Personal Details</div>
 
           <!-- Name -->
@@ -166,18 +186,32 @@
           <!-- Wallet -->
           <div class="wallet-section">
             <p id="walletStatus">
-              MetaMask is required to complete registration.
+              MetaMask is required to complete registration. Pick the network
+              you're using below &mdash; MetaMask will be switched to it
+              automatically.
             </p>
 
-            <button
-              type="button"
-              id="connectWalletBtn"
-              class="connect-btn"
-              onclick="registerUser()"
-            >
-              <i class="fa-solid fa-wallet"></i>
-              Connect MetaMask &amp; Register
-            </button>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <button
+                type="button"
+                id="registerGanacheBtn"
+                class="connect-btn"
+                onclick="registerUser('ganache')"
+              >
+                <i class="fa-solid fa-wallet"></i>
+                Register on Local Ganache
+              </button>
+
+              <button
+                type="button"
+                id="registerSepoliaBtn"
+                class="connect-btn"
+                onclick="registerUser('sepolia')"
+              >
+                <i class="fa-solid fa-globe"></i>
+                Register on Sepolia Testnet
+              </button>
+            </div>
           </div>
 
           <p id="message"></p>

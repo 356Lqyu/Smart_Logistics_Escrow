@@ -45,6 +45,46 @@ function selectRole(role) {
 }
 
 // ===============================
+// AUTOFILL TEST DATA (dev only)
+// Fills the form with random-but-valid values so testing registration
+// doesn't require retyping everything each time. Uses a random suffix
+// so email/IC/phone are unique per click, avoiding "already registered"
+// collisions while iterating.
+// ===============================
+
+function autofillTestData() {
+  const suffix = Math.floor(Math.random() * 1000000)
+    .toString()
+    .padStart(6, "0");
+
+  const setVal = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.value = value;
+  };
+
+  setVal("name", "Test User " + suffix);
+  setVal("age", String(18 + Math.floor(Math.random() * 40)));
+  setVal(
+    "icNumber",
+    `${String(90 + Math.floor(Math.random() * 9)).padStart(2, "0")}0101-01-${suffix.slice(0, 4)}`,
+  );
+  setVal("phone", "012-" + suffix + "0");
+  setVal("email", `testuser${suffix}@example.com`);
+  setVal("password", "TestPass123!");
+  setVal("confirmPassword", "TestPass123!");
+
+  selectRole(Math.random() < 0.5 ? 1 : 2);
+
+  const message = document.getElementById("message");
+  if (message) {
+    message.classList.remove("success");
+    message.innerText = "Test data filled in. Pick a network button to register.";
+  }
+
+  console.log("Autofilled test data with suffix:", suffix);
+}
+
+// ===============================
 // FIELD VALIDATION
 // ===============================
 
@@ -110,12 +150,18 @@ function validateRegistrationForm(form) {
 // REGISTER USER
 // ===============================
 
-async function registerUser() {
+async function registerUser(targetNetwork) {
   const message = document.getElementById("message");
-  const connectBtn = document.getElementById("connectWalletBtn");
+  const ganacheBtn = document.getElementById("registerGanacheBtn");
+  const sepoliaBtn = document.getElementById("registerSepoliaBtn");
 
   if (!message) {
     console.error("Registration form elements not found.");
+    return;
+  }
+
+  if (targetNetwork !== "sepolia" && targetNetwork !== "ganache") {
+    console.error("registerUser() called without a target network.");
     return;
   }
 
@@ -139,46 +185,51 @@ async function registerUser() {
     return;
   }
 
-  if (connectBtn) connectBtn.disabled = true;
+  if (ganacheBtn) ganacheBtn.disabled = true;
+  if (sepoliaBtn) sepoliaBtn.disabled = true;
+
+  const networkLabel =
+    targetNetwork === "sepolia" ? "Sepolia Testnet" : "local Ganache";
 
   try {
     // ===============================
-    // PREFLIGHT: if MetaMask is already on a supported
-    // network (local Ganache OR Sepolia), leave it alone.
-    // Only try to auto-discover/switch to local Ganache
-    // when the wallet isn't already on a network we support
-    // -- this is what lets a Sepolia presentation session
-    // register without this code trying to force it back
-    // to a local RPC that doesn't even apply there.
+    // PREFLIGHT: switch MetaMask to the network the user
+    // explicitly picked (the button they clicked), instead of
+    // guessing from whatever network happens to already be
+    // active. This is what makes every error message below
+    // unambiguous -- we always know which network was intended,
+    // rather than inferring it from a chainId read that can
+    // itself be stale or fail.
     // ===============================
 
-    const currentChainHex = await window.ethereum.request({
-      method: "eth_chainId",
-    });
-    let currentChainId = parseInt(currentChainHex, 16);
-
-    if (!SUPPORTED_CHAIN_IDS.includes(currentChainId)) {
+    if (targetNetwork === "sepolia") {
+      message.innerText = "Switching MetaMask to Sepolia...";
+      await ensureSepoliaNetwork();
+    } else {
       message.innerText = "Checking Ganache connection...";
 
       const ganacheRpc = await findWorkingGanacheRpc();
 
       if (!ganacheRpc) {
         throw new Error(
-          "Ganache is not running. Open Ganache first (RPC http://127.0.0.1:8545), wait until it shows accounts, then register again. (Presenting on Sepolia instead? Switch MetaMask to the Sepolia network before registering.)",
+          "Ganache is not running. Open Ganache first (RPC http://127.0.0.1:8545), wait until it shows accounts, then register again.",
         );
       }
 
       message.innerText = "Connecting to MetaMask...";
-
       await ensureGanacheNetwork(ganacheRpc);
+    }
 
-      // ensureGanacheNetwork switched MetaMask's active network, so
-      // re-read it -- reusing the pre-switch value here would leave
-      // chainId pointing at whatever network we started on.
-      const postSwitchHex = await window.ethereum.request({
-        method: "eth_chainId",
-      });
-      currentChainId = parseInt(postSwitchHex, 16);
+    const chainHex = await window.ethereum.request({ method: "eth_chainId" });
+    const chainId = parseInt(chainHex, 16);
+
+    const expectedChainIds =
+      targetNetwork === "sepolia" ? [11155111] : [1337, 5777];
+
+    if (!expectedChainIds.includes(chainId)) {
+      throw new Error(
+        `MetaMask did not switch to ${networkLabel} (it's on chain ${chainId} instead). Approve the network switch popup in MetaMask, then try this button again.`,
+      );
     }
 
     const accounts = await window.ethereum.request({
@@ -191,7 +242,7 @@ async function registerUser() {
 
     const account = accounts[0];
 
-    console.log("Connected wallet:", account);
+    console.log("Connected wallet:", account, "on", networkLabel);
 
     // ===============================
     // INITIALIZE WEB3 + CONTRACT
@@ -208,30 +259,30 @@ async function registerUser() {
     //   through it in a short window.
     // ===============================
 
-    const registrationWeb3 = new Web3(window.ethereum);
-    const chainId = currentChainId;
+    // CONTRACT_ADDRESS (from contract.js) is fixed at page-load time and
+    // can be stale here if this button just switched MetaMask to a
+    // different network than the page loaded on -- always look up the
+    // address for the chain we actually just confirmed above.
+    const activeAddresses = getNetworkAddresses(chainId);
+    const activeContractAddress = activeAddresses.contract;
 
-    if (!SUPPORTED_CHAIN_IDS.includes(chainId)) {
-      throw new Error(
-        "Unsupported network. Connect MetaMask to local Ganache (chain ID 1337/5777) or Sepolia Testnet (chain ID 11155111).",
-      );
-    }
+    const registrationWeb3 = new Web3(window.ethereum);
 
     const registrationContract = new registrationWeb3.eth.Contract(
       CONTRACT_ABI,
-      CONTRACT_ADDRESS,
+      activeContractAddress,
     );
 
-    const readWeb3 = getReadOnlyWeb3(chainId);
-    const readContract = new readWeb3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
-
-    const contractCode = await withRpcRetry(() =>
-      readWeb3.eth.getCode(CONTRACT_ADDRESS),
+    const contractCode = await withPublicRpcFallback(
+      chainId,
+      CONTRACT_ABI,
+      activeContractAddress,
+      (web3) => web3.eth.getCode(activeContractAddress),
     );
 
     if (contractCode === "0x" || contractCode === "0x0") {
       throw new Error(
-        "LogisticsEscrow is not deployed at this address on the active network. Run truffle migrate --reset and update CONTRACT_ADDRESS.",
+        `LogisticsEscrow is not deployed at ${activeContractAddress} on ${networkLabel}. Run truffle migrate and update CONTRACT_ADDRESS.`,
       );
     }
 
@@ -241,8 +292,11 @@ async function registerUser() {
 
     message.innerText = "Checking registration...";
 
-    const existingUser = await withRpcRetry(() =>
-      readContract.methods.users(account).call(),
+    const existingUser = await withPublicRpcFallback(
+      chainId,
+      CONTRACT_ABI,
+      activeContractAddress,
+      (web3, contract) => contract.methods.users(account).call(),
     );
 
     if (existingUser.registered) {
@@ -346,30 +400,25 @@ async function registerUser() {
       /failed to fetch/i.test(rawMessage) ||
       /too many errors/i.test(rawMessage) ||
       /retrying in/i.test(rawMessage) ||
+      /couldn't connect to node/i.test(rawMessage) ||
+      /connection error/i.test(rawMessage) ||
       error?.code === -32603;
 
-    if (isRpcDown) {
-      // Read chainId from MetaMask's synchronous cached property, NOT
-      // another request() call -- if MetaMask is refusing everything
-      // for this network right now, an extra async RPC-shaped call
-      // here would just fail too and silently fall through to the
-      // wrong (Ganache) message below.
-      let activeChainId = null;
-      try {
-        if (window.ethereum?.chainId) {
-          activeChainId = parseInt(window.ethereum.chainId, 16);
-        }
-      } catch (_) {}
+    // targetNetwork is known for certain (it's which button was
+    // clicked), so the network named in the error is never a guess.
+    const tag = targetNetwork === "sepolia" ? "[SEPOLIA]" : "[GANACHE]";
 
+    if (isRpcDown) {
       message.innerText =
-        activeChainId === 11155111
-          ? "Registration failed: MetaMask could not reach the Sepolia network (RPC timed out, rate-limited, or MetaMask lost connection). Wait a few seconds and try again. If it keeps happening, switch Sepolia's RPC URL in MetaMask's network settings to a different provider."
-          : "Registration failed: MetaMask cannot reach Ganache (RPC blocked or offline). 1) Keep Ganache open on http://127.0.0.1:8545. 2) In MetaMask Localhost: RPC http://127.0.0.1:8545, Chain ID 1337. 3) Import a Ganache account (key icon), then try again.";
+        targetNetwork === "sepolia"
+          ? `Registration failed ${tag}: could not reach Sepolia through any of the public RPC providers this page tries (publicnode, 1rpc, blastapi, tenderly, sepolia.org), or MetaMask's own connection to it is stuck. This usually means your network/ISP/browser is blocking these RPC domains rather than Sepolia itself being down. Try: a different network (mobile hotspot), disabling any VPN/ad-blocker, or fully restarting the browser, then click "Register on Sepolia" again.`
+          : `Registration failed ${tag}: MetaMask cannot reach Ganache (RPC blocked or offline). 1) Keep Ganache open on http://127.0.0.1:8545. 2) In MetaMask Localhost: RPC http://127.0.0.1:8545, Chain ID 1337. 3) Import a Ganache account (key icon), then try again.`;
     } else {
-      message.innerText = "Registration failed: " + rawMessage;
+      message.innerText = `Registration failed ${tag}: ` + rawMessage;
     }
   } finally {
-    if (connectBtn) connectBtn.disabled = false;
+    if (ganacheBtn) ganacheBtn.disabled = false;
+    if (sepoliaBtn) sepoliaBtn.disabled = false;
   }
 }
 
@@ -618,4 +667,52 @@ async function ensureGanacheNetwork(rpcUrl) {
   }
 
   throw lastError || new Error("Could not switch MetaMask to Ganache.");
+}
+
+// ===============================
+// ENSURE SEPOLIA NETWORK
+//
+// Sepolia is one of MetaMask's built-in networks, so a plain
+// wallet_switchEthereumChain is normally enough -- MetaMask already
+// knows its chain ID and a default RPC. wallet_addEthereumChain is
+// only a fallback for the rare case it's missing entirely.
+// ===============================
+
+async function ensureSepoliaNetwork() {
+  const currentHex = await window.ethereum.request({ method: "eth_chainId" });
+  const current = parseInt(currentHex, 16);
+
+  if (current === 11155111) {
+    console.log("Already on Sepolia.");
+    return;
+  }
+
+  try {
+    await window.ethereum.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: "0xaa36a7" }], // 11155111
+    });
+    return;
+  } catch (switchError) {
+    if (
+      switchError.code === 4902 ||
+      switchError?.data?.originalError?.code === 4902
+    ) {
+      await window.ethereum.request({
+        method: "wallet_addEthereumChain",
+        params: [
+          {
+            chainId: "0xaa36a7",
+            chainName: "Sepolia",
+            rpcUrls: [PUBLIC_RPC_URLS[11155111]],
+            nativeCurrency: { name: "Sepolia ETH", symbol: "ETH", decimals: 18 },
+            blockExplorerUrls: ["https://sepolia.etherscan.io"],
+          },
+        ],
+      });
+      return;
+    }
+
+    throw switchError;
+  }
 }
