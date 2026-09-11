@@ -123,31 +123,41 @@ const TOKEN_CONTRACT_ADDRESS = "YOUR_DEPLOYED_GANACHE_TOKEN_ADDRESS";
 
 # Option B: Live Presentation (Sepolia Testnet)
 
+The contracts are already deployed and live on Sepolia — `js/contract.js` resolves `CONTRACT_ADDRESS`/`TOKEN_CONTRACT_ADDRESS` automatically based on whichever network MetaMask is connected to, so **for a normal demo you don't need to redeploy anything.** Just connect MetaMask to Sepolia and use the app.
+
+You only need to redeploy if you've changed `LogisticsEscrow.sol` or `LogiTrustToken.sol` and want the new contract logic live on Sepolia.
+
 ## 1. Configure MetaMask
 
-Switch MetaMask to the Sepolia Testnet and ensure your deployment wallet has sufficient Sepolia ETH from a faucet.
+Switch MetaMask to the Sepolia Testnet. If it's not already in your network list, MetaMask will prompt to add it automatically when the app asks you to switch (Sepolia is one of MetaMask's built-in networks). Make sure your wallet has some Sepolia ETH — get free testnet ETH from a faucet such as [sepoliafaucet.com](https://sepoliafaucet.com) or [Alchemy's Sepolia faucet](https://www.alchemy.com/faucets/ethereum-sepolia).
 
-## 2. Configure Truffle
+## 2. (Redeploy only) Deploy via Truffle Dashboard
 
-Verify your `truffle-config.js` contains your Sepolia network credentials (Infura/Alchemy RPC provider and deployment mnemonic/private key).
+No private key, mnemonic, or Infura/Alchemy API key is stored anywhere in this project — deployments are signed directly through MetaMask using Truffle's built-in dashboard, so your key material never leaves your browser.
 
-## 3. Deploy to Sepolia
+1. In a terminal, start the dashboard:
+   ```bash
+   truffle dashboard
+   ```
+2. Open the URL it prints (`http://localhost:24012`) in your browser and connect MetaMask, with MetaMask's active network set to **Sepolia**.
+3. In a second terminal, run the migration through the dashboard:
+   ```bash
+   truffle migrate --network dashboard --reset
+   ```
+4. Approve the deployment transactions in the MetaMask popup that appears in the dashboard tab.
 
-Run:
+## 3. (Redeploy only) Update the Contract Address
 
-```bash
-truffle migrate --network sepolia --reset
-```
-
-After deployment completes, Truffle will display the deployed contract address.
-
-## 4. Update the Contract Address
-
-Update both `CONTRACT_ADDRESS` and `TOKEN_CONTRACT_ADDRESS` inside `js/contract.js` with your verified Sepolia contract addresses:
+After a successful deployment, copy the new `LogisticsEscrow` and `LogiTrustToken` addresses (from the terminal output or `build/contracts/LogisticsEscrow.json` → `networks["11155111"]`) into the Sepolia entry of `NETWORK_ADDRESSES` in `js/contract.js`:
 
 ```javascript
-const CONTRACT_ADDRESS = "YOUR_VERIFIED_SEPOLIA_ESCROW_ADDRESS";
-const TOKEN_CONTRACT_ADDRESS = "YOUR_VERIFIED_SEPOLIA_TOKEN_ADDRESS";
+const NETWORK_ADDRESSES = {
+  // ...
+  11155111: {
+    contract: "YOUR_VERIFIED_SEPOLIA_ESCROW_ADDRESS",
+    token: "YOUR_VERIFIED_SEPOLIA_TOKEN_ADDRESS",
+  },
+};
 ```
 
 ---
