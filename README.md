@@ -25,7 +25,7 @@ A decentralized application (dApp) built on the Ethereum blockchain using Solidi
   If a carrier fails to meet milestones before the deadline, the contract triggers a secure expiry mechanism, refunding remaining escrow to the shipper and forfeiting the carrier's performance stake.
 
 - **Cryptographic Proofs & File Integrity**  
-  Milestone submissions link SHA-256 proof hashes recorded immutably on-chain with off-chain encrypted media stored via Supabase Storage.
+  Milestone submissions link SHA-256 proof hashes recorded immutably on-chain with the underlying evidence photo stored off-chain in Supabase Storage. Recalculating the digest on review can detect if the stored file has changed, though it does not independently prove the physical logistics activity occurred.
 
 - **Comprehensive Transaction Ledger**  
   Complete synchronization of blockchain events into Supabase for real-time tracking.
@@ -50,7 +50,7 @@ Make sure the following software is installed:
 Clone the repository and navigate to the project directory:
 
 ```bash
-git clone https://github.com/your-username/Smart_Logistics_Escrow.git
+git clone https://github.com/356Lqyu/Smart_Logistics_Escrow.git
 cd Smart_Logistics_Escrow
 ```
 
@@ -58,11 +58,7 @@ cd Smart_Logistics_Escrow
 
 ## 2. Install Dependencies
 
-Install the required project packages:
-
-```bash
-npm install
-```
+No local npm packages are required — the frontend loads Web3.js, Supabase, and all other libraries directly via CDN `<script>` tags, and there's no `package.json` in this project. You only need the Truffle CLI installed globally (see Prerequisites) to compile and deploy the contracts.
 
 ---
 
@@ -81,7 +77,7 @@ The project supports two deployment workflows depending on whether you are runni
 
 ## 1. Start Ganache
 
-Open your local workspace. Ensure the RPC server runs at `http://127.0.0.1:8545` with Chain ID `1337` or `5777`.
+Open your local workspace. Ensure the RPC server runs at `http://127.0.0.1:7545` with Chain ID `5777` — this must match the `development` network in `truffle-config.js` (host `127.0.0.1`, port `7545`), which is what `truffle migrate --reset` connects to by default. The frontend itself is more flexible (it also accepts `8545`/Chain ID `1337`), but the migration step specifically requires port `7545` unless you edit `truffle-config.js` or pass a different `--network`.
 
 ## 2. Configure MetaMask
 
@@ -112,43 +108,103 @@ After successful deployment, Truffle will display the deployed contract addresse
 
 ## 5. Update the Contract Address
 
-Copy the deployed contract addresses for both LogisticsEscrow and LogiTrustToken from the terminal output, then update `CONTRACT_ADDRESS` and `TOKEN_CONTRACT_ADDRESS` in `js/contract.js`.
+Copy the deployed contract addresses for both LogisticsEscrow and LogiTrustToken from the terminal output, then update the Ganache entries inside `NETWORK_ADDRESSES` in `js/contract.js` — `CONTRACT_ADDRESS`/`TOKEN_CONTRACT_ADDRESS` are computed automatically from this map based on whichever network MetaMask is connected to, so don't edit those directly.
 
 ```javascript
-const CONTRACT_ADDRESS = "YOUR_DEPLOYED_GANACHE_ESCROW_ADDRESS";
-const TOKEN_CONTRACT_ADDRESS = "YOUR_DEPLOYED_GANACHE_TOKEN_ADDRESS";
+const NETWORK_ADDRESSES = {
+  1337: {
+    contract: "YOUR_DEPLOYED_GANACHE_ESCROW_ADDRESS",
+    token: "YOUR_DEPLOYED_GANACHE_TOKEN_ADDRESS",
+  },
+  5777: {
+    contract: "YOUR_DEPLOYED_GANACHE_ESCROW_ADDRESS",
+    token: "YOUR_DEPLOYED_GANACHE_TOKEN_ADDRESS",
+  },
+  // ...
+};
 ```
 
 ---
 
 # Option B: Live Presentation (Sepolia Testnet)
 
+The contracts are already deployed and live on Sepolia — `js/contract.js` resolves `CONTRACT_ADDRESS`/`TOKEN_CONTRACT_ADDRESS` automatically based on whichever network MetaMask is connected to, so **for a normal demo you don't need to redeploy anything.** Just connect MetaMask to Sepolia and use the app.
+
+You only need to redeploy if you've changed `LogisticsEscrow.sol` or `LogiTrustToken.sol` and want the new contract logic live on Sepolia.
+
 ## 1. Configure MetaMask
 
-Switch MetaMask to the Sepolia Testnet and ensure your deployment wallet has sufficient Sepolia ETH from a faucet.
+Switch MetaMask to the Sepolia Testnet. If it's not already in your network list, MetaMask will prompt to add it automatically when the app asks you to switch (Sepolia is one of MetaMask's built-in networks). Make sure your wallet has some Sepolia ETH — get free testnet ETH from a faucet such as [sepoliafaucet.com](https://sepoliafaucet.com) or [Alchemy's Sepolia faucet](https://www.alchemy.com/faucets/ethereum-sepolia).
 
-## 2. Configure Truffle
+## 2. (Redeploy only) Deploy via Truffle Dashboard
 
-Verify your `truffle-config.js` contains your Sepolia network credentials (Infura/Alchemy RPC provider and deployment mnemonic/private key).
+No private key, mnemonic, or Infura/Alchemy API key is stored anywhere in this project — deployments are signed directly through MetaMask using Truffle's built-in dashboard, so your key material never leaves your browser.
 
-## 3. Deploy to Sepolia
+1. In a terminal, start the dashboard:
+   ```bash
+   truffle dashboard
+   ```
+2. Open the URL it prints (`http://localhost:24012`) in your browser and connect MetaMask, with MetaMask's active network set to **Sepolia**.
+3. In a second terminal, run the migration through the dashboard:
+   ```bash
+   truffle migrate --network dashboard --reset
+   ```
+4. Approve the deployment transactions in the MetaMask popup that appears in the dashboard tab.
 
-Run:
+## 3. (Redeploy only) Update the Contract Address
 
-```bash
-truffle migrate --network sepolia --reset
-```
-
-After deployment completes, Truffle will display the deployed contract address.
-
-## 4. Update the Contract Address
-
-Update both `CONTRACT_ADDRESS` and `TOKEN_CONTRACT_ADDRESS` inside `js/contract.js` with your verified Sepolia contract addresses:
+After a successful deployment, copy the new `LogisticsEscrow` and `LogiTrustToken` addresses (from the terminal output or `build/contracts/LogisticsEscrow.json` → `networks["11155111"]`) into the Sepolia entry of `NETWORK_ADDRESSES` in `js/contract.js`:
 
 ```javascript
-const CONTRACT_ADDRESS = "YOUR_VERIFIED_SEPOLIA_ESCROW_ADDRESS";
-const TOKEN_CONTRACT_ADDRESS = "YOUR_VERIFIED_SEPOLIA_TOKEN_ADDRESS";
+const NETWORK_ADDRESSES = {
+  // ...
+  11155111: {
+    contract: "YOUR_VERIFIED_SEPOLIA_ESCROW_ADDRESS",
+    token: "YOUR_VERIFIED_SEPOLIA_TOKEN_ADDRESS",
+  },
+};
 ```
+
+---
+
+# Updating the Smart Contracts
+
+If you edit `LogisticsEscrow.sol` or `LogiTrustToken.sol`, redeploying is required — Ethereum has no "update in place," so any code change produces a brand-new contract address. Follow these steps:
+
+## 1. Recompile
+
+```bash
+truffle compile
+```
+
+This regenerates `build/contracts/LogisticsEscrow.json` (and `LogiTrustToken.json` if changed) with the new bytecode and ABI.
+
+## 2. Redeploy to whichever network(s) you're testing
+
+- **Ganache**: `truffle migrate --reset` — deploys fresh. Required every time regardless of whether the code changed, since Ganache's state is wiped on restart; especially required here since the old deployment no longer matches your edited source.
+- **Sepolia**: start `truffle dashboard`, connect MetaMask (on Sepolia) at `http://localhost:24012`, then in a second terminal run `truffle migrate --network dashboard --reset` and approve the transactions in MetaMask. This costs real Sepolia testnet ETH in gas.
+
+Only redeploy to the network(s) you're actually going to use next — Ganache and Sepolia deployments are fully independent of each other.
+
+## 3. Update `NETWORK_ADDRESSES` in `js/contract.js`
+
+Each redeploy produces new addresses. Update the entry for whichever chain ID you redeployed to:
+
+```javascript
+const NETWORK_ADDRESSES = {
+  1337: { contract: "NEW_ADDRESS", token: "NEW_ADDRESS" }, // if you redeployed Ganache
+  5777: { contract: "NEW_ADDRESS", token: "NEW_ADDRESS" }, // same, other Ganache chain-id alias
+  11155111: { contract: "NEW_ADDRESS", token: "NEW_ADDRESS" }, // if you redeployed Sepolia
+};
+```
+
+Get the new addresses from the `truffle migrate` terminal output, or from `build/contracts/LogisticsEscrow.json` → `networks["<chainId>"].address`.
+
+## 4. Update `CONTRACT_ABI` / `TOKEN_ABI` if the interface changed
+
+This step is easy to forget. `CONTRACT_ABI` and `TOKEN_ABI` in `js/contract.js` are hand-copied arrays, **not** loaded dynamically from the build artifacts. If your change added, removed, or renamed a function, changed its parameters, or changed an event, these arrays are now stale and must be manually updated to match `build/contracts/LogisticsEscrow.json`'s `abi` field — otherwise Web3.js will fail to find the function or misdecode results. If you only changed internal logic without touching any function signature or event, the existing ABI is still valid and this step can be skipped.
+
+> **Note:** If Ganache just restarted (wiped state) but you haven't actually edited any `.sol` file, you still need steps 2 and 3 (redeploy, new address) since Ganache lost the old deployment — but not step 4, since the ABI is unchanged.
 
 ---
 
