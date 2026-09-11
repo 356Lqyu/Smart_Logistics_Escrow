@@ -445,7 +445,14 @@ function renderAgreement() {
   const explorer = document.getElementById("etherscan-link");
 
   if (explorer) {
-    explorer.href = `https://etherscan.io/address/${CONTRACT_ADDRESS}`;
+    if (ACTIVE_CHAIN_ID === 11155111) {
+      explorer.href = `https://sepolia.etherscan.io/address/${CONTRACT_ADDRESS}`;
+      explorer.style.display = "";
+    } else {
+      // Local Ganache addresses don't exist on any public
+      // explorer, so there's nothing useful to link to.
+      explorer.style.display = "none";
+    }
   }
 
   // Shipment details
@@ -1577,7 +1584,11 @@ async function detectNetwork() {
 
     setText(
       "network-name",
-      chainId === 1337 || chainId === 5777 ? "Ganache" : `Chain ${chainId}`,
+      chainId === 1337 || chainId === 5777
+        ? "Ganache"
+        : chainId === 11155111
+          ? "Sepolia"
+          : `Chain ${chainId}`,
     );
   } catch (error) {
     console.warn("Network detection failed:", error);
