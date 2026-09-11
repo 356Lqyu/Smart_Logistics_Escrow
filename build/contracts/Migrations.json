@@ -665,7 +665,7 @@
   "sourceMap": "94:367:2:-:0;;;119:33;;;-1:-1:-1;;;;;;119:33:2;142:10;119:33;;;94:367;;;;;;;;;;;;;;;;",
   "deployedSourceMap": "94:367:2:-:0;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;157:36;;;:::i;:::-;;;;;;;:::i;:::-;;;;;;;;119:33;;;:::i;:::-;;;;;;;:::i;353:105::-;;;;;;:::i;:::-;;:::i;:::-;;157:36;;;;:::o;119:33::-;;;-1:-1:-1;;;;;119:33:2;;:::o;353:105::-;259:5;;-1:-1:-1;;;;;259:5:2;245:10;:19;229:104;;;;-1:-1:-1;;;229:104:2;;;;;;;:::i;:::-;;;;;;;;;416:24:::1;:36:::0;353:105::o;14:190:3:-;;126:2;114:9;105:7;101:23;97:32;94:2;;;147:6;139;132:22;94:2;-1:-1:-1;175:23:3;;84:120;-1:-1:-1;84:120:3:o;209:203::-;-1:-1:-1;;;;;373:32:3;;;;355:51;;343:2;328:18;;310:102::o;417:415::-;619:2;601:21;;;658:2;638:18;;;631:30;697:34;692:2;677:18;;670:62;-1:-1:-1;;;763:2:3;748:18;;741:49;822:3;807:19;;591:241::o;837:177::-;983:25;;;971:2;956:18;;938:76::o",
   "source": "// SPDX-License-Identifier: MIT\r\n//pragma solidity >=0.4.22 <0.8.0;\r\npragma solidity ^0.8.0;\r\ncontract Migrations {\r\n  address public owner = msg.sender;\r\n  uint public last_completed_migration;\r\n\r\n  modifier restricted() {\r\n    require(\r\n      msg.sender == owner,\r\n      \"This function is restricted to the contract's owner\"\r\n    );\r\n    _;\r\n  }\r\n\r\n  function setCompleted(uint completed) public restricted {\r\n    last_completed_migration = completed;\r\n  }\r\n}\r\n",
-  "sourcePath": "C:\\Users\\User\\Downloads\\Smart_Logistics_Escrow\\contracts\\Migrations.sol",
+  "sourcePath": "C:\\Users\\Asus\\Documents\\GitHub\\KL\\KLwong\\contracts\\Migrations.sol",
   "ast": {
     "absolutePath": "project:/contracts/Migrations.sol",
     "exportedSymbols": {
@@ -1061,10 +1061,16 @@
       "links": {},
       "address": "0x50C59c1498321E5424FB59ea873441D52DC22C3A",
       "transactionHash": "0xdbaadad8c67e41cf366b783d828cb27b2fbfb358dd6e6438deb27d512498a08b"
+    },
+    "11155111": {
+      "events": {},
+      "links": {},
+      "address": "0xa054AEC132D8E5a06052E9Df997593Ee07ad731F",
+      "transactionHash": "0x7023a77732864743348932d743d85007d512628a6202a04431e5c7264fc9061f"
     }
   },
   "schemaVersion": "3.4.16",
-  "updatedAt": "2026-09-08T08:04:45.979Z",
+  "updatedAt": "2026-09-09T07:11:14.852Z",
   "networkType": "ethereum",
   "devdoc": {
     "kind": "dev",

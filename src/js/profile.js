@@ -119,12 +119,7 @@ async function loadProfile(wallet) {
     try {
       const w3 = new Web3(window.ethereum);
       const chainId = await w3.eth.getChainId();
-      setText(
-        "profile-network",
-        chainId === 1337 || chainId === 5777
-          ? `Local Ganache (${chainId})`
-          : `Chain ${chainId}`,
-      );
+      setText("profile-network", describeNetwork(chainId));
     } catch (error) {
       console.warn("Network lookup failed:", error);
     }
@@ -456,6 +451,12 @@ function normalize(value) {
   return String(value || "")
     .trim()
     .toLowerCase();
+}
+
+function describeNetwork(chainId) {
+  if (chainId === 1337 || chainId === 5777) return `Local Ganache (${chainId})`;
+  if (chainId === 11155111) return "Sepolia Testnet";
+  return `Chain ${chainId}`;
 }
 
 function setText(id, value) {

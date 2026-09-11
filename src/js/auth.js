@@ -21,12 +21,23 @@ async function connectWallet() {
 
   try {
     // =====================================
-    // 1. Switch / add Ganache (5777 or 1337)
+    // 1. Switch / add Ganache -- but only if
+    //    MetaMask isn't already on a network we
+    //    support (local Ganache OR Sepolia). This
+    //    is what lets a Sepolia presentation session
+    //    connect without being forced back to a
+    //    local RPC that doesn't apply there.
     // =====================================
 
-    await ensureGanacheNetworkForAuth();
+    const preChainHex = await window.ethereum.request({
+      method: "eth_chainId",
+    });
+    const preChainId = parseInt(preChainHex, 16);
 
-    console.log("Switched to Ganache");
+    if (!SUPPORTED_CHAIN_IDS.includes(preChainId)) {
+      await ensureGanacheNetworkForAuth();
+      console.log("Switched to Ganache");
+    }
 
     // =====================================
     // 2. Check current network

@@ -1,6 +1,104 @@
-const CONTRACT_ADDRESS = "0x10a5592930716b4340a9530918E1C1a60234D0Ea";
+// =====================================================
+// NETWORK-AWARE CONTRACT ADDRESSES
+//
+// Local Ganache (dev/testing) and Sepolia (live presentation)
+// run separate deployments of the same contracts. Whichever
+// network MetaMask is connected to when this page loads
+// decides which pair of addresses CONTRACT_ADDRESS /
+// TOKEN_CONTRACT_ADDRESS resolve to, so every other file can
+// keep using those two constants unchanged.
+// =====================================================
 
-const TOKEN_CONTRACT_ADDRESS = "0x03cBD7b58d5C941317De57318c35cdDA6784dEb3";
+const NETWORK_ADDRESSES = {
+  1337: {
+    contract: "0x10a5592930716b4340a9530918E1C1a60234D0Ea",
+    token: "0x03cBD7b58d5C941317De57318c35cdDA6784dEb3",
+  },
+  5777: {
+    contract: "0x10a5592930716b4340a9530918E1C1a60234D0Ea",
+    token: "0x03cBD7b58d5C941317De57318c35cdDA6784dEb3",
+  },
+  // Sepolia (chain ID 11155111) — live presentation deployment.
+  11155111: {
+    contract: "0x64441E196253c8b4425a36c936417C714B9ae317",
+    token: "0x5445aB67B298Eaf75E5cF36253752d75068bDB21",
+  },
+};
+
+const SUPPORTED_CHAIN_IDS = Object.keys(NETWORK_ADDRESSES).map(Number);
+
+function resolveActiveChainId() {
+  try {
+    if (window.ethereum && window.ethereum.chainId) {
+      return parseInt(window.ethereum.chainId, 16);
+    }
+  } catch (_) {}
+  return 1337;
+}
+
+const ACTIVE_CHAIN_ID = resolveActiveChainId();
+const ACTIVE_NETWORK =
+  NETWORK_ADDRESSES[ACTIVE_CHAIN_ID] || NETWORK_ADDRESSES[1337];
+
+const CONTRACT_ADDRESS = ACTIVE_NETWORK.contract;
+const TOKEN_CONTRACT_ADDRESS = ACTIVE_NETWORK.token;
+
+// =====================================================
+// READ-ONLY WEB3 (bypasses MetaMask's own RPC layer)
+//
+// MetaMask keeps an internal error counter per network and will
+// start refusing ALL requests ("RPC endpoint returned too many
+// errors, retrying in X minutes") once it trips -- even against a
+// perfectly healthy RPC -- if enough calls get routed through it in
+// a short window. Read-only calls (balance checks, "is this user
+// registered" lookups, etc.) don't need a wallet at all, so on a
+// public network they go straight to a public RPC over plain HTTP
+// instead, leaving MetaMask free for the calls that actually need
+// it: eth_requestAccounts and signed transactions.
+// =====================================================
+
+const PUBLIC_RPC_URLS = {
+  11155111: "https://ethereum-sepolia-rpc.publicnode.com",
+};
+
+function getReadOnlyWeb3(chainId) {
+  const rpcUrl = PUBLIC_RPC_URLS[chainId];
+  if (rpcUrl) {
+    return new Web3(new Web3.providers.HttpProvider(rpcUrl));
+  }
+  return new Web3(window.ethereum);
+}
+
+// Retries a read-only call a few times with backoff when it fails
+// with the same transient/rate-limit signature MetaMask surfaces.
+async function withRpcRetry(fn, retries = 3, baseDelayMs = 700) {
+  let lastError;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      const msg = String(error?.message || error);
+      const isTransient =
+        /too many errors/i.test(msg) ||
+        /failed to fetch/i.test(msg) ||
+        /retrying in/i.test(msg) ||
+        error?.code === -32603 ||
+        error?.code === -32002;
+      if (!isTransient || attempt === retries) throw error;
+      await new Promise((resolve) =>
+        setTimeout(resolve, baseDelayMs * (attempt + 1)),
+      );
+    }
+  }
+  throw lastError;
+}
+
+// If the user switches network in MetaMask mid-session, reload so
+// every constant above is recomputed for the newly active chain.
+if (window.ethereum && typeof window.ethereum.on === "function") {
+  window.ethereum.on("chainChanged", () => window.location.reload());
+}
 
 const CONTRACT_ABI = [
   {

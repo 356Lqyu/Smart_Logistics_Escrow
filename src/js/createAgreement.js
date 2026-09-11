@@ -274,9 +274,9 @@ async function handleCreateAgreement(event) {
     const web3 = new Web3(window.ethereum);
     const chainId = Number(await web3.eth.getChainId());
 
-    if (chainId !== 1337 && chainId !== 5777) {
+    if (!SUPPORTED_CHAIN_IDS.includes(chainId)) {
       throw new Error(
-        "Please connect MetaMask to Ganache (chain ID 1337 or 5777).",
+        "Please connect MetaMask to local Ganache (chain ID 1337/5777) or Sepolia Testnet (chain ID 11155111).",
       );
     }
 

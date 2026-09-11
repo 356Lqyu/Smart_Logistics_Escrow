@@ -143,23 +143,43 @@ async function registerUser() {
 
   try {
     // ===============================
-    // PREFLIGHT: Ganache must be online
-    // before MetaMask is asked to switch.
+    // PREFLIGHT: if MetaMask is already on a supported
+    // network (local Ganache OR Sepolia), leave it alone.
+    // Only try to auto-discover/switch to local Ganache
+    // when the wallet isn't already on a network we support
+    // -- this is what lets a Sepolia presentation session
+    // register without this code trying to force it back
+    // to a local RPC that doesn't even apply there.
     // ===============================
 
-    message.innerText = "Checking Ganache connection...";
+    const currentChainHex = await window.ethereum.request({
+      method: "eth_chainId",
+    });
+    let currentChainId = parseInt(currentChainHex, 16);
 
-    const ganacheRpc = await findWorkingGanacheRpc();
+    if (!SUPPORTED_CHAIN_IDS.includes(currentChainId)) {
+      message.innerText = "Checking Ganache connection...";
 
-    if (!ganacheRpc) {
-      throw new Error(
-        "Ganache is not running. Open Ganache first (RPC http://127.0.0.1:8545), wait until it shows accounts, then register again.",
-      );
+      const ganacheRpc = await findWorkingGanacheRpc();
+
+      if (!ganacheRpc) {
+        throw new Error(
+          "Ganache is not running. Open Ganache first (RPC http://127.0.0.1:8545), wait until it shows accounts, then register again. (Presenting on Sepolia instead? Switch MetaMask to the Sepolia network before registering.)",
+        );
+      }
+
+      message.innerText = "Connecting to MetaMask...";
+
+      await ensureGanacheNetwork(ganacheRpc);
+
+      // ensureGanacheNetwork switched MetaMask's active network, so
+      // re-read it -- reusing the pre-switch value here would leave
+      // chainId pointing at whatever network we started on.
+      const postSwitchHex = await window.ethereum.request({
+        method: "eth_chainId",
+      });
+      currentChainId = parseInt(postSwitchHex, 16);
     }
-
-    message.innerText = "Connecting to MetaMask...";
-
-    await ensureGanacheNetwork(ganacheRpc);
 
     const accounts = await window.ethereum.request({
       method: "eth_requestAccounts",
@@ -175,15 +195,25 @@ async function registerUser() {
 
     // ===============================
     // INITIALIZE WEB3 + CONTRACT
+    //
+    // Two separate Web3 instances:
+    // - registrationWeb3 (MetaMask/window.ethereum) is only used for
+    //   the calls that actually need the wallet: requesting accounts
+    //   and sending the signed registration transaction.
+    // - readWeb3 goes straight to a public RPC on a public network
+    //   (Sepolia), bypassing MetaMask's own request layer for the
+    //   read-only checks below, since those don't need a wallet at
+    //   all and MetaMask can start refusing ALL requests for a
+    //   network ("too many errors") if too many calls get routed
+    //   through it in a short window.
     // ===============================
 
     const registrationWeb3 = new Web3(window.ethereum);
+    const chainId = currentChainId;
 
-    const chainId = await registrationWeb3.eth.getChainId();
-
-    if (chainId !== 1337 && chainId !== 5777) {
+    if (!SUPPORTED_CHAIN_IDS.includes(chainId)) {
       throw new Error(
-        "Unsupported network. Connect MetaMask to Ganache (chain ID 1337).",
+        "Unsupported network. Connect MetaMask to local Ganache (chain ID 1337/5777) or Sepolia Testnet (chain ID 11155111).",
       );
     }
 
@@ -192,11 +222,16 @@ async function registerUser() {
       CONTRACT_ADDRESS,
     );
 
-    const contractCode = await registrationWeb3.eth.getCode(CONTRACT_ADDRESS);
+    const readWeb3 = getReadOnlyWeb3(chainId);
+    const readContract = new readWeb3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
+
+    const contractCode = await withRpcRetry(() =>
+      readWeb3.eth.getCode(CONTRACT_ADDRESS),
+    );
 
     if (contractCode === "0x" || contractCode === "0x0") {
       throw new Error(
-        "LogisticsEscrow is not deployed at this address on the active Ganache network. Run truffle migrate --reset and update CONTRACT_ADDRESS.",
+        "LogisticsEscrow is not deployed at this address on the active network. Run truffle migrate --reset and update CONTRACT_ADDRESS.",
       );
     }
 
@@ -206,9 +241,9 @@ async function registerUser() {
 
     message.innerText = "Checking registration...";
 
-    const existingUser = await registrationContract.methods
-      .users(account)
-      .call();
+    const existingUser = await withRpcRetry(() =>
+      readContract.methods.users(account).call(),
+    );
 
     if (existingUser.registered) {
       // Wallet is already registered on-chain. Either this account
@@ -313,9 +348,26 @@ async function registerUser() {
       /retrying in/i.test(rawMessage) ||
       error?.code === -32603;
 
-    message.innerText = isRpcDown
-      ? "Registration failed: MetaMask cannot reach Ganache (RPC blocked or offline). 1) Keep Ganache open on http://127.0.0.1:8545. 2) In MetaMask Localhost: RPC http://127.0.0.1:8545, Chain ID 1337. 3) Import a Ganache account (key icon), then try again."
-      : "Registration failed: " + rawMessage;
+    if (isRpcDown) {
+      // Read chainId from MetaMask's synchronous cached property, NOT
+      // another request() call -- if MetaMask is refusing everything
+      // for this network right now, an extra async RPC-shaped call
+      // here would just fail too and silently fall through to the
+      // wrong (Ganache) message below.
+      let activeChainId = null;
+      try {
+        if (window.ethereum?.chainId) {
+          activeChainId = parseInt(window.ethereum.chainId, 16);
+        }
+      } catch (_) {}
+
+      message.innerText =
+        activeChainId === 11155111
+          ? "Registration failed: MetaMask could not reach the Sepolia network (RPC timed out, rate-limited, or MetaMask lost connection). Wait a few seconds and try again. If it keeps happening, switch Sepolia's RPC URL in MetaMask's network settings to a different provider."
+          : "Registration failed: MetaMask cannot reach Ganache (RPC blocked or offline). 1) Keep Ganache open on http://127.0.0.1:8545. 2) In MetaMask Localhost: RPC http://127.0.0.1:8545, Chain ID 1337. 3) Import a Ganache account (key icon), then try again.";
+    } else {
+      message.innerText = "Registration failed: " + rawMessage;
+    }
   } finally {
     if (connectBtn) connectBtn.disabled = false;
   }

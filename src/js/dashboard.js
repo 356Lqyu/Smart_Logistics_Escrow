@@ -299,7 +299,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       networkLabel.innerText =
         chainId === 1337 || chainId === 5777
           ? "LOCAL GANACHE"
-          : `CHAIN ${chainId}`;
+          : chainId === 11155111
+            ? "SEPOLIA TESTNET"
+            : `CHAIN ${chainId}`;
     }
 
     // Top wallet badge (shared across shipper pages)
