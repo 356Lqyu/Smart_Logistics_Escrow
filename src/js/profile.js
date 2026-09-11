@@ -19,50 +19,22 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    const connectedWallet = accounts[0];
-    localStorage.setItem("wallet", connectedWallet);
+    const wallet = accounts[0];
+    localStorage.setItem("wallet", wallet);
 
     const short =
-      connectedWallet.substring(0, 6) +
-      "..." +
-      connectedWallet.substring(connectedWallet.length - 4);
+      wallet.substring(0, 6) + "..." + wallet.substring(wallet.length - 4);
 
     const topWallet = document.getElementById("top-wallet-address");
     if (topWallet) {
       topWallet.innerText = short;
-      topWallet.title = connectedWallet;
+      topWallet.title = wallet;
     }
 
-    // ?wallet=0x... lets a shipper view a carrier's public profile (or
-    // vice versa) before accepting/dealing with them -- read-only, no
-    // edit/password/avatar-upload controls, no private email shown.
-    const urlParams = new URLSearchParams(window.location.search);
-    const requestedWallet = urlParams.get("wallet");
-    const viewedWallet =
-      requestedWallet &&
-      requestedWallet.toLowerCase() !== connectedWallet.toLowerCase()
-        ? requestedWallet
-        : connectedWallet;
-    const isOwnProfile =
-      viewedWallet.toLowerCase() === connectedWallet.toLowerCase();
-
-    const viewBanner = document.getElementById("profile-view-banner");
-    if (viewBanner) viewBanner.hidden = isOwnProfile;
-
-    await loadProfile(viewedWallet, isOwnProfile);
-
-    if (isOwnProfile) {
-      setupEditModal(viewedWallet);
-      setupChangePasswordModal();
-      setupAvatarUpload(viewedWallet);
-    } else {
-      ["edit-profile-btn", "change-password-btn", "change-avatar-btn"].forEach(
-        (id) => {
-          const el = document.getElementById(id);
-          if (el) el.style.display = "none";
-        },
-      );
-    }
+    await loadProfile(wallet);
+    setupEditModal(wallet);
+    setupChangePasswordModal();
+    setupAvatarUpload(wallet);
 
     const searchInput = document.getElementById("search-input");
     if (searchInput) {
@@ -81,8 +53,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 });
 
-async function loadProfile(wallet, isOwnProfile = true) {
+async function loadProfile(wallet) {
   const walletLower = wallet.toLowerCase();
+  const roleRaw =
+    localStorage.getItem("userRole") ||
+    localStorage.getItem("role") ||
+    "shipper";
+  const isCarrier =
+    String(roleRaw).toLowerCase() === "carrier" || String(roleRaw) === "2";
 
   let user = null;
 
@@ -98,47 +76,29 @@ async function loadProfile(wallet, isOwnProfile = true) {
     console.warn("Could not load user profile:", error);
   }
 
-  // The viewed user's role always comes from their own data (Supabase
-  // row, which mirrors the on-chain role) -- localStorage only makes
-  // sense as a fallback for the viewer's OWN profile, never someone
-  // else's, or a carrier's profile would render using the viewer's role.
-  const roleRaw =
-    user?.role ||
-    (isOwnProfile
-      ? localStorage.getItem("userRole") || localStorage.getItem("role")
-      : null) ||
-    "shipper";
-  const isCarrier =
-    String(roleRaw).toLowerCase() === "carrier" || String(roleRaw) === "2";
-
   const displayName =
     user?.name ||
-    (isOwnProfile ? localStorage.getItem("name") : null) ||
+    localStorage.getItem("name") ||
     (isCarrier ? "Carrier Account" : "Shipper Account");
 
-  const email = isOwnProfile
-    ? user?.email || localStorage.getItem("profileEmail") || "Not set"
-    : "Private";
+  const email =
+    user?.email || localStorage.getItem("profileEmail") || "Not set";
 
-  currentProfileEmail = isOwnProfile ? user?.email || null : null;
+  currentProfileEmail = user?.email || null;
 
   const registeredAt = user?.created_at || user?.registered_at || null;
 
   setText("profile-name", displayName);
   setText(
     "profile-role-pill",
-    isOwnProfile
-      ? `Role Locked — ${isCarrier ? "Carrier" : "Shipper"}`
-      : isCarrier
-        ? "Carrier"
-        : "Shipper",
+    `Role Locked — ${isCarrier ? "Carrier" : "Shipper"}`,
   );
   setText(
     "profile-subtitle",
     isCarrier ? "Carrier logistics identity" : "Shipper logistics identity",
   );
-  const icNumber = isOwnProfile ? user?.ic_number || "Not set" : "Private";
-  const phone = isOwnProfile ? user?.phone || "Not set" : "Private";
+  const icNumber = user?.ic_number || "Not set";
+  const phone = user?.phone || "Not set";
 
   setText("profile-wallet", wallet);
   setText("profile-email", email);

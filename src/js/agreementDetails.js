@@ -402,17 +402,14 @@ function renderAgreement() {
 
   const priority = agreementData.priority || "Normal";
   setText("agreement-priority", priority.toUpperCase());
-  setAddressWithProfileLink(
+  setText(
     "shipper-address",
-    agreementData.blockchain_shipper || agreementData.shipper_address,
+    shortenAddress(
+      agreementData.blockchain_shipper || agreementData.shipper_address,
+    ),
   );
 
-  const carrierAddress = getCarrierAddressRaw();
-  if (carrierAddress && !isZeroAddress(carrierAddress)) {
-    setAddressWithProfileLink("carrier-address", carrierAddress);
-  } else {
-    setText("carrier-address", "Unassigned");
-  }
+  setText("carrier-address", getCarrierAddress());
   // Escrow
   const normalizedStatus = String(status).toLowerCase();
   const isExpired = normalizedStatus === "expired";
@@ -1482,26 +1479,6 @@ function setText(id, value) {
   if (element) {
     element.innerText = value;
   }
-}
-
-// Shows a shortened address as a link to that wallet's public profile
-// (profile.html?wallet=0x...), so a shipper can check a carrier's trust
-// score/history before accepting, or vice versa.
-function setAddressWithProfileLink(id, address) {
-  const element = document.getElementById(id);
-  if (!element || !address) return;
-
-  const shortened = shortenAddress(address);
-  const link = document.createElement("a");
-  link.href = `profile.html?wallet=${encodeURIComponent(address)}`;
-  link.innerText = shortened;
-  link.title = "View profile";
-  link.style.color = "inherit";
-  link.style.textDecoration = "underline";
-  link.style.textDecorationStyle = "dotted";
-
-  element.innerHTML = "";
-  element.appendChild(link);
 }
 
 function formatDate(timestamp) {
