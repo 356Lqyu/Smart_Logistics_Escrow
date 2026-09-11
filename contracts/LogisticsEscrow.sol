@@ -181,7 +181,7 @@ contract LogisticsEscrow {
         uint[] memory percentages
     ) public payable returns (uint256) {
         require(users[msg.sender].role == UserRole.Shipper,"Only registered shippers can create agreements");
-        require(escrowAmount >= 0.1 ether, "Minimum escrow is 0.1 ETH");
+        require(escrowAmount > 0, "Escrow amount must be greater than 0");
         require(msg.value == escrowAmount, "ETH sent must equal escrow amount");
         require(deadline > block.timestamp, "Invalid deadline");
         require(checkpoints.length == percentages.length, "Invalid milestones");
@@ -309,7 +309,11 @@ contract LogisticsEscrow {
         require(!milestone.paid, "Milestone already paid");
         require(agreement.escrowRemaining > 0, "Agreement has no remaining escrow");
 
-        uint payout = (agreement.escrowAmount * milestone.percentage) / 100;
+        // Pay the final milestone from the remaining balance so integer wei
+        // division can never leave unreleased escrow in the agreement.
+        uint payout = index == agreementMilestones[agreementId].length - 1
+            ? agreement.escrowRemaining
+            : (agreement.escrowAmount * milestone.percentage) / 100;
         require(payout > 0, "Invalid milestone payout");
         require(agreement.escrowRemaining >= payout, "Insufficient escrow remaining");
 
