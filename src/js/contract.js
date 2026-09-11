@@ -11,12 +11,12 @@
 
 const NETWORK_ADDRESSES = {
   1337: {
-    contract: "0x10a5592930716b4340a9530918E1C1a60234D0Ea",
-    token: "0x03cBD7b58d5C941317De57318c35cdDA6784dEb3",
+    contract: "0xAeFDD7007b4fB2563d68a913c1e5a438B8fE2cb4",
+    token: "0xBed8024feeE2675893DF9AE8dC82b19Db93a1017",
   },
   5777: {
-    contract: "0x10a5592930716b4340a9530918E1C1a60234D0Ea",
-    token: "0x03cBD7b58d5C941317De57318c35cdDA6784dEb3",
+    contract: "0xAeFDD7007b4fB2563d68a913c1e5a438B8fE2cb4",
+    token: "0xBed8024feeE2675893DF9AE8dC82b19Db93a1017",
   },
   // Sepolia (chain ID 11155111) — live presentation deployment.
   11155111: {

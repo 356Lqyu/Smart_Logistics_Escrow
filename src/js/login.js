@@ -1,8 +1,6 @@
 console.log("LOGIN.JS LOADED");
 
-// ===============================
 // PASSWORD SHOW/HIDE TOGGLE
-// ===============================
 
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".password-toggle").forEach((btn) => {
@@ -31,9 +29,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-// ===============================
 // LOGIN
-// ===============================
 
 async function loginUser() {
   const message = document.getElementById("message");
@@ -85,9 +81,7 @@ async function loginUser() {
         ? "carrier"
         : "shipper";
 
-    // ===============================
     // CONNECT & VERIFY WALLET
-    // ===============================
 
     if (typeof window.ethereum === "undefined") {
       throw new Error(
@@ -119,9 +113,7 @@ async function loginUser() {
       );
     }
 
-    // ===============================
     // SAVE SESSION INFO & REDIRECT
-    // ===============================
 
     localStorage.setItem("wallet", connectedWallet);
     localStorage.setItem("role", roleName);

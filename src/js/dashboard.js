@@ -1,20 +1,14 @@
 document.addEventListener("DOMContentLoaded", async () => {
   try {
-    // =====================================
-    // 1. CHECK METAMASK
-    // =====================================
+    // CHECK METAMASK
 
     if (typeof window.ethereum === "undefined") {
       console.error("MetaMask is not installed.");
-
       window.location.href = "index.html";
-
       return;
     }
 
-    // =====================================
-    // 2. CONNECT TO METAMASK
-    // =====================================
+    // CONNECT TO METAMASK
 
     const accounts = await window.ethereum.request({
       method: "eth_accounts",
@@ -22,9 +16,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (!accounts || accounts.length === 0) {
       console.error("No MetaMask account connected.");
-
       window.location.href = "index.html";
-
       return;
     }
 
@@ -32,15 +24,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     console.log("Dashboard wallet:", currentAccount);
 
-    // =====================================
-    // 3. SAVE WALLET ADDRESS
-    // =====================================
+    // SAVE WALLET ADDRESS
 
     localStorage.setItem("wallet", currentAccount);
 
-    // =====================================
-    // 4. DISPLAY WALLET ADDRESS
-    // =====================================
+    // DISPLAY WALLET ADDRESS
 
     const shortAddress =
       currentAccount.substring(0, 6) +
@@ -48,32 +36,25 @@ document.addEventListener("DOMContentLoaded", async () => {
       currentAccount.substring(currentAccount.length - 4);
 
     const sidebarWallet = document.getElementById("sidebar-wallet-addr");
-
     const topWallet = document.getElementById("top-wallet-address");
 
     if (sidebarWallet) {
       sidebarWallet.innerText = shortAddress;
-
       sidebarWallet.title = currentAccount;
     }
 
     if (topWallet) {
       topWallet.innerText = shortAddress;
-
       topWallet.title = currentAccount;
     }
 
-    // =====================================
-    // 5. LOAD SHARED HEADER
-    // =====================================
+    // LOAD SHARED HEADER
 
     const headerContainer = document.getElementById("shared-header");
 
     if (headerContainer) {
       const headerResponse = await fetch("header.html");
-
       headerContainer.innerHTML = await headerResponse.text();
-
       const pageHeading = document.getElementById("page-heading");
 
       if (pageHeading) {
@@ -82,19 +63,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
 
-    // =====================================
-    // 6. LOAD SIDEBAR
-    // =====================================
+    // LOAD SIDEBAR
 
     const response = await fetch("sidebar.html");
-
     const sidebarHtml = await response.text();
-
     document.getElementById("sidebar-container").innerHTML = sidebarHtml;
 
-    // =====================================
-    // 7. GET USER ROLE
-    // =====================================
+    // GET USER ROLE
 
     const urlParams = new URLSearchParams(window.location.search);
 
@@ -108,33 +83,22 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     localStorage.setItem("userRole", userRole);
 
-    // =====================================
-    // 7. SIDEBAR ELEMENTS
-    // =====================================
+    // SIDEBAR ELEMENTS
 
     const roleNameEl = document.getElementById("sidebar-role-name");
-
     const profileIconEl = document.getElementById("sidebar-profile-icon");
-
     const menuListEl = document.getElementById("sidebar-menu-list");
-
     const searchInputEl = document.getElementById("search-input");
-
     const sidebarWalletEl = document.getElementById("sidebar-wallet-addr");
 
-    // =====================================
-    // 8. DISPLAY WALLET AFTER SIDEBAR LOAD
-    // =====================================
+    // DISPLAY WALLET AFTER SIDEBAR LOAD
 
     if (sidebarWalletEl) {
       sidebarWalletEl.innerText = shortAddress;
-
       sidebarWalletEl.title = currentAccount;
     }
 
-    // =====================================
-    // 9. CARRIER SIDEBAR
-    // =====================================
+    // CARRIER SIDEBAR
 
     if (isCarrier) {
       // Carrier dashboard lives in its own page.
@@ -147,11 +111,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
 
       roleNameEl.innerText = "Carrier";
-
       profileIconEl.className = "profile-icon carrier-icon-bg";
-
       profileIconEl.innerHTML = '<i class="fa-solid fa-truck-fast"></i>';
-
       menuListEl.innerHTML = `
 
                 <li>
@@ -192,16 +153,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             `;
     }
 
-    // =====================================
-    // 10. SHIPPER SIDEBAR
-    // =====================================
+    // SHIPPER SIDEBAR
     else {
       roleNameEl.innerText = "Shipper";
-
       profileIconEl.className = "profile-icon";
-
       profileIconEl.innerHTML = '<i class="fa-solid fa-box"></i>';
-
       menuListEl.innerHTML = `
 
                 <li>
@@ -249,9 +205,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             `;
     }
 
-    // =====================================
-    // 11. HIGHLIGHT CURRENT PAGE
-    // =====================================
+    // HIGHLIGHT CURRENT PAGE
 
     const currentPage = window.location.pathname.split("/").pop();
 
@@ -271,22 +225,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
 
-    // =====================================
-    // 12. RENDER LUCIDE ICONS
-    // =====================================
+    // RENDER LUCIDE ICONS
 
     if (typeof lucide !== "undefined") {
       lucide.createIcons();
     }
 
-    // =====================================
-    // 13. LOAD NETWORK INFORMATION
-    // =====================================
+    // LOAD NETWORK INFORMATION
 
     const chainIdEl = document.getElementById("chain-id");
-
     const web3 = new Web3(window.ethereum);
-
     const chainId = await web3.eth.getChainId();
 
     if (chainIdEl) {

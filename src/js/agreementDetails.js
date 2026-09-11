@@ -206,11 +206,14 @@ async function processAgreementExpiry() {
       stakeForfeited,
     );
 
+    const stakeMessage = stakeForfeited > 0
+      ? `Carrier stake forfeited to you: ${stakeForfeited.toFixed(3)} ETH\n\n`
+      : "";
     alert(
       "Agreement expired successfully.\n\n" +
-        `Remaining escrow refunded: ${refundedAmount.toFixed(3)} ETH\n` +
-        `Carrier stake forfeited to you: ${stakeForfeited.toFixed(3)} ETH\n\n` +
-        "The expiry and stake-forfeiture records are now in transaction history.",
+        `Remaining escrow refunded: ${refundedAmount.toFixed(3)} ETH\n\n` +
+        stakeMessage +
+        "The expiry record is now in transaction history.",
     );
 
     // Reload page state
@@ -219,7 +222,7 @@ async function processAgreementExpiry() {
     console.error("Agreement expiry failed:", error);
 
     if (error?.code === 4001) {
-      alert("Expiry transaction was rejected in MetaMask.");
+      alert("Agreement expiry failed:\n\nTransaction was rejected in MetaMask.");
 
       return;
     }
@@ -790,11 +793,8 @@ function renderMilestones() {
 
                     </div>
                 </div>
-
                 <div class="milestone-status ${state}">
-
                     <span class="milestone-status-dot"></span>
-
                     <span>
                         ${stateText}
                     </span>
@@ -1199,9 +1199,9 @@ function openExtensionModal() {
             <label>
                 New Date & Time (up to 10 days after the current deadline)
                 <input type="datetime-local" id="ext-date-input"
-                    min="${toLocalDateTimeValue(currentDeadline)}"
                     max="${toLocalDateTimeValue(currentDeadline + 10 * 86400)}" required>
             </label>
+            <p id="ext-date-error" class="profile-modal-note" role="alert" style="margin-top: 6px; color: #f87171;"></p>
             <label style="margin-top: 12px;">
                 Reason for Extension
                 <input type="text" id="ext-reason-input" placeholder="e.g. Customs delay, bad weather" maxlength="200">
@@ -1209,7 +1209,7 @@ function openExtensionModal() {
             <p id="ext-modal-message" class="profile-modal-note" role="alert"></p>
             <div class="profile-modal-actions">
                 <button type="button" class="profile-cancel-btn" id="cancel-ext-btn">Cancel</button>
-                <button type="button" class="profile-save-btn" id="submit-ext-btn">Submit Request</button>
+                <button type="button" class="profile-save-btn" id="submit-ext-btn" disabled>Submit Request</button>
             </div>
         </div>
     `;
@@ -1219,6 +1219,27 @@ function openExtensionModal() {
   };
   document.getElementById("submit-ext-btn").onclick =
     submitDeadlineExtensionRequest;
+
+  const dateInput = document.getElementById("ext-date-input");
+  const reasonInput = document.getElementById("ext-reason-input");
+  const submitButton = document.getElementById("submit-ext-btn");
+  const dateError = document.getElementById("ext-date-error");
+  const validateExtensionForm = () => {
+    const selected = Math.floor(new Date(dateInput?.value || "").getTime() / 1000);
+    let error = "";
+    if (dateInput?.value && (!Number.isFinite(selected) || selected <= Math.floor(Date.now() / 1000))) {
+      error = "The new deadline cannot be in the past.";
+    } else if (dateInput?.value && selected <= currentDeadline) {
+      error = "The new deadline must be after the current deadline.";
+    } else if (dateInput?.value && selected > currentDeadline + 10 * 86400) {
+      error = "Extension cannot exceed 10 days beyond the current deadline.";
+    }
+    if (dateError) dateError.textContent = error;
+    if (submitButton) submitButton.disabled = Boolean(error) || !dateInput?.value || !reasonInput?.value.trim();
+  };
+  dateInput?.addEventListener("input", validateExtensionForm);
+  dateInput?.addEventListener("change", validateExtensionForm);
+  reasonInput?.addEventListener("input", validateExtensionForm);
 
   modal.hidden = false;
 }
@@ -1273,10 +1294,20 @@ async function submitDeadlineExtensionRequest() {
     return;
   }
 
+  if (selectedTimestamp <= Math.floor(Date.now() / 1000)) {
+    if (messageEl) messageEl.innerText = "The new deadline cannot be in the past.";
+    return;
+  }
+
   if (selectedTimestamp > maxAllowedTimestamp) {
     if (messageEl)
       messageEl.innerText =
         "Extension cannot exceed 10 days beyond current deadline.";
+    return;
+  }
+
+  if (!reasonInput) {
+    if (messageEl) messageEl.innerText = "Please enter a reason for the extension request.";
     return;
   }
 

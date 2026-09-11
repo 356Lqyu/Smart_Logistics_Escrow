@@ -1,5 +1,12 @@
 const MAX_ACTIVE_AGREEMENTS_PER_CARRIER = 3;
 
+function transactionFailureMessage(action, error) {
+  const reason = error?.code === 4001
+    ? "Transaction was rejected in MetaMask."
+    : error?.message || String(error || "Please try again.");
+  return `${action} failed:\n\n${reason}`;
+}
+
 function getAcceptAgreementMessage(error) {
   if (error?.code === 4001) {
     return "Transaction was rejected in MetaMask.";
@@ -49,9 +56,6 @@ async function sharedAcceptAgreement(agreementId, referenceNo, onSuccess) {
     });
     const currentAccount = accounts[0].toLowerCase();
 
-    // Always re-check immediately before asking the carrier to sign. This
-    // protects the Agreements and Agreement Details acceptance flows even
-    // when their displayed lists are stale.
     const { count, error: activeCountError } = await supabaseClient
       .from("agreements")
       .select("agreement_id", { count: "exact", head: true })
@@ -237,7 +241,7 @@ async function sharedCancelAgreement(
     if (typeof onSuccess === "function") onSuccess();
     else window.location.reload();
   } catch (error) {
-    alert("Cancellation failed:\n\n" + (error?.message || error));
+    alert(transactionFailureMessage("Agreement cancellation", error));
   }
 }
 
@@ -249,6 +253,12 @@ async function sharedRequestExtension(
   onSuccess,
 ) {
   try {
+    if (!Number.isFinite(Number(newDeadlineTimestamp))) {
+      throw new Error("Please select a valid new deadline.");
+    }
+    if (!String(reason || "").trim()) {
+      throw new Error("Please enter a reason for the extension request.");
+    }
     const { data, error } = await supabaseClient
       .from("agreements")
       .update({
@@ -284,7 +294,7 @@ async function sharedRequestExtension(
     if (typeof onSuccess === "function") onSuccess();
     else window.location.reload();
   } catch (err) {
-    alert("Failed to submit extension request: " + (err?.message || err));
+    alert(transactionFailureMessage("Deadline extension request", err));
   }
 }
 
@@ -355,7 +365,7 @@ async function sharedApproveExtension(
     if (typeof onSuccess === "function") onSuccess();
     else window.location.reload();
   } catch (err) {
-    alert("Failed to approve extension: " + (err?.message || err));
+    alert(transactionFailureMessage("Deadline extension approval", err));
   }
 }
 
@@ -398,6 +408,6 @@ async function sharedRejectExtension(agreementId, referenceNo, onSuccess) {
     if (typeof onSuccess === "function") onSuccess();
     else window.location.reload();
   } catch (err) {
-    alert("Failed to reject extension: " + (err?.message || err));
+    alert(transactionFailureMessage("Deadline extension rejection", err));
   }
 }

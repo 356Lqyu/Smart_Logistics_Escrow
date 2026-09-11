@@ -1,18 +1,8 @@
-/* Transaction history styles. */
-
-/* =========================================================
-   TRANSACTION HISTORY PAGE
-========================================================= */
-
 .transaction-history-page {
   width: 1250px;
   margin: 0 auto;
   padding-bottom: 60px;
 }
-
-/* =========================================================
-   STATISTICS GRID
-========================================================= */
 
 .transaction-stats-grid {
   display: grid;
@@ -33,97 +23,65 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-/* =========================================================
-   STAT CARD
-========================================================= */
-
 .transaction-stat-card {
   min-height: 156px;
-
   background: #0b172b;
-
   border: 1px solid #1b2b43;
-
   border-radius: 20px;
-
   padding: 25px 26px;
-
   display: flex;
-
   align-items: flex-start;
-
   justify-content: space-between;
-
   position: relative;
-
   overflow: hidden;
 }
 
 .transaction-stat-card::after {
   content: "";
-
   position: absolute;
-
   width: 120px;
   height: 120px;
-
   right: -60px;
   bottom: -60px;
-
   border-radius: 50%;
-
   background: rgba(255, 255, 255, 0.015);
-
   pointer-events: none;
 }
 
 .stat-card-content {
   display: flex;
-
   flex-direction: column;
-
   gap: 12px;
 }
 
 .stat-label {
   color: #6380a7;
-
   font-size: 12px;
-
   font-weight: 600;
-
   letter-spacing: 1.3px;
 }
 
 .stat-value-row {
   display: flex;
-
   align-items: center;
-
   gap: 9px;
 }
 
 .stat-value-row strong {
   color: #f5f8ff;
-
   font-size: 28px;
-
   font-weight: 600;
-
   letter-spacing: 0.5px;
 }
 
 .eth-symbol {
   color: #52a7ff;
-
   font-size: 15px;
-
   transform: rotate(0deg);
 }
 
 .stat-change {
   font-size: 14px;
-
   font-weight: 500;
 }
 
@@ -135,98 +93,61 @@
   color: #526d91;
 }
 
-/* =========================================================
-   STAT ICONS
-========================================================= */
-
 .stat-icon {
   width: 46px;
   height: 46px;
-
   border-radius: 50%;
-
   display: flex;
-
   align-items: center;
-
   justify-content: center;
-
   font-size: 18px;
 }
 
 .escrow-icon {
   background: rgba(45, 125, 255, 0.13);
-
   color: #4b98ff;
 }
 
 .earned-icon {
   background: rgba(0, 196, 159, 0.12);
-
   color: #00d8a5;
 }
 
 .completed-icon {
   background: rgba(139, 92, 246, 0.13);
-
   color: #a78bfa;
 }
 
 .refund-icon {
   background: rgba(245, 158, 11, 0.12);
-
   color: #fbbf24;
 }
 
-/* =========================================================
-   TRANSACTION LEDGER CARD
-========================================================= */
-
 .transaction-ledger-card {
   background: #0b172b;
-
   border: 1px solid #1b2b43;
-
   border-radius: 20px;
-
   overflow: hidden;
 }
 
-/* =========================================================
-   TABS
-========================================================= */
-
 .transaction-tabs {
   display: flex;
-
   align-items: flex-end;
-
   padding: 20px 26px 20px;
-
   border-bottom: 1px solid #1b2b43;
-
   gap: 6px;
 }
 
 .transaction-tab {
   background: transparent;
-
   border: 1px solid transparent;
-
   border-bottom: none;
-
   color: #526d91;
-
   padding: 14px 20px;
-
   border-radius: 14px 14px 0 0;
-
   font-size: 15px;
-
   font-weight: 500;
-
   cursor: pointer;
-
   transition: 0.2s;
 }
 
@@ -236,31 +157,18 @@
 
 .transaction-tab.active {
   color: #f2f6fc;
-
   background: #101e34;
-
   border-color: #20324d;
-
   font-weight: 600;
 }
 
-/* =========================================================
-   FILTER BAR
-========================================================= */
-
 .transaction-filter-bar {
   min-height: 72px;
-
   padding: 15px 26px;
-
   display: flex;
-
   align-items: center;
-
   gap: 14px;
-
   border-bottom: 1px solid #1b2b43;
-
   flex-wrap: wrap;
 }
 
@@ -270,41 +178,27 @@
 
 .transaction-search {
   width: 220px;
-
   height: 40px;
-
   background: #101e34;
-
   border: 1px solid #20324d;
-
   border-radius: 12px;
-
   display: flex;
-
   align-items: center;
-
   gap: 10px;
-
   padding: 0 14px;
 }
 
 .transaction-search i {
   color: #526d91;
-
   font-size: 13px;
 }
 
 .transaction-search input {
   width: 100%;
-
   background: transparent;
-
   border: none;
-
   outline: none;
-
   color: #dce7f5;
-
   font-size: 13px;
 }
 
@@ -318,47 +212,32 @@
 
 .transaction-filter-buttons {
   display: flex;
-
   align-items: center;
-
   gap: 7px;
-
   flex-wrap: wrap;
 }
 
 .transaction-filter-btn {
   height: 40px;
-
   padding: 0 15px;
-
   background: #101e34;
-
   border: 1px solid #20324d;
-
   border-radius: 12px;
-
   color: #6380a7;
-
   font-size: 13px;
-
   cursor: pointer;
-
   transition: 0.2s;
 }
 
 .transaction-filter-btn:hover {
   color: #a7b9d1;
-
   border-color: #304665;
 }
 
 .transaction-filter-btn.active {
   background: #2168f3;
-
   border-color: #2168f3;
-
   color: #ffffff;
-
   box-shadow: 0 4px 12px rgba(33, 104, 243, 0.25);
 }
 
@@ -368,45 +247,31 @@
 
 .transaction-table-wrapper {
   width: 100%;
-
   overflow-x: auto;
 }
 
 .transaction-history-table {
   width: 100%;
-
   min-width: 900px;
-
   border-collapse: collapse;
-
   text-align: left;
 }
 
 .transaction-history-table th {
   padding: 16px 26px;
-
   color: #527093;
-
   font-size: 11px;
-
   font-weight: 600;
-
   letter-spacing: 1px;
-
   border-bottom: 1px solid #1b2b43;
-
   white-space: nowrap;
 }
 
 .transaction-history-table td {
   padding: 17px 20px;
-
   color: #9bb0cc;
-
   font-size: 13px;
-
   border-bottom: 1px solid #17263c;
-
   white-space: nowrap;
 }
 
@@ -428,7 +293,6 @@
 
 .transaction-date {
   color: #8ea5c2;
-
   font-size: 13px;
 }
 
@@ -438,37 +302,24 @@
 
 .transaction-agreement {
   color: #4f91ff;
-
   font-weight: 600;
-
   text-decoration: none;
-
   cursor: pointer;
 }
 
 .transaction-agreement:hover {
   color: #75a9ff;
-
   text-decoration: underline;
 }
-
-/* =========================================================
-   TRANSACTION TYPE
-========================================================= */
 
 .transaction-type {
   color: #a9bad0;
 }
 
-/* =========================================================
-   AMOUNT
-========================================================= */
 
 .transaction-amount {
   font-family: monospace;
-
   font-weight: 600;
-
   font-size: 13px;
 }
 
@@ -492,23 +343,16 @@
 
 .transaction-hash {
   display: inline-flex;
-
   align-items: center;
-
   gap: 5px;
-
   color: #526d91;
-
   text-decoration: none;
-
   font-family: monospace;
-
   font-size: 12px;
 }
 
 .transaction-hash:hover {
   color: #4f91ff;
-
   text-decoration: underline;
 }
 
@@ -522,31 +366,20 @@
 
 .transaction-status {
   display: inline-flex;
-
   align-items: center;
-
   gap: 7px;
-
   padding: 6px 12px;
-
   border-radius: 20px;
-
   font-size: 12px;
-
   font-weight: 500;
-
   white-space: nowrap;
 }
 
 .transaction-status::before {
   content: "";
-
   width: 7px;
-
   height: 7px;
-
   border-radius: 50%;
-
   background: currentColor;
 }
 
@@ -554,9 +387,7 @@
 
 .transaction-status.completed {
   color: #00d990;
-
   background: rgba(0, 217, 144, 0.08);
-
   border: 1px solid rgba(0, 217, 144, 0.25);
 }
 
@@ -564,9 +395,7 @@
 
 .transaction-status.funded {
   color: #fbbf24;
-
   background: rgba(245, 158, 11, 0.08);
-
   border: 1px solid rgba(245, 158, 11, 0.25);
 }
 
@@ -574,9 +403,7 @@
 
 .transaction-status.pending {
   color: #60a5fa;
-
   background: rgba(59, 130, 246, 0.08);
-
   border: 1px solid rgba(59, 130, 246, 0.25);
 }
 
@@ -584,9 +411,7 @@
 
 .transaction-status.refunded {
   color: #ff6670;
-
   background: rgba(239, 68, 68, 0.08);
-
   border: 1px solid rgba(239, 68, 68, 0.25);
 }
 
@@ -596,19 +421,14 @@
 
 .transaction-empty-row td {
   padding: 50px 20px;
-
   text-align: center;
-
   color: #526d91;
 }
 
 .transaction-empty-row i {
   display: block;
-
   font-size: 28px;
-
   margin-bottom: 12px;
-
   color: #304665;
 }
 
@@ -640,15 +460,18 @@
   width: 220px;
 }
 
-/* =========================================================
-   DISTINCT TRANSACTION STATUS BADGE COLORS
-========================================================= */
-
 /* FUNDED */
 .transaction-status.status-funded {
   color: #60a5fa;
   background: rgba(59, 130, 246, 0.12);
   border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+/* ACCEPTED */
+.transaction-status.status-accepted {
+  color: #a78bfa;
+  background: rgba(139, 92, 246, 0.12);
+  border: 1px solid rgba(139, 92, 246, 0.3);
 }
 
 /* SUBMITTED / PENDING */

@@ -445,39 +445,26 @@ function buildLedgerEvents() {
       if (!hasCancellationTransaction) {
         events.push({
           type: "agreement",
-
           date: agreement.cancelled_at || agreement.created_time,
-
           agreement: agreement,
-
           transaction: null,
-
           milestone: null,
-
           agreementAction: "Cancelled",
         });
       }
     }
   });
 
-  // =================================================
   // SORT
-  // =================================================
 
   events.sort((a, b) => {
     const dateA = new Date(a.date || 0).getTime();
-
     const dateB = new Date(b.date || 0).getTime();
-
     return dateB - dateA;
   });
 
   return events;
 }
-
-// =====================================================
-// RENDER LEDGER
-// =====================================================
 
 function renderLedger() {
   const tableBody = document.getElementById("transaction-table-body");
@@ -521,9 +508,7 @@ function renderLedger() {
   });
 }
 
-// =====================================================
 // TRANSACTION ROW
-// =====================================================
 
 function renderTransactionRow(row, event) {
   const transaction = event.transaction;
@@ -574,9 +559,7 @@ function renderTransactionRow(row, event) {
     `;
 }
 
-// =====================================================
 // MILESTONE ROW
-// =====================================================
 
 function renderMilestoneRow(row, event) {
   const milestone = event.milestone;
@@ -601,9 +584,7 @@ function renderMilestoneRow(row, event) {
     `;
 }
 
-// =====================================================
 // MATCH FILTER
-// =====================================================
 
 function matchesFilter(event) {
   if (currentFilter === "all") {
@@ -684,9 +665,7 @@ function matchesFilter(event) {
   return true;
 }
 
-// =====================================================
 // SEARCH
-// =====================================================
 
 function initializeSearch() {
   const searchInput = document.getElementById("agreement-search");
@@ -697,9 +676,7 @@ function initializeSearch() {
 
   searchInput.addEventListener("input", () => {
     const query = searchInput.value.toLowerCase().trim();
-
     const rows = document.querySelectorAll("#transaction-table-body tr");
-
     rows.forEach((row) => {
       const text = row.innerText.toLowerCase();
 
@@ -708,29 +685,21 @@ function initializeSearch() {
   });
 }
 
-// =====================================================
 // FILTER BUTTONS
-// =====================================================
 
 function initializeFilters() {
   const buttons = document.querySelectorAll(".transaction-filter-btn");
-
   buttons.forEach((button) => {
     button.addEventListener("click", () => {
       buttons.forEach((b) => b.classList.remove("active"));
-
       button.classList.add("active");
-
       currentFilter = button.getAttribute("data-filter") || "all";
-
       renderLedger();
     });
   });
 }
 
-// =====================================================
 // FIND AGREEMENT
-// =====================================================
 
 function findAgreement(agreementId) {
   return allAgreements.find(
@@ -738,9 +707,7 @@ function findAgreement(agreementId) {
   );
 }
 
-// =====================================================
 // EXTRACT TRANSACTION AMOUNT (ROLE-AWARE)
-// =====================================================
 
 function extractTransactionAmount(transaction, agreement = null) {
   const details = transaction.details;
@@ -764,8 +731,6 @@ function extractTransactionAmount(transaction, agreement = null) {
       amount = Number(details.escrow_refunded);
       isIncoming = true;
 
-      // Older expiry records stored 0 after the balance had already
-      // been cleared. Reconstruct the remaining escrow for display.
       if (eventType === "AgreementExpired" && amount === 0 && agreement) {
         amount = Math.max(
           0,
@@ -804,9 +769,7 @@ function extractTransactionAmount(transaction, agreement = null) {
   return "—";
 }
 
-// =====================================================
 // TRANSACTION STATUS
-// =====================================================
 
 function getTransactionStatus(eventType) {
   const type = String(eventType).toLowerCase();
@@ -871,9 +834,7 @@ function getTransactionStatus(eventType) {
   return "Recorded";
 }
 
-// =====================================================
 // STATUS CSS CLASS
-// =====================================================
 
 function getStatusClass(status) {
   switch (status) {
@@ -882,6 +843,7 @@ function getStatusClass(status) {
     case "Stake Locked":
       return "status-funded";
     case "Accepted":
+      return "status-accepted";
     case "Stake Returned":
       return "status-active";
     case "Submitted":
@@ -904,9 +866,7 @@ function getStatusClass(status) {
   }
 }
 
-// =====================================================
 // FORMAT DATE/TIME
-// =====================================================
 
 function formatDateTime(value) {
   if (!value) {
@@ -921,21 +881,14 @@ function formatDateTime(value) {
 
   return date.toLocaleString(undefined, {
     year: "numeric",
-
     month: "short",
-
     day: "numeric",
-
     hour: "2-digit",
-
     minute: "2-digit",
   });
 }
 
-// =====================================================
 // FORMAT WALLET ADDRESS
-// =====================================================
-
 function formatAddress(address) {
   if (!address) {
     return "Unknown";
@@ -952,9 +905,7 @@ function formatAddress(address) {
   );
 }
 
-// =====================================================
 // FORMAT TRANSACTION HASH
-// =====================================================
 
 function formatHash(hash) {
   if (!hash) {
@@ -972,9 +923,7 @@ function formatHash(hash) {
   );
 }
 
-// =====================================================
 // BLOCKCHAIN EXPLORER
-// =====================================================
 
 function buildExplorerUrl(hash) {
   if (!hash) {
@@ -984,9 +933,7 @@ function buildExplorerUrl(hash) {
   return "#";
 }
 
-// =====================================================
 // LOADING
-// =====================================================
 
 function showLoading() {
   const tableBody = document.getElementById("transaction-table-body");
@@ -1005,9 +952,7 @@ function showLoading() {
     `;
 }
 
-// =====================================================
 // ERROR
-// =====================================================
 
 function showError(message) {
   const tableBody = document.getElementById("transaction-table-body");
@@ -1026,10 +971,6 @@ function showError(message) {
         </tr>
     `;
 }
-
-// =====================================================
-// ESCAPE HTML
-// =====================================================
 
 function escapeHtml(value) {
   if (value === null || value === undefined) {

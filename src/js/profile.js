@@ -569,13 +569,10 @@ function setupAvatarUpload(wallet) {
   });
 }
 
-// ===============================
 // IMAGE COMPRESSION
 //
 // Resizes + re-encodes the image as JPEG, shrinking quality
 // and then dimensions until it fits under maxBytes.
-// ===============================
-
 async function compressImageToBytes(file, maxBytes) {
   const sourceDataUrl = await readFileAsDataURL(file);
   const image = await loadImageElement(sourceDataUrl);
