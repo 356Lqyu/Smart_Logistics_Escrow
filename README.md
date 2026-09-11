@@ -162,6 +162,47 @@ const NETWORK_ADDRESSES = {
 
 ---
 
+# Updating the Smart Contracts
+
+If you edit `LogisticsEscrow.sol` or `LogiTrustToken.sol`, redeploying is required — Ethereum has no "update in place," so any code change produces a brand-new contract address. Follow these steps:
+
+## 1. Recompile
+
+```bash
+truffle compile
+```
+
+This regenerates `build/contracts/LogisticsEscrow.json` (and `LogiTrustToken.json` if changed) with the new bytecode and ABI.
+
+## 2. Redeploy to whichever network(s) you're testing
+
+- **Ganache**: `truffle migrate --reset` — deploys fresh. Required every time regardless of whether the code changed, since Ganache's state is wiped on restart; especially required here since the old deployment no longer matches your edited source.
+- **Sepolia**: start `truffle dashboard`, connect MetaMask (on Sepolia) at `http://localhost:24012`, then in a second terminal run `truffle migrate --network dashboard --reset` and approve the transactions in MetaMask. This costs real Sepolia testnet ETH in gas.
+
+Only redeploy to the network(s) you're actually going to use next — Ganache and Sepolia deployments are fully independent of each other.
+
+## 3. Update `NETWORK_ADDRESSES` in `js/contract.js`
+
+Each redeploy produces new addresses. Update the entry for whichever chain ID you redeployed to:
+
+```javascript
+const NETWORK_ADDRESSES = {
+  1337: { contract: "NEW_ADDRESS", token: "NEW_ADDRESS" }, // if you redeployed Ganache
+  5777: { contract: "NEW_ADDRESS", token: "NEW_ADDRESS" }, // same, other Ganache chain-id alias
+  11155111: { contract: "NEW_ADDRESS", token: "NEW_ADDRESS" }, // if you redeployed Sepolia
+};
+```
+
+Get the new addresses from the `truffle migrate` terminal output, or from `build/contracts/LogisticsEscrow.json` → `networks["<chainId>"].address`.
+
+## 4. Update `CONTRACT_ABI` / `TOKEN_ABI` if the interface changed
+
+This step is easy to forget. `CONTRACT_ABI` and `TOKEN_ABI` in `js/contract.js` are hand-copied arrays, **not** loaded dynamically from the build artifacts. If your change added, removed, or renamed a function, changed its parameters, or changed an event, these arrays are now stale and must be manually updated to match `build/contracts/LogisticsEscrow.json`'s `abi` field — otherwise Web3.js will fail to find the function or misdecode results. If you only changed internal logic without touching any function signature or event, the existing ABI is still valid and this step can be skipped.
+
+> **Note:** If Ganache just restarted (wiped state) but you haven't actually edited any `.sol` file, you still need steps 2 and 3 (redeploy, new address) since Ganache lost the old deployment — but not step 4, since the ABI is unchanged.
+
+---
+
 # 3. Run the Application
 
 The frontend can be served using **VS Code Live Server** or another local static file server.
