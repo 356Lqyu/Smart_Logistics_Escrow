@@ -49,13 +49,14 @@ function configureRoleFilters() {
   currentFilter = selectedFilter;
 }
 
+// initialize wallte
 async function initializeWallet() {
   // CHECK METAMASK
   if (typeof window.ethereum === "undefined") {
     throw new Error("MetaMask is required.");
   }
 
-  // GET CONNECTED ACCOUNT
+  // get connected account
   const accounts = await window.ethereum.request({
     method: "eth_accounts",
   });
@@ -66,7 +67,7 @@ async function initializeWallet() {
 
   currentAccount = accounts[0].toLowerCase();
 
-  // SAVE CONSISTENTLY
+  // save consistency
   localStorage.setItem("wallet", currentAccount);
   console.log("Transaction History wallet:", currentAccount);
   updateWalletDisplay(currentAccount);
