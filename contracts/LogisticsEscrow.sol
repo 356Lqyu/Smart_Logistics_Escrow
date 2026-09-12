@@ -7,15 +7,16 @@ interface ILogiTrustToken {
 contract LogisticsEscrow {
     address public owner;
     ILogiTrustToken public rewardToken;
-
+    // uint for unsigned interger non-negative value
     uint public constant CARRIER_REWARD = 10 * 10 ** 18;
     uint public constant CARRIER_STAKE_PERCENTAGE = 30;
     uint private constant MAX_ACTIVE_AGREEMENTS_PER_CARRIER = 3;
     uint public agreementCounter;
 
-
+    // records important action on blockchain
     event CarrierRewarded(uint indexed agreementId,address indexed carrier,uint amount);
     
+    // only once when LogisticsEscrow is deployed.
     constructor(address tokenAddress) {
         owner = msg.sender;
         rewardToken = ILogiTrustToken(tokenAddress);
@@ -55,16 +56,21 @@ contract LogisticsEscrow {
         uint currentMilestone;
     }
 
+    //store and retrieve contract data
+    // Stores each registered user’s details using their wallet address
     mapping(address => User) public users;
     mapping(address => bytes) private profilePictures;
     mapping(uint => Agreement) private agreements;
+    // Stores the list of milestones belonging to each agreement
     mapping(uint => Milestone[]) private agreementMilestones;
     mapping(uint => mapping(uint => bytes32)) private milestoneProofHashes;
     mapping(bytes32 => bool) private agreementHashes;
     mapping(address => uint) private activeAgreementsByCarrier;
     mapping(address => uint) private lockedStakeByCarrier;
 
+    // create a blockchain transaction log for important user, agreement and escrow actions
     event UserRegistered(address indexed user, UserRole role);
+    // Records that the user’s profile picture was updated, it does not store the picture inside the event
     event ProfilePictureUpdated(address indexed user);
     event AgreementCreated(uint indexed agreementId, string referenceNo, address indexed shipper, uint escrowAmount);
     event EscrowFunded(uint indexed agreementId, uint amount);
@@ -82,29 +88,32 @@ contract LogisticsEscrow {
     event EscrowRefunded(uint indexed agreementId, address indexed shipper, uint amount);
     event DeadlineExtended(uint indexed agreementId, uint newDeadline, address indexed shipper);
 
+    // retrieves the total performance stake currently locked by a Carrier
     function getCarrierLockedStake(address carrier) external view returns (uint) {
         return lockedStakeByCarrier[carrier];
     }
 
+    // register new user (memory for temporary data storage during the function call)
     function register(string memory _name, UserRole _role) external {
         require(!users[msg.sender].registered, "Wallet already registered");
         require(bytes(_name).length > 0, "Name is required");
         require(_role == UserRole.Shipper || _role == UserRole.Carrier, "Invalid role");
-
+        // Creates and stores the user record using their wallet address as the key
         users[msg.sender] = User({
             name: _name,
             role: _role,
             registered: true
         });
-
+        // Records a UserRegistered event on the blockchain
         emit UserRegistered(msg.sender, _role);
     }
 
+    // allows a registered user to save or update their profile picture directly on the blockchain
     function setProfilePicture(bytes calldata data) external {
         require(users[msg.sender].registered, "Not registered");
         require(data.length > 0, "Empty image");
         require(data.length <= 65536, "Image too large after compression");
-
+        // Stores the image bytes using the user’s wallet address
         profilePictures[msg.sender] = data;
         emit ProfilePictureUpdated(msg.sender);
     }
@@ -129,7 +138,7 @@ contract LogisticsEscrow {
             uint currentMilestone
         )
     {
-        Agreement storage a = agreements[id];
+        Agreement storage a = agreements[id];   //creates a reference named a pointing to the agreement stored under that ID
         return (
             a.agreementId,
             a.referenceNo,
@@ -161,11 +170,12 @@ contract LogisticsEscrow {
             uint verifiedAt
         )
     {
-        require(index < agreementMilestones[agreementId].length, "Milestone does not exist");
-        Milestone storage m = agreementMilestones[agreementId][index];
+        require(index < agreementMilestones[agreementId].length, "Milestone does not exist"); //prevents the function from requesting a milestone outside the agreement’s list
+        Milestone storage m = agreementMilestones[agreementId][index];  // reference to the milestone already stored in blockchain storage
         return (m.checkpoint, m.percentage, m.completed, m.verified, m.paid, m.completedAt, m.verifiedAt);
     }
 
+    // retrieves the hash stored for that agreement and milestone
     function getMilestoneProofHash(uint agreementId, uint index) external view returns (bytes32) {
         require(index < agreementMilestones[agreementId].length, "Milestone does not exist");
         return milestoneProofHashes[agreementId][index];
@@ -190,6 +200,7 @@ contract LogisticsEscrow {
         require(payloadValue > 0, "Payload value must be greater than zero");
         require(bytes(shipmentDetails).length > 0, "Shipment details required");
 
+        // checks that every percentage is valid and calculates the total
         uint total = 0;
         for (uint i = 0; i < percentages.length; i++) {
             require(percentages[i] > 0 && percentages[i] <= 100, "Invalid milestone percentage");
@@ -197,6 +208,7 @@ contract LogisticsEscrow {
         }
         require(total == 100, "Percentages must equal 100");
 
+        // creates a unique hash based on the Shipper, shipment details, payload value, escrow amount and deadline
         bytes32 agreementHash = keccak256(abi.encodePacked(msg.sender, keccak256(bytes(shipmentDetails)), payloadValue, escrowAmount, deadline));
         require(!agreementHashes[agreementHash], "Duplicate agreement detected");
         agreementHashes[agreementHash] = true;
@@ -204,7 +216,6 @@ contract LogisticsEscrow {
         agreementCounter++;
         uint newId = agreementCounter;
 
-        // Using external library function here:
         string memory refNo = generateReferenceNo(newId);
 
         agreements[newId] = Agreement({
@@ -244,7 +255,9 @@ contract LogisticsEscrow {
         return newId;
     }
 
+    // allows a registered Carrier to accept an available agreement by depositing a performance stake.
     function acceptAgreement(uint agreementId) external payable {
+        // Creates agreement as a reference to the agreement stored on the blockchain.
         Agreement storage agreement = agreements[agreementId];
         require(users[msg.sender].role == UserRole.Carrier,"Only registered carriers can accept agreements");
         require(agreement.agreementId != 0, "Agreement does not exist");
@@ -257,19 +270,25 @@ contract LogisticsEscrow {
             "Carrier already has 3 active agreements"
         );
 
+        // Calculate the required stake
         uint requiredStake = (agreement.escrowAmount * CARRIER_STAKE_PERCENTAGE) / 100;
         require(msg.value == requiredStake, "Carrier stake must equal 30% of escrow");
-
+        // Assigns the Carrier’s wallet address to the agreement.
         agreement.carrier = payable(msg.sender);
-        agreement.carrierStake = msg.value;
+        // Stores the Carrier’s deposited stake
+        agreement.carrierStake = msg.value; 
         agreement.status = AgreementStatus.InProgress;
+        // Increases the Carrier’s number of active agreements by one
         activeAgreementsByCarrier[msg.sender]++;
+        // Adds the stake to the Carrier’s total locked stake
         lockedStakeByCarrier[msg.sender] += msg.value;
 
         emit AgreementAccepted(agreementId, msg.sender);
         emit CarrierStakeDeposited(agreementId, msg.sender, msg.value);
     }
 
+    // allows the assigned Carrier to submit completion evidence for the current milestone
+    // proofHash is 32-byte hash of the completion evidence
     function submitMilestoneCompletion(uint agreementId, bytes32 proofHash) external {
         Agreement storage agreement = agreements[agreementId];
         require(agreement.agreementId != 0, "Agreement does not exist");
@@ -277,6 +296,7 @@ contract LogisticsEscrow {
         require(msg.sender == agreement.carrier, "Only the carrier can submit completion");
         require(block.timestamp <= agreement.deadline, "Agreement deadline has passed");
 
+        // Gets the milestone currently awaiting completion
         uint index = agreement.currentMilestone;
         require(index < agreementMilestones[agreementId].length, "All milestones are complete");
 
@@ -284,11 +304,11 @@ contract LogisticsEscrow {
         require(!milestone.completed, "Milestone already submitted");
         require(!milestone.verified, "Milestone already verified");
         require(!milestone.paid, "Milestone already paid");
-        require(proofHash != bytes32(0), "Invalid proof hash");
+        require(proofHash != bytes32(0), "Invalid proof hash");  // Rejects an empty or zero hash.
 
         milestone.completed = true;
         milestone.completedAt = block.timestamp;
-        milestoneProofHashes[agreementId][index] = proofHash;
+        milestoneProofHashes[agreementId][index] = proofHash;  // Stores the proof hash for this agreement and milestone
 
         emit MilestoneCompletionSubmitted(agreementId, index, msg.sender, proofHash);
     }
@@ -309,8 +329,7 @@ contract LogisticsEscrow {
         require(!milestone.paid, "Milestone already paid");
         require(agreement.escrowRemaining > 0, "Agreement has no remaining escrow");
 
-        // Pay the final milestone from the remaining balance so integer wei
-        // division can never leave unreleased escrow in the agreement.
+        // Calculate the payout
         uint payout = index == agreementMilestones[agreementId].length - 1
             ? agreement.escrowRemaining
             : (agreement.escrowAmount * milestone.percentage) / 100;
@@ -323,17 +342,20 @@ contract LogisticsEscrow {
         agreement.escrowRemaining -= payout;
         agreement.currentMilestone++;
 
+        // Transfers the milestone payment to the Carrier
         (bool success,) = agreement.carrier.call{value: payout}("");
         require(success, "Payment transfer failed");
 
         emit MilestoneVerified(agreementId, index, msg.sender, payout);
         emit MilestonePayout(agreementId, index, agreement.carrier, payout);
 
+        // Checks whether all milestones have been completed
         if (agreement.currentMilestone >= agreementMilestones[agreementId].length) {
             require(agreement.escrowRemaining == 0, "Escrow remains after final milestone");
             agreement.status = AgreementStatus.Completed;
             activeAgreementsByCarrier[agreement.carrier]--;
 
+            // Retrieves the Carrier’s locked stake and removes it from the locked-stake records
             uint stake = agreement.carrierStake;
             agreement.carrierStake = 0;
             lockedStakeByCarrier[agreement.carrier] -= stake;
@@ -341,7 +363,7 @@ contract LogisticsEscrow {
             emit AgreementCompleted(agreementId);
 
             if (stake > 0) {
-                (bool stakeReturned,) = agreement.carrier.call{value: stake}("");
+                (bool stakeReturned,) = agreement.carrier.call{value: stake}("");  //Returns the performance stake to the Carrier
                 require(stakeReturned, "Stake return failed");
                 emit CarrierStakeReturned(agreementId, agreement.carrier, stake);
             }
@@ -393,6 +415,8 @@ contract LogisticsEscrow {
         emit AgreementCancelled(agreementId);
     }
 
+    // expires an agreement after its deadline and refunds the appropriate funds to the Shipper
+    // not need payable because it sends existing contract funds
     function expireAgreement(uint agreementId) external {
         Agreement storage agreement = agreements[agreementId];
         require(agreement.agreementId != 0, "Agreement does not exist");
@@ -402,6 +426,7 @@ contract LogisticsEscrow {
 
         bool wasInProgress = agreement.status == AgreementStatus.InProgress;
 
+        // Save refund amounts
         uint amount = agreement.escrowRemaining;
         uint forfeitedStake = agreement.carrierStake;
         agreement.escrowRemaining = 0;
@@ -409,12 +434,14 @@ contract LogisticsEscrow {
         agreement.carrierStake = 0;
         agreement.status = AgreementStatus.Expired;
 
+        // If a Carrier had accepted the agreement: their active-agreement count decreases and ocked stake total decreases
         if (wasInProgress) {
             activeAgreementsByCarrier[agreement.carrier]--;
             lockedStakeByCarrier[agreement.carrier] -= forfeitedStake;
         }
 
         uint totalToShipper = amount + forfeitedStake;
+        // Transfers the combined refund to the Shipper
         if (totalToShipper > 0) {
             (bool success,) = agreement.shipper.call{value: totalToShipper}("");
             require(success, "Refund failed");
@@ -425,6 +452,7 @@ contract LogisticsEscrow {
         emit AgreementExpired(agreementId);
     }
 
+    // allows the Shipper to extend the deadline of an active agreement
     function extendDeadline(uint agreementId, uint newDeadline) external {
         Agreement storage agreement = agreements[agreementId];
         require(agreement.agreementId != 0, "Agreement does not exist");
@@ -433,6 +461,7 @@ contract LogisticsEscrow {
         require(block.timestamp <= agreement.deadline,"Current deadline has already passed");
         require(newDeadline > agreement.deadline, "New deadline must be greater than current deadline");
 
+        // Replaces the old deadline with the new deadline in blockchain storage
         agreement.deadline = newDeadline;
         emit DeadlineExtended(agreementId, newDeadline, msg.sender);
     }
@@ -453,6 +482,8 @@ contract LogisticsEscrow {
         return string(abi.encodePacked("LG-2026-", paddedId));
     }
 
+    // converts an unsigned integer into a normal decimal string
+    // pure means it does not read or modify blockchain state, returns a temporary string in memory
     function _uintToStr(uint _i) internal pure returns (string memory) {
         if (_i == 0) {
             return "0";
@@ -461,11 +492,13 @@ contract LogisticsEscrow {
         uint temp = _i;
         uint digits;
 
+        // Repeatedly divides the number by 10 until it becomes zero.
         while (temp != 0) {
             digits++;
             temp /= 10;
         }
 
+        // Creates enough space to store the decimal characters
         bytes memory buffer = new bytes(digits);
 
         while (_i != 0) {
