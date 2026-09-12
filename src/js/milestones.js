@@ -85,8 +85,7 @@ async function loadInProgressAgreements() {
                     refunded_amount
                 `,
       )
-      .eq("status", "In Progress")
-      .eq("chain_id", ACTIVE_CHAIN_ID);
+      .eq("status", "In Progress");
 
     if (milestoneRole === "carrier") {
       agreementQuery = agreementQuery.eq("carrier_address", wallet);
@@ -136,7 +135,6 @@ async function loadInProgressAgreements() {
                 `,
       )
       .in("agreement_id", agreementIds)
-      .eq("chain_id", ACTIVE_CHAIN_ID)
       .order("milestone_index", {
         ascending: true,
       });
@@ -146,7 +144,6 @@ async function loadInProgressAgreements() {
       .from("transactions")
       .select("agreement_id, details")
       .in("agreement_id", agreementIds)
-      .eq("chain_id", ACTIVE_CHAIN_ID)
       .eq("event_type", "MilestoneRejected")
       .order("created_at", { ascending: false });
 
@@ -155,7 +152,6 @@ async function loadInProgressAgreements() {
         .from("transactions")
         .select("agreement_id, details, created_at")
         .in("agreement_id", agreementIds)
-        .eq("chain_id", ACTIVE_CHAIN_ID)
         .eq("event_type", "DeadlineExtensionRejected")
         .order("created_at", { ascending: false });
     if (extensionRejectionError) {

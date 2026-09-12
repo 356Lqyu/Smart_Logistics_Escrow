@@ -60,8 +60,7 @@ async function sharedAcceptAgreement(agreementId, referenceNo, onSuccess) {
       .from("agreements")
       .select("agreement_id", { count: "exact", head: true })
       .eq("carrier_address", currentAccount)
-      .eq("status", "In Progress")
-      .eq("chain_id", ACTIVE_CHAIN_ID);
+      .eq("status", "In Progress");
 
     if (activeCountError) throw activeCountError;
     if ((count || 0) >= MAX_ACTIVE_AGREEMENTS_PER_CARRIER) {
@@ -105,8 +104,7 @@ async function sharedAcceptAgreement(agreementId, referenceNo, onSuccess) {
         carrier_address: currentAccount,
         accepted_at: now,
       })
-      .eq("agreement_id", Number(agreementId))
-      .eq("chain_id", ACTIVE_CHAIN_ID);
+      .eq("agreement_id", Number(agreementId));
 
     if (updateError) throw updateError;
 
@@ -116,7 +114,6 @@ async function sharedAcceptAgreement(agreementId, referenceNo, onSuccess) {
         {
           transaction_hash: tx.transactionHash,
           agreement_id: Number(agreementId),
-          chain_id: ACTIVE_CHAIN_ID,
           event_type: "AgreementAccepted",
           actor_address: currentAccount,
           details: {
@@ -127,7 +124,6 @@ async function sharedAcceptAgreement(agreementId, referenceNo, onSuccess) {
         {
           transaction_hash: `${tx.transactionHash}:carrier-stake-deposited`,
           agreement_id: Number(agreementId),
-          chain_id: ACTIVE_CHAIN_ID,
           event_type: "CarrierStakeDeposited",
           actor_address: currentAccount,
           details: {
@@ -219,14 +215,12 @@ async function sharedCancelAgreement(
         escrow_released: 0,
         escrow_remaining: 0,
       })
-      .eq("agreement_id", Number(agreementId))
-      .eq("chain_id", ACTIVE_CHAIN_ID);
+      .eq("agreement_id", Number(agreementId));
 
     await supabaseClient.from("transactions").insert([
       {
         transaction_hash: tx.transactionHash,
         agreement_id: Number(agreementId),
-        chain_id: ACTIVE_CHAIN_ID,
         event_type: "AgreementCancelled",
         actor_address: account.toLowerCase(),
         details: {
@@ -272,7 +266,6 @@ async function sharedRequestExtension(
         extension_request_reason: reason,
       })
       .eq("agreement_id", Number(agreementId))
-      .eq("chain_id", ACTIVE_CHAIN_ID)
       .is("extension_requested_deadline", null)
       .select("agreement_id");
 
@@ -287,7 +280,6 @@ async function sharedRequestExtension(
       {
         transaction_hash: "N/A-" + Date.now(),
         agreement_id: Number(agreementId),
-        chain_id: ACTIVE_CHAIN_ID,
         event_type: "DeadlineExtensionRequested",
         actor_address: String(walletAddress || "").toLowerCase(),
         details: {
@@ -337,8 +329,7 @@ async function sharedApproveExtension(
         extension_requested_deadline: null,
         extension_request_reason: null,
       })
-      .eq("agreement_id", Number(agreementId))
-      .eq("chain_id", ACTIVE_CHAIN_ID);
+      .eq("agreement_id", Number(agreementId));
 
     if (error) throw error;
 
@@ -346,7 +337,6 @@ async function sharedApproveExtension(
       {
         transaction_hash: tx.transactionHash,
         agreement_id: Number(agreementId),
-        chain_id: ACTIVE_CHAIN_ID,
         event_type: "DeadlineExtended",
         actor_address: account,
         details: {
@@ -394,8 +384,7 @@ async function sharedRejectExtension(agreementId, referenceNo, onSuccess) {
         extension_requested_deadline: null,
         extension_request_reason: null,
       })
-      .eq("agreement_id", Number(agreementId))
-      .eq("chain_id", ACTIVE_CHAIN_ID);
+      .eq("agreement_id", Number(agreementId));
 
     if (error) throw error;
 
@@ -403,7 +392,6 @@ async function sharedRejectExtension(agreementId, referenceNo, onSuccess) {
       {
         transaction_hash: "N/A-" + Date.now(),
         agreement_id: Number(agreementId),
-        chain_id: ACTIVE_CHAIN_ID,
         event_type: "DeadlineExtensionRejected",
         actor_address: account,
         details: {

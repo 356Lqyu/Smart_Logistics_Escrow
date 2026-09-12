@@ -87,7 +87,6 @@ async function loadShipperDashboard() {
   const { data, error } = await supabaseClient
     .from("agreements")
     .select("*")
-    .eq("chain_id", ACTIVE_CHAIN_ID)
     .order("agreement_id", { ascending: false });
 
   if (error) throw error;

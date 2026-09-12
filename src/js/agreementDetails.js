@@ -36,7 +36,6 @@ async function loadAgreement() {
     .from("agreements")
     .select("*")
     .eq("agreement_id", Number(agreementId))
-    .eq("chain_id", ACTIVE_CHAIN_ID)
     .single();
 
   if (error) {
@@ -263,8 +262,7 @@ async function syncExpiredAgreementToSupabase(
         escrow_remaining: 0,
         escrow_released: Number(agreementData.escrow_released || 0),
       })
-      .eq("agreement_id", Number(agreementId))
-      .eq("chain_id", ACTIVE_CHAIN_ID);
+      .eq("agreement_id", Number(agreementId));
 
     if (error) {
       console.error("Failed to update expired agreement in Supabase:", error);
@@ -327,7 +325,6 @@ async function loadMilestones() {
             `,
     )
     .eq("agreement_id", Number(agreementId))
-    .eq("chain_id", ACTIVE_CHAIN_ID)
     .order("milestone_index", {
       ascending: true,
     });
@@ -342,7 +339,6 @@ async function loadMilestones() {
     .from("transactions")
     .select("agreement_id, details")
     .eq("agreement_id", Number(agreementId))
-    .eq("chain_id", ACTIVE_CHAIN_ID)
     .eq("event_type", "MilestoneRejected")
     .order("created_at", { ascending: false });
 
@@ -1325,7 +1321,6 @@ async function submitDeadlineExtensionRequest() {
         extension_request_reason: reasonInput,
       })
       .eq("agreement_id", Number(agreementId))
-      .eq("chain_id", ACTIVE_CHAIN_ID)
       .is("extension_requested_deadline", null)
       .select("agreement_id");
 
@@ -1418,8 +1413,6 @@ async function saveTransaction(hash, eventType, actor, details) {
       transaction_hash: hash,
 
       agreement_id: Number(agreementId),
-
-      chain_id: ACTIVE_CHAIN_ID,
 
       event_type: eventType,
 

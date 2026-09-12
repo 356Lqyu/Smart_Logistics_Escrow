@@ -69,7 +69,6 @@ async function loadProfile(wallet) {
       .from("users")
       .select("*")
       .eq("wallet_address", walletLower)
-      .eq("chain_id", ACTIVE_CHAIN_ID)
       .maybeSingle();
 
     if (!error) user = data;
@@ -90,7 +89,10 @@ async function loadProfile(wallet) {
   const registeredAt = user?.created_at || user?.registered_at || null;
 
   setText("profile-name", displayName);
-  setText("profile-role-pill", isCarrier ? "Carrier" : "Shipper");
+  setText(
+    "profile-role-pill",
+    `Role Locked — ${isCarrier ? "Carrier" : "Shipper"}`,
+  );
   setText(
     "profile-subtitle",
     isCarrier ? "Carrier logistics identity" : "Shipper logistics identity",
@@ -153,7 +155,6 @@ async function loadRoleAgreements(walletLower, isCarrier) {
   const { data, error } = await supabaseClient
     .from("agreements")
     .select("*")
-    .eq("chain_id", ACTIVE_CHAIN_ID)
     .order("agreement_id", { ascending: false });
 
   if (error) {
@@ -310,16 +311,14 @@ function setupEditModal(wallet) {
       const { error } = await supabaseClient
         .from("users")
         .update(payload)
-        .eq("wallet_address", wallet.toLowerCase())
-        .eq("chain_id", ACTIVE_CHAIN_ID);
+        .eq("wallet_address", wallet.toLowerCase());
 
       if (error) {
         // Some columns may not exist on this schema — fall back to name only.
         const { error: nameError } = await supabaseClient
           .from("users")
           .update({ name })
-          .eq("wallet_address", wallet.toLowerCase())
-          .eq("chain_id", ACTIVE_CHAIN_ID);
+          .eq("wallet_address", wallet.toLowerCase());
 
         if (nameError) throw nameError;
       }
@@ -580,43 +579,6 @@ function setupAvatarUpload(wallet) {
 
       const contract = getEscrowContract();
       await contract.methods.setProfilePicture(hexData).send({ from: wallet });
-
-      // Also persist the same compressed image to Supabase, as a backup /
-      // faster-to-load copy alongside the on-chain original. The chain
-      // stays the source of truth (this is best-effort and never blocks
-      // the on-chain save above if it fails).
-      try {
-        const walletLower = wallet.toLowerCase();
-        const path = `${walletLower}.jpg`;
-        const blob = new Blob([bytes], { type: "image/jpeg" });
-
-        const { error: uploadError } = await supabaseClient.storage
-          .from("avatars")
-          .upload(path, blob, { upsert: true, contentType: "image/jpeg" });
-
-        if (uploadError) {
-          console.warn("Supabase avatar upload failed:", uploadError.message);
-        } else {
-          const publicUrl = supabaseClient.storage
-            .from("avatars")
-            .getPublicUrl(path).data.publicUrl;
-
-          const { error: updateError } = await supabaseClient
-            .from("users")
-            .update({ profile_picture_url: `${publicUrl}?t=${Date.now()}` })
-            .eq("wallet_address", walletLower)
-            .eq("chain_id", ACTIVE_CHAIN_ID);
-
-          if (updateError) {
-            console.warn(
-              "Could not save avatar URL to users table:",
-              updateError.message,
-            );
-          }
-        }
-      } catch (supabaseError) {
-        console.warn("Supabase avatar backup failed:", supabaseError);
-      }
 
       const avatar = document.getElementById("profile-avatar");
       if (avatar) {

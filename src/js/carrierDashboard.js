@@ -173,7 +173,6 @@ async function loadCarrierDashboard(walletLower, currentAccount) {
   const { data, error } = await supabaseClient
     .from("agreements")
     .select("*")
-    .eq("chain_id", ACTIVE_CHAIN_ID)
     .order("agreement_id", { ascending: false });
 
   if (error) throw error;
@@ -263,7 +262,6 @@ async function renderPaymentBreakdown(activeJobs) {
       "agreement_id",
       jobs.map((job) => Number(job.agreement_id)),
     )
-    .eq("chain_id", ACTIVE_CHAIN_ID)
     .order("milestone_index", { ascending: true });
 
   const milestonesByAgreement = (milestones || []).reduce(

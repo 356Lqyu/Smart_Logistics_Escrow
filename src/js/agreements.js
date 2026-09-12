@@ -29,7 +29,6 @@ async function loadAgreements() {
   const { data: rawAgreements, error } = await supabaseClient
     .from("agreements")
     .select("*")
-    .eq("chain_id", ACTIVE_CHAIN_ID)
     .order("agreement_id", {
       ascending: false,
     });
@@ -137,7 +136,6 @@ async function loadCarrierExtensionRejections(isCarrierUser) {
     .from("transactions")
     .select("agreement_id, details, created_at")
     .in("agreement_id", ids)
-    .eq("chain_id", ACTIVE_CHAIN_ID)
     .eq("event_type", "DeadlineExtensionRejected")
     .order("created_at", { ascending: false });
   if (error) {
@@ -358,8 +356,7 @@ async function syncExpiredAgreement(
         // A shipper refund is not a carrier payout.
         escrow_released: Number(agreement.escrow_released || 0),
       })
-      .eq("agreement_id", Number(agreement.agreement_id))
-      .eq("chain_id", ACTIVE_CHAIN_ID);
+      .eq("agreement_id", Number(agreement.agreement_id));
 
     if (error) {
       console.error("Failed to synchronize expired agreement:", error);
@@ -379,7 +376,6 @@ async function syncExpiredAgreement(
         {
           transaction_hash: transactionHash,
           agreement_id: Number(agreement.agreement_id),
-          chain_id: ACTIVE_CHAIN_ID,
           event_type: "AgreementExpired",
           actor_address: actor.toLowerCase(),
           details: {
@@ -394,7 +390,6 @@ async function syncExpiredAgreement(
               {
                 transaction_hash: `${transactionHash}:carrier-stake-forfeited`,
                 agreement_id: Number(agreement.agreement_id),
-                chain_id: ACTIVE_CHAIN_ID,
                 event_type: "CarrierStakeForfeited",
                 actor_address: actor.toLowerCase(),
                 details: {

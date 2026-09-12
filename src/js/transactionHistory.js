@@ -113,7 +113,6 @@ async function loadTransactionHistory() {
   } else {
     agreementQuery = agreementQuery.eq("shipper_address", currentAccount);
   }
-  agreementQuery = agreementQuery.eq("chain_id", ACTIVE_CHAIN_ID);
 
   const { data: agreements, error: agreementError } =
     await agreementQuery.order("agreement_id", { ascending: false });
@@ -140,8 +139,7 @@ async function loadTransactionHistory() {
                 created_at
             `,
       )
-      .in("agreement_id", agreementIds)
-      .eq("chain_id", ACTIVE_CHAIN_ID);
+      .in("agreement_id", agreementIds);
 
     if (isCarrier) {
       txQuery = txQuery.or(
@@ -185,7 +183,6 @@ async function loadTransactionHistory() {
             `,
       )
       .in("agreement_id", agreementIds)
-      .eq("chain_id", ACTIVE_CHAIN_ID)
       .order("milestone_index", { ascending: true });
 
     if (milestoneError) {
