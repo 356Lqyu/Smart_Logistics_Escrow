@@ -126,10 +126,10 @@ async function loadTransactionHistory() {
 
   // LOAD TRANSACTIONS STRICTLY BOUND TO USER ROLE & AGREEMENTS
   if (agreementIds.length > 0) {
-    let txQuery = supabaseClient
-      .from("transactions")
-      .select(
-        `
+    const { data: transactions, error: transactionError } =
+      await TransactionRepository.query((query) => {
+        let txQuery = query.select(
+          `
                 id,
                 transaction_hash,
                 agreement_id,
@@ -138,23 +138,21 @@ async function loadTransactionHistory() {
                 details,
                 created_at
             `,
-      )
-      .in("agreement_id", agreementIds);
+        )
+          .in("agreement_id", agreementIds);
 
-    if (isCarrier) {
-      txQuery = txQuery.or(
-        `actor_address.eq.${currentAccount},event_type.eq.MilestonePayout,event_type.eq.MilestoneVerified,event_type.eq.MilestoneRejected,event_type.eq.CarrierStakeReturned,event_type.eq.CarrierStakeForfeited`,
-      );
-    } else {
-      txQuery = txQuery.or(
-        `actor_address.eq.${currentAccount},event_type.eq.AgreementAccepted`,
-      );
-    }
+        if (isCarrier) {
+          txQuery = txQuery.or(
+            `actor_address.eq.${currentAccount},event_type.eq.MilestonePayout,event_type.eq.MilestoneVerified,event_type.eq.MilestoneRejected,event_type.eq.CarrierStakeReturned,event_type.eq.CarrierStakeForfeited`,
+          );
+        } else {
+          txQuery = txQuery.or(
+            `actor_address.eq.${currentAccount},event_type.eq.AgreementAccepted`,
+          );
+        }
 
-    const { data: transactions, error: transactionError } = await txQuery.order(
-      "created_at",
-      { ascending: false },
-    );
+        return txQuery.order("created_at", { ascending: false });
+      });
 
     if (transactionError) {
       throw transactionError;

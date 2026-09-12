@@ -335,12 +335,14 @@ async function loadMilestones() {
 
   milestoneData = data || [];
 
-  const { data: rejectionTransactions } = await supabaseClient
-    .from("transactions")
-    .select("agreement_id, details")
-    .eq("agreement_id", Number(agreementId))
-    .eq("event_type", "MilestoneRejected")
-    .order("created_at", { ascending: false });
+  const { data: rejectionTransactions } = await TransactionRepository.query(
+    (query) =>
+      query
+        .select("agreement_id, details")
+        .eq("agreement_id", Number(agreementId))
+        .eq("event_type", "MilestoneRejected")
+      .order("created_at", { ascending: false }),
+  );
 
   milestoneData.forEach((milestone) => {
     milestone.isRejected = false;
@@ -1408,21 +1410,21 @@ async function requestDeadlineExtension(id) {
 
 // SAVE TRANSACTION
 async function saveTransaction(hash, eventType, actor, details) {
-  const { error } = await supabaseClient.from("transactions").insert([
-    {
-      transaction_hash: hash,
+  try {
+    await TransactionRepository.record([
+      {
+        transaction_hash: hash,
 
-      agreement_id: Number(agreementId),
+        agreement_id: Number(agreementId),
 
-      event_type: eventType,
+        event_type: eventType,
 
-      actor_address: actor.toLowerCase(),
+        actor_address: actor.toLowerCase(),
 
-      details: details,
-    },
-  ]);
-
-  if (error) {
+        details: details,
+      },
+    ]);
+  } catch (error) {
     console.warn("Transaction save failed:", error);
   }
 }

@@ -524,7 +524,7 @@ async function handleCreateAgreement(event) {
     // TRANSACTION HISTORY
 
 
-    await supabaseClient.from("transactions").insert([
+    await TransactionRepository.record([
       {
         transaction_hash: tx.transactionHash,
         agreement_id: agreementId,

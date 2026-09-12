@@ -132,12 +132,14 @@ async function loadAgreements() {
 async function loadCarrierExtensionRejections(isCarrierUser) {
   if (!isCarrierUser || allAgreements.length === 0) return;
   const ids = allAgreements.map((agreement) => Number(agreement.agreement_id));
-  const { data, error } = await supabaseClient
-    .from("transactions")
-    .select("agreement_id, details, created_at")
-    .in("agreement_id", ids)
-    .eq("event_type", "DeadlineExtensionRejected")
-    .order("created_at", { ascending: false });
+  const { data, error } = await TransactionRepository.query(
+    (query) =>
+      query
+        .select("agreement_id, details, created_at")
+        .in("agreement_id", ids)
+        .eq("event_type", "DeadlineExtensionRejected")
+      .order("created_at", { ascending: false }),
+  );
   if (error) {
     console.warn("Could not load extension rejection notices:", error);
     return;
@@ -372,7 +374,7 @@ async function syncExpiredAgreement(
     // Transaction record
 
     if (transactionHash && actor) {
-      await supabaseClient.from("transactions").insert([
+      await TransactionRepository.record([
         {
           transaction_hash: transactionHash,
           agreement_id: Number(agreement.agreement_id),

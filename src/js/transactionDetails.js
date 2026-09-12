@@ -8,14 +8,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       throw new Error("No transaction identifier was provided.");
     }
 
-    let query = supabaseClient.from("transactions").select("*");
-    if (txId) {
-      query = query.eq("id", Number(txId));
-    } else {
-      query = query.eq("transaction_hash", txHash);
-    }
-
-    const { data: transaction, error } = await query.maybeSingle();
+    const { data: transaction, error } = await TransactionRepository.query(
+      (query) => {
+        const filteredQuery = txId
+          ? query.select("*").eq("id", Number(txId))
+          : query.select("*").eq("transaction_hash", txHash);
+        return filteredQuery.maybeSingle();
+      },
+    );
     if (error) throw error;
     if (!transaction) throw new Error("Transaction record not found.");
 

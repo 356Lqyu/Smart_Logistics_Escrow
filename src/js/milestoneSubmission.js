@@ -54,12 +54,14 @@ async function initialiseSubmissionPage() {
       throw new Error("Milestone evidence storage is not configured.");
     }
 
-    const { data: rejectionTransactions } = await supabaseClient
-      .from("transactions")
-      .select("details, created_at")
-      .eq("agreement_id", submissionAgreementId)
-      .eq("event_type", "MilestoneRejected")
-      .order("created_at", { ascending: false });
+    const { data: rejectionTransactions } = await TransactionRepository.query(
+      (query) =>
+        query
+          .select("details, created_at")
+          .eq("agreement_id", submissionAgreementId)
+          .eq("event_type", "MilestoneRejected")
+        .order("created_at", { ascending: false }),
+    );
 
     const rejectionDetails = (rejectionTransactions || []).find(
       (transaction) =>
@@ -528,7 +530,7 @@ async function submitEvidenceAndCompletion(event) {
         .update({ completed: true, completed_at: new Date().toISOString() })
         .eq("agreement_id", submissionAgreementId)
         .eq("milestone_index", submissionMilestoneIndex);
-      await supabaseClient.from("transactions").insert({
+      await TransactionRepository.record({
         transaction_hash: tx.transactionHash,
         agreement_id: submissionAgreementId,
         event_type: "MilestoneSubmitted",
@@ -691,7 +693,7 @@ async function verifyEvidenceAndRelease() {
           },
         });
       }
-      await supabaseClient.from("transactions").insert(transactionRecords);
+      await TransactionRepository.record(transactionRecords);
     } catch (syncError) {
       console.error(
         "Milestone verified/paid on-chain but Supabase sync failed:",
@@ -771,7 +773,7 @@ async function rejectEvidenceAndReset() {
         .eq("agreement_id", submissionAgreementId)
         .eq("milestone_index", submissionMilestoneIndex);
 
-      await supabaseClient.from("transactions").insert({
+      await TransactionRepository.record({
         transaction_hash: tx.transactionHash,
         agreement_id: submissionAgreementId,
         event_type: "MilestoneRejected",

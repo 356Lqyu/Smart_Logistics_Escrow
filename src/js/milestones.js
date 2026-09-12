@@ -140,20 +140,24 @@ async function loadInProgressAgreements() {
       });
 
     // After loading milestoneRows, query latest rejections
-    const { data: rejectionTransactions } = await supabaseClient
-      .from("transactions")
-      .select("agreement_id, details")
-      .in("agreement_id", agreementIds)
-      .eq("event_type", "MilestoneRejected")
-      .order("created_at", { ascending: false });
+    const { data: rejectionTransactions } = await TransactionRepository.query(
+      (query) =>
+        query
+          .select("agreement_id, details")
+          .in("agreement_id", agreementIds)
+          .eq("event_type", "MilestoneRejected")
+        .order("created_at", { ascending: false }),
+    );
 
     const { data: extensionRejections, error: extensionRejectionError } =
-      await supabaseClient
-        .from("transactions")
-        .select("agreement_id, details, created_at")
-        .in("agreement_id", agreementIds)
-        .eq("event_type", "DeadlineExtensionRejected")
-        .order("created_at", { ascending: false });
+      await TransactionRepository.query(
+        (query) =>
+          query
+            .select("agreement_id, details, created_at")
+            .in("agreement_id", agreementIds)
+            .eq("event_type", "DeadlineExtensionRejected")
+          .order("created_at", { ascending: false }),
+      );
     if (extensionRejectionError) {
       console.warn("Could not load extension rejection notices:", extensionRejectionError);
     }

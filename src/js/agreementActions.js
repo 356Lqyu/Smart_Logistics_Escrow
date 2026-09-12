@@ -108,9 +108,8 @@ async function sharedAcceptAgreement(agreementId, referenceNo, onSuccess) {
 
     if (updateError) throw updateError;
 
-    const { error: transactionError } = await supabaseClient
-      .from("transactions")
-      .insert([
+    try {
+      await TransactionRepository.record([
         {
           transaction_hash: tx.transactionHash,
           agreement_id: Number(agreementId),
@@ -134,8 +133,7 @@ async function sharedAcceptAgreement(agreementId, referenceNo, onSuccess) {
           },
         },
       ]);
-
-    if (transactionError) {
+    } catch (transactionError) {
       throw new Error(
         `Agreement was accepted on-chain, but its history could not be saved: ${transactionError.message}`,
       );
@@ -217,7 +215,7 @@ async function sharedCancelAgreement(
       })
       .eq("agreement_id", Number(agreementId));
 
-    await supabaseClient.from("transactions").insert([
+    await TransactionRepository.record([
       {
         transaction_hash: tx.transactionHash,
         agreement_id: Number(agreementId),
@@ -276,7 +274,7 @@ async function sharedRequestExtension(
       );
     }
 
-    await supabaseClient.from("transactions").insert([
+    await TransactionRepository.record([
       {
         transaction_hash: "N/A-" + Date.now(),
         agreement_id: Number(agreementId),
@@ -333,7 +331,7 @@ async function sharedApproveExtension(
 
     if (error) throw error;
 
-    await supabaseClient.from("transactions").insert([
+    await TransactionRepository.record([
       {
         transaction_hash: tx.transactionHash,
         agreement_id: Number(agreementId),
@@ -388,7 +386,7 @@ async function sharedRejectExtension(agreementId, referenceNo, onSuccess) {
 
     if (error) throw error;
 
-    await supabaseClient.from("transactions").insert([
+    await TransactionRepository.record([
       {
         transaction_hash: "N/A-" + Date.now(),
         agreement_id: Number(agreementId),
