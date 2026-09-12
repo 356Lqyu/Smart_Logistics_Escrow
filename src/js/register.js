@@ -312,6 +312,7 @@ async function registerUser(targetNetwork) {
         .from("users")
         .select("email")
         .eq("wallet_address", account.toLowerCase())
+        .eq("chain_id", chainId)
         .maybeSingle();
 
       if (existingRow) {
@@ -331,6 +332,7 @@ async function registerUser(targetNetwork) {
         roleNameStr,
         form,
         message,
+        chainId,
       });
 
       if (healed) {
@@ -386,6 +388,7 @@ async function registerUser(targetNetwork) {
       roleNameStr,
       form,
       message,
+      chainId,
     });
 
     if (saved) {
@@ -429,7 +432,14 @@ async function registerUser(targetNetwork) {
 // Returns true on success, false (with a message shown) on failure.
 // ===============================
 
-async function saveNewUserRow({ account, name, roleNameStr, form, message }) {
+async function saveNewUserRow({
+  account,
+  name,
+  roleNameStr,
+  form,
+  message,
+  chainId,
+}) {
   message.innerText = "Saving user profile to database...";
 
   const payload = {
@@ -441,6 +451,7 @@ async function saveNewUserRow({ account, name, roleNameStr, form, message }) {
     ic_number: form.icNumber,
     phone: form.phone,
     role: roleNameStr,
+    chain_id: chainId,
   };
 
   const { error } = await supabaseClient

@@ -21,11 +21,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     let agreementRef = "—";
     if (transaction.agreement_id) {
-      const { data: agreement } = await supabaseClient
+      let agreementQuery = supabaseClient
         .from("agreements")
         .select("reference_no")
-        .eq("agreement_id", Number(transaction.agreement_id))
-        .maybeSingle();
+        .eq("agreement_id", Number(transaction.agreement_id));
+      if (transaction.chain_id) {
+        agreementQuery = agreementQuery.eq("chain_id", transaction.chain_id);
+      }
+      const { data: agreement } = await agreementQuery.maybeSingle();
       if (agreement) agreementRef = agreement.reference_no;
     }
 

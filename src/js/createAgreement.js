@@ -469,6 +469,7 @@ async function handleCreateAgreement(event) {
       cancelled_at: null,
       expired_at: null,
       refunded_amount: 0,
+      chain_id: chainId,
     };
 
     const { error: agreementError } = await supabaseClient
@@ -495,6 +496,7 @@ async function handleCreateAgreement(event) {
       completed_at: null,
       verified_at: null,
       paid_at: null,
+      chain_id: chainId,
     }));
 
     const { error: milestoneError } = await supabaseClient
@@ -515,6 +517,7 @@ async function handleCreateAgreement(event) {
       {
         transaction_hash: tx.transactionHash,
         agreement_id: agreementId,
+        chain_id: chainId,
         event_type: "AgreementCreated",
         actor_address: currentAccount.toLowerCase(),
         details: {

@@ -33,6 +33,7 @@ async function initialiseSubmissionPage() {
       .from("agreements")
       .select("*")
       .eq("agreement_id", submissionAgreementId)
+      .eq("chain_id", ACTIVE_CHAIN_ID)
       .single();
     if (agreementError) throw agreementError;
 
@@ -41,6 +42,7 @@ async function initialiseSubmissionPage() {
       .select("*")
       .eq("agreement_id", submissionAgreementId)
       .eq("milestone_index", submissionMilestoneIndex)
+      .eq("chain_id", ACTIVE_CHAIN_ID)
       .single();
     if (milestoneError) throw milestoneError;
 
@@ -58,6 +60,7 @@ async function initialiseSubmissionPage() {
       .from("transactions")
       .select("details, created_at")
       .eq("agreement_id", submissionAgreementId)
+      .eq("chain_id", ACTIVE_CHAIN_ID)
       .eq("event_type", "MilestoneRejected")
       .order("created_at", { ascending: false });
 
@@ -506,10 +509,12 @@ async function submitEvidenceAndCompletion(event) {
       .from("milestones")
       .update({ completed: true, completed_at: new Date().toISOString() })
       .eq("agreement_id", submissionAgreementId)
-      .eq("milestone_index", submissionMilestoneIndex);
+      .eq("milestone_index", submissionMilestoneIndex)
+      .eq("chain_id", ACTIVE_CHAIN_ID);
     await supabaseClient.from("transactions").insert({
       transaction_hash: tx.transactionHash,
       agreement_id: submissionAgreementId,
+      chain_id: ACTIVE_CHAIN_ID,
       event_type: "MilestoneSubmitted",
       actor_address: account.toLowerCase(),
       details: {
@@ -580,7 +585,8 @@ async function verifyEvidenceAndRelease() {
         paid_at: now,
       })
       .eq("agreement_id", submissionAgreementId)
-      .eq("milestone_index", submissionMilestoneIndex);
+      .eq("milestone_index", submissionMilestoneIndex)
+      .eq("chain_id", ACTIVE_CHAIN_ID);
     await supabaseClient
       .from("agreements")
       .update({
@@ -597,11 +603,13 @@ async function verifyEvidenceAndRelease() {
             ? Math.floor(Date.now() / 1000)
             : null,
       })
-      .eq("agreement_id", submissionAgreementId);
+      .eq("agreement_id", submissionAgreementId)
+      .eq("chain_id", ACTIVE_CHAIN_ID);
     const transactionRecords = [
       {
         transaction_hash: tx.transactionHash,
         agreement_id: submissionAgreementId,
+        chain_id: ACTIVE_CHAIN_ID,
         event_type: "MilestoneVerified",
         actor_address: account.toLowerCase(),
         details: {
@@ -619,6 +627,7 @@ async function verifyEvidenceAndRelease() {
       transactionRecords.push({
         transaction_hash: `${tx.transactionHash}:carrier-stake-returned`,
         agreement_id: submissionAgreementId,
+        chain_id: ACTIVE_CHAIN_ID,
         event_type: "CarrierStakeReturned",
         actor_address: account.toLowerCase(),
         details: {
@@ -670,11 +679,13 @@ async function rejectEvidenceAndReset() {
         completed_at: null,
       })
       .eq("agreement_id", submissionAgreementId)
-      .eq("milestone_index", submissionMilestoneIndex);
+      .eq("milestone_index", submissionMilestoneIndex)
+      .eq("chain_id", ACTIVE_CHAIN_ID);
 
     await supabaseClient.from("transactions").insert({
       transaction_hash: tx.transactionHash,
       agreement_id: submissionAgreementId,
+      chain_id: ACTIVE_CHAIN_ID,
       event_type: "MilestoneRejected",
       actor_address: account.toLowerCase(),
       details: {
