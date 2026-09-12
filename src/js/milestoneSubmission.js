@@ -490,11 +490,14 @@ async function submitEvidenceAndCompletion(event) {
         .send({ from: account });
     } catch (sendError) {
       // Nothing on-chain happened -- safe to let the user just try again.
-      throw new Error(
-        sendError?.code === 4001
-          ? "Transaction was rejected in MetaMask."
-          : sendError.message || String(sendError),
-      );
+      if (sendError?.code === 4001) {
+        alert(
+          "Transaction was rejected in MetaMask. The page will refresh so you can try again.",
+        );
+        window.location.reload();
+        return;
+      }
+      throw new Error(sendError.message || String(sendError));
     }
 
     // The blockchain submission is now confirmed and cannot be undone or
@@ -605,11 +608,14 @@ async function verifyEvidenceAndRelease() {
         .send({ from: account });
     } catch (sendError) {
       // Nothing on-chain happened -- safe to let the user just try again.
-      throw new Error(
-        sendError?.code === 4001
-          ? "Transaction was rejected in MetaMask."
-          : sendError.message || String(sendError),
-      );
+      if (sendError?.code === 4001) {
+        alert(
+          "Transaction was rejected in MetaMask. The page will refresh so you can try again.",
+        );
+        window.location.reload();
+        return;
+      }
+      throw new Error(sendError.message || String(sendError));
     }
 
     // Payment has already been released on-chain and cannot be undone or
@@ -741,11 +747,14 @@ async function rejectEvidenceAndReset() {
         .send({ from: account });
     } catch (sendError) {
       // Nothing on-chain happened -- safe to let the user just try again.
-      throw new Error(
-        sendError?.code === 4001
-          ? "Transaction was rejected in MetaMask."
-          : sendError.message || String(sendError),
-      );
+      if (sendError?.code === 4001) {
+        alert(
+          "Transaction was rejected in MetaMask. The page will refresh so you can try again.",
+        );
+        window.location.reload();
+        return;
+      }
+      throw new Error(sendError.message || String(sendError));
     }
 
     // The rejection is already recorded on-chain and cannot be repeated
