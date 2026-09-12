@@ -20,8 +20,8 @@ const NETWORK_ADDRESSES = {
   },
   // Sepolia (chain ID 11155111) — live presentation deployment.
   11155111: {
-    contract: "0xb67f1444Ea74F5e6F374FBEebEb6220a1bB9DbaB",
-    token: "0xd52338cf25C1aF2AA27d347Ba1CEdb732Fcd28E2",
+    contract: "0xCcD0A634E9BC7455337e7a940afc990Ab31c17C1",
+    token: "0x655f30b5D7b50e69c0c03212b241f9c770E38B20",
   },
 };
 
