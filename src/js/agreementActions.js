@@ -44,6 +44,7 @@ function getAcceptAgreementMessage(error) {
   return "We could not accept this agreement. Please refresh the page and try again.";
 }
 
+// show in agreement list amd agreement detail page
 async function sharedAcceptAgreement(agreementId, referenceNo, onSuccess) {
   if (typeof window.ethereum === "undefined") {
     alert("MetaMask is required.");
@@ -164,6 +165,7 @@ async function sharedAcceptAgreement(agreementId, referenceNo, onSuccess) {
   }
 }
 
+// show in agreement list amd agreement detail page
 async function sharedCancelAgreement(
   agreementId,
   referenceNo,
@@ -243,6 +245,7 @@ async function sharedCancelAgreement(
   }
 }
 
+// show in agreement detail page and milestone page for carrier to request deadline extension
 async function sharedRequestExtension(
   agreementId,
   newDeadlineTimestamp,
@@ -296,6 +299,7 @@ async function sharedRequestExtension(
   }
 }
 
+// show in milestone page for shipper to approve the reqeust for deadline extension
 async function sharedApproveExtension(
   agreementId,
   referenceNo,
@@ -367,6 +371,7 @@ async function sharedApproveExtension(
   }
 }
 
+// show in milestone page for shipper to reject deadline extension
 async function sharedRejectExtension(agreementId, referenceNo, onSuccess) {
   try {
     if (typeof window.ethereum === "undefined")
