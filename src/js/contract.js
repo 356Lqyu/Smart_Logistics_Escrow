@@ -6,7 +6,7 @@
 // network MetaMask is connected to when this page loads
 // decides which pair of addresses CONTRACT_ADDRESS /
 // TOKEN_CONTRACT_ADDRESS resolve to, so every other file can
-// keep using those two constants unchanged.
+// keep using those two constants unchanged
 // =====================================================
 
 const NETWORK_ADDRESSES = {
