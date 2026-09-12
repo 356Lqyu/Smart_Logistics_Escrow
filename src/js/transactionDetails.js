@@ -3,7 +3,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const params = new URLSearchParams(window.location.search);
     const txHash = params.get("hash");
     const txId = params.get("id");
-
     if (!txHash && !txId) {
       throw new Error("No transaction identifier was provided.");
     }
