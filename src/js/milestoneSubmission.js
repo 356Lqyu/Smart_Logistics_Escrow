@@ -87,6 +87,7 @@ async function initialiseSubmissionPage() {
   }
 }
 
+// load milestone evidence proof
 async function loadMilestoneProofHash() {
   try {
     const web3 = new Web3(window.ethereum);
