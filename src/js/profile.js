@@ -173,6 +173,15 @@ async function loadRoleAgreements(walletLower, isCarrier) {
 }
 
 function renderProfileStats(agreements, isCarrier) {
+  // Trust score reflects carrier reliability (on-time milestone
+  // completions vs. missed deadlines/disputes) -- it isn't shown on a
+  // shipper's own profile since a shipper's agreements expiring is
+  // usually the carrier's fault, not a reflection of the shipper.
+  const trustCard = document.getElementById("trust-score-stat-card");
+  const reputationCard = document.getElementById("profile-reputation-card");
+  if (trustCard) trustCard.style.display = isCarrier ? "" : "none";
+  if (reputationCard) reputationCard.style.display = isCarrier ? "" : "none";
+
   const total = agreements.length;
   const completed = agreements.filter(
     (a) => normalize(a.status) === "completed",
@@ -213,6 +222,9 @@ function renderProfileStats(agreements, isCarrier) {
   setText("stat-agreements-meta", `+${thisMonth} this month`);
   setText("stat-completed", String(completed));
   setText("stat-completed-meta", `${successRate}% success`);
+
+  if (!isCarrier) return;
+
   setText("stat-trust", `${trustScore}/100`);
   setText(
     "stat-trust-meta",
@@ -227,34 +239,11 @@ function renderProfileStats(agreements, isCarrier) {
   setText("metric-dispute", `${disputeRate}%`);
   setText("metric-active", String(active));
 
-  // Role-specific reputation labels
   const metricLabels = document.querySelectorAll(".profile-metric span");
-
   if (metricLabels.length >= 3) {
-    if (isCarrier) {
-      metricLabels[0].innerText = "On-Time Deliveries";
-      metricLabels[1].innerText = "Dispute / Refund Rate";
-      metricLabels[2].innerText = "Active Agreements";
-    } else {
-      metricLabels[0].innerText = "Successful Completions";
-      metricLabels[1].innerText = "Refund / Cancel Rate";
-      metricLabels[2].innerText = "Active Shipments";
-    }
-  }
-
-  const reputationTitle = document.querySelector(
-    ".profile-reputation-header h3",
-  );
-  const reputationSub = document.querySelector(".profile-reputation-header p");
-
-  if (!isCarrier) {
-    if (reputationTitle) {
-      reputationTitle.innerText = "Shipper Trust Score";
-    }
-    if (reputationSub) {
-      reputationSub.innerText =
-        "Based on completed shipments, refunds, and escrow reliability";
-    }
+    metricLabels[0].innerText = "On-Time Deliveries";
+    metricLabels[1].innerText = "Dispute / Refund Rate";
+    metricLabels[2].innerText = "Active Agreements";
   }
 }
 
