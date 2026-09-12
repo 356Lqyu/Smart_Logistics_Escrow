@@ -20,8 +20,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 });
 
-// LOAD AGREEMENTS
-
+// load agreement
 async function loadAgreements() {
   const currentWallet = localStorage.getItem("wallet");
   const userRole = localStorage.getItem("role");
