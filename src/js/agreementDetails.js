@@ -31,6 +31,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 });
 
+// load agreement
 async function loadAgreement() {
   const { data, error } = await supabaseClient
     .from("agreements")
@@ -388,7 +389,7 @@ async function loadMilestones() {
   }
 }
 
-// RENDER AGREEMENT
+// Render Agreement
 function renderAgreement() {
   const status = agreementData.status || getStatusFromBlockchain() || "Created";
   setText("agreement-reference", agreementData.reference_no || "-");
@@ -521,7 +522,7 @@ function renderAgreement() {
   );
 }
 
-// GET STATUS FROM BLOCKCHAIN
+// get status from blockchain
 function getStatusFromBlockchain() {
   const status = Number(agreementData?.blockchain_status);
 
@@ -546,7 +547,7 @@ function getStatusFromBlockchain() {
   }
 }
 
-// MILESTONES
+// render milestones
 function renderMilestones() {
   const container = document.getElementById("milestones-container");
 
@@ -824,7 +825,7 @@ function isVerificationPendingOverFiveMinutes(completedAt) {
   );
 }
 
-// CHECK EXPIRY
+// check expiry
 function isAgreementExpired() {
   const deadline = Number(
     agreementData?.blockchain_deadline || agreementData?.deadline || 0,
@@ -837,7 +838,7 @@ function isAgreementExpired() {
   return Math.floor(Date.now() / 1000) > deadline;
 }
 
-// CURRENT MILESTONE
+// get current milestone
 function getCurrentMilestoneIndex() {
   const blockchainIndex = Number(agreementData?.blockchain_current_milestone);
 
@@ -863,7 +864,7 @@ function findFirstUnpaidMilestone() {
   return -1;
 }
 
-// CALCULATE PAYOUT DISPLAY
+// calculate payout display 
 function calculateMilestoneAmount(percentage) {
   const terminalStatus = String(agreementData?.status || "").toLowerCase();
   const escrowEth = ["cancelled", "expired"].includes(terminalStatus)
@@ -876,7 +877,7 @@ function calculateMilestoneAmount(percentage) {
   return ((escrowEth * Number(percentage)) / 100).toFixed(3);
 }
 
-// OVERALL PROGRESS
+// overall progress
 function updateOverallProgress() {
   const progressText = document.getElementById("overall-progress");
   const progressBar = document.getElementById("overall-progress-bar");
@@ -899,7 +900,7 @@ function updateOverallProgress() {
   }
 }
 
-// LIFECYCLE
+// render lifecycle
 function renderLifecycle() {
   const container = document.getElementById("lifecycle-timeline");
 
@@ -1016,7 +1017,6 @@ function renderLifecycle() {
   renderLifecycleStages(container, stages);
 }
 
-// RENDER LIFECYCLE STAGES
 function renderLifecycleStages(container, stages) {
   let html = "";
 
@@ -1065,7 +1065,6 @@ function renderLifecycleStages(container, stages) {
   container.innerHTML = html;
 }
 
-// ACTIONS
 function setupActions() {
   const cancelButton = document.getElementById("cancel-btn");
   const role = String(localStorage.getItem("role") || "")
