@@ -1,7 +1,6 @@
 // Shared access point for application data stored in Supabase.
 // Page scripts must use a repository instead of calling the Supabase client
 // directly.
-
 const TransactionRepository = Object.freeze({
   async record(records) {
     const rows = Array.isArray(records) ? records : [records];
