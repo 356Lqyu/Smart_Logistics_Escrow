@@ -25,7 +25,7 @@ A decentralized application (dApp) built on the Ethereum blockchain using Solidi
   If a carrier fails to meet milestones before the deadline, the contract triggers a secure expiry mechanism, refunding remaining escrow to the shipper and forfeiting the carrier's performance stake.
 
 - **Cryptographic Proofs & File Integrity**  
-  Milestone submissions link SHA-256 proof hashes recorded immutably on-chain with the underlying evidence photo stored off-chain in Supabase Storage. Recalculating the digest on review can detect if the stored file has changed, though it does not independently prove the physical logistics activity occurred.
+  Each milestone image is stored in Supabase Storage, while its SHA-256 hash is recorded on-chain. During review, the system compares the file's recalculated hash with the blockchain hash. A mismatch prevents verification and payment release, but the process does not prove that the physical activity occurred.
 
 - **Comprehensive Transaction Ledger**  
   Complete synchronization of blockchain events into Supabase for real-time tracking.

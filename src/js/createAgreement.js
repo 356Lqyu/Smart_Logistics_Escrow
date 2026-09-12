@@ -1,11 +1,11 @@
 const FIXED_MILESTONE_PERCENTAGES = [30, 30, 40];
-const MINIMUM_ESCROW_BY_PRIORITY = {
-  0: 5,
-  1: 10,
-  2: 15,
+const DEFAULT_ESCROW_BY_PRIORITY = {
+  0: 0.1,
+  1: 0.2,
+  2: 0.3,
 };
-
-const PRIORITY_LABELS = ["Normal", "Express", "Urgent"];
+const WEI_PER_ETH = 10n ** 18n;
+const INFURA_SEPOLIA_GAS_CAP = 16_000_000;
 
 document.addEventListener("DOMContentLoaded", () => {
   updateMilestones();
@@ -39,7 +39,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const priorityInput = document.getElementById("priority");
   if (priorityInput) {
-    priorityInput.addEventListener("change", validateEscrowAmount);
+    priorityInput.addEventListener("change", setPriorityEscrowDefault);
   }
 
   const deadlineInput = document.getElementById("deadline");
@@ -53,10 +53,22 @@ document.addEventListener("DOMContentLoaded", () => {
   validatePayload();
 });
 
-function getMinimumEscrowAmount() {
+function getPriorityEscrowDefault() {
   const priority = Number(document.getElementById("priority")?.value);
 
-  return MINIMUM_ESCROW_BY_PRIORITY[priority] ?? MINIMUM_ESCROW_BY_PRIORITY[0];
+  return (
+    DEFAULT_ESCROW_BY_PRIORITY[priority] ?? DEFAULT_ESCROW_BY_PRIORITY[0]
+  );
+}
+
+function setPriorityEscrowDefault() {
+  const escrowInput = document.getElementById("escrowAmount");
+
+  if (escrowInput) {
+    escrowInput.value = getPriorityEscrowDefault().toFixed(3);
+  }
+
+  validateEscrowAmount();
 }
 
 function validateDestination() {
@@ -113,31 +125,20 @@ function validateEscrowAmount() {
   }
 
   const escrowAmount = parseFloat(escrowInput.value);
-  const minimumEscrowAmount = getMinimumEscrowAmount();
-  const priority = Number(document.getElementById("priority")?.value);
-  const priorityLabel = PRIORITY_LABELS[priority] || "Normal";
-
-  escrowInput.min = minimumEscrowAmount;
-  escrowInput.placeholder = `${minimumEscrowAmount} ETH min`;
-
-  const isBelowMinimum =
+  const isInvalid =
     escrowInput.value !== "" &&
-    Number.isFinite(escrowAmount) &&
-    escrowAmount < minimumEscrowAmount;
+    (!Number.isFinite(escrowAmount) || escrowAmount <= 0);
 
   escrowInput.setCustomValidity(
-    isBelowMinimum
-      ? `The minimum total escrow amount for ${priorityLabel} delivery is ${minimumEscrowAmount} ETH.`
-      : "",
+    isInvalid ? "Total escrow amount must be greater than 0 ETH." : "",
   );
 
   if (errorMessage) {
-    errorMessage.textContent = `The minimum total escrow amount for ${priorityLabel} delivery is ${minimumEscrowAmount} ETH.`;
-    errorMessage.hidden = !isBelowMinimum;
+    errorMessage.hidden = !isInvalid;
   }
 
   updateMilestones();
-  return !isBelowMinimum;
+  return !isInvalid;
 }
 
 function validateDeadline() {
@@ -168,6 +169,51 @@ function validateDeadline() {
 }
 
 // MILESTONE PREVIEW
+
+function ethToWei(ethAmount) {
+  const value = String(ethAmount).trim();
+  const match = value.match(/^(\d+)(?:\.(\d{1,18}))?$/);
+
+  if (!match) {
+    return null;
+  }
+
+  const [, whole, fraction = ""] = match;
+  return BigInt(whole) * WEI_PER_ETH + BigInt(fraction.padEnd(18, "0"));
+}
+
+function formatWeiAsEth(weiAmount) {
+  const wei = BigInt(weiAmount);
+  const whole = wei / WEI_PER_ETH;
+  const fraction = (wei % WEI_PER_ETH)
+    .toString()
+    .padStart(18, "0")
+    .replace(/0+$/, "");
+
+  return fraction ? `${whole}.${fraction}` : whole.toString();
+}
+
+function calculateMilestonePayouts(escrowAmount, percentages) {
+  const totalWei = ethToWei(escrowAmount);
+
+  if (totalWei === null || totalWei <= 0n) {
+    return null;
+  }
+
+  let remainingWei = totalWei;
+
+  return percentages.map((percentage, index) => {
+    // The final payout receives any wei left by integer division, matching the
+    // contract and guaranteeing that all three payouts equal the total escrow.
+    const payout =
+      index === percentages.length - 1
+        ? remainingWei
+        : (totalWei * BigInt(percentage)) / 100n;
+
+    remainingWei -= payout;
+    return payout;
+  });
+}
 
 function updateMilestones() {
   const [p1, p2, p3] = FIXED_MILESTONE_PERCENTAGES;
@@ -205,7 +251,7 @@ function updateMilestones() {
     Number.isFinite(payloadValue) &&
     payloadValue > 0 &&
     Number.isFinite(escrowAmount) &&
-    escrowAmount >= getMinimumEscrowAmount() &&
+    escrowAmount > 0 &&
     deadlineIsInFuture;
 
   if (warning) {
@@ -219,14 +265,16 @@ function updateMilestones() {
     submitBtn.style.cursor = valid ? "pointer" : "not-allowed";
   }
 
-  const escrow =
-    parseFloat(document.getElementById("escrowAmount")?.value) || 0;
+  const payouts = calculateMilestonePayouts(
+    document.getElementById("escrowAmount")?.value || "",
+    [p1, p2, p3],
+  );
 
   [
     ["prev_m1", p1],
     ["prev_m2", p2],
     ["prev_m3", p3],
-  ].forEach(([id, percentage]) => {
+  ].forEach(([id, percentage], index) => {
     const element = document.getElementById(id);
 
     if (!element) {
@@ -234,8 +282,8 @@ function updateMilestones() {
     }
 
     element.innerText =
-      escrow > 0
-        ? `${((escrow * percentage) / 100).toFixed(3)} ETH (${percentage}%)`
+      payouts
+        ? `${formatWeiAsEth(payouts[index])} ETH (${percentage}%)`
         : `--- ETH (${percentage}%)`;
   });
 }
@@ -306,13 +354,9 @@ async function handleCreateAgreement(event) {
 
     if (
       !Number.isFinite(escrowAmount) ||
-      escrowAmount < getMinimumEscrowAmount()
+      escrowAmount <= 0
     ) {
-      throw new Error(
-        `Minimum total escrow amount for ${
-          PRIORITY_LABELS[priority]
-        } delivery is ${getMinimumEscrowAmount()} ETH.`,
-      );
+      throw new Error("Total escrow amount must be greater than 0 ETH.");
     }
 
     if (!Number.isInteger(priority) || priority < 0 || priority > 2) {
@@ -346,20 +390,49 @@ async function handleCreateAgreement(event) {
 
     const escrowWei = web3.utils.toWei(escrowAmount.toString(), "ether");
 
-    const tx = await contract.methods
-      .createAgreement(
-        shipmentDetails,
-        payloadValue.toString(),
-        escrowWei,
-        deadlineTimestamp.toString(),
-        priority,
-        checkpoints,
-        percentages,
-      )
-      .send({
-        from: currentAccount,
-        value: escrowWei,
-      });
+    const createAgreementMethod = contract.methods.createAgreement(
+      shipmentDetails,
+      payloadValue.toString(),
+      escrowWei,
+      deadlineTimestamp.toString(),
+      priority,
+      checkpoints,
+      percentages,
+    );
+    const transactionOptions = {
+      from: currentAccount,
+      value: escrowWei,
+    };
+
+    // Simulate first so contract reverts (including duplicate agreements) are
+    // shown to the user instead of being submitted as a high-gas transaction.
+    try {
+      await createAgreementMethod.call(transactionOptions);
+    } catch (error) {
+      const message = error?.message || String(error);
+      if (message.includes("Duplicate agreement detected")) {
+        throw new Error(
+          "Duplicate agreement detected. Change at least one agreement detail or the delivery deadline.",
+        );
+      }
+      throw new Error(message);
+    }
+
+    const estimatedGas = await createAgreementMethod.estimateGas(
+      transactionOptions,
+    );
+    const gas = Math.ceil(Number(estimatedGas) * 1.2);
+
+    if (!Number.isSafeInteger(gas) || gas > INFURA_SEPOLIA_GAS_CAP) {
+      throw new Error(
+        "Unable to create the agreement because the required gas exceeds the Sepolia RPC limit.",
+      );
+    }
+
+    const tx = await createAgreementMethod.send({
+      ...transactionOptions,
+      gas,
+    });
 
     console.log("Agreement creation transaction:", tx.transactionHash);
 

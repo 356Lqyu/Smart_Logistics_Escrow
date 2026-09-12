@@ -845,7 +845,7 @@ function getStatusClass(status) {
     case "Accepted":
       return "status-accepted";
     case "Stake Returned":
-      return "status-active";
+      return "status-stake-returned";
     case "Submitted":
       return "status-submitted";
     case "Verified":

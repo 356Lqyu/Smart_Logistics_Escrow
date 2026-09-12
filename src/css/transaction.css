@@ -474,6 +474,13 @@
   border: 1px solid rgba(139, 92, 246, 0.3);
 }
 
+/* STAKE RETURNED */
+.transaction-status.status-stake-returned {
+  color: #2dd4bf;
+  background: rgba(45, 212, 191, 0.12);
+  border: 1px solid rgba(45, 212, 191, 0.3);
+}
+
 /* SUBMITTED / PENDING */
 .transaction-status.status-submitted {
   color: #38bdf8;
