@@ -482,51 +482,91 @@ async function submitEvidenceAndCompletion(event) {
 
     const web3 = new Web3(window.ethereum);
     const contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
-    const tx = await contract.methods
-      .submitMilestoneCompletion(submissionAgreementId, proofHash)
-      .send({ from: account });
 
-    const { error: evidenceError } = await supabaseClient
-      .from("milestone_evidence")
-      .upsert(
-        {
-          agreement_id: submissionAgreementId,
+    let tx;
+    try {
+      tx = await contract.methods
+        .submitMilestoneCompletion(submissionAgreementId, proofHash)
+        .send({ from: account });
+    } catch (sendError) {
+      // Nothing on-chain happened -- safe to let the user just try again.
+      if (sendError?.code === 4001) {
+        alert(
+          "Transaction was rejected in MetaMask. The page will refresh so you can try again.",
+        );
+        window.location.reload();
+        return;
+      }
+      throw new Error(sendError.message || String(sendError));
+    }
+
+    // The blockchain submission is now confirmed and cannot be undone or
+    // resubmitted (the contract rejects a second submitMilestoneCompletion
+    // call for the same milestone). From here on, any failure must be
+    // reported as a database sync issue, NOT as "submission failed" --
+    // re-enabling the Submit button and inviting a retry would make the
+    // next attempt revert on-chain with "Milestone already submitted".
+    try {
+      const { error: evidenceError } = await supabaseClient
+        .from("milestone_evidence")
+        .upsert(
+          {
+            agreement_id: submissionAgreementId,
+            milestone_index: submissionMilestoneIndex,
+            progress_notes: notes,
+            proof_url: proofUrl || null,
+            proof_file_name: proofFileName,
+            submitted_by: account.toLowerCase(),
+            transaction_hash: tx.transactionHash,
+          },
+          { onConflict: "agreement_id,milestone_index" },
+        );
+      if (evidenceError) throw evidenceError;
+
+      await supabaseClient
+        .from("milestones")
+        .update({ completed: true, completed_at: new Date().toISOString() })
+        .eq("agreement_id", submissionAgreementId)
+        .eq("milestone_index", submissionMilestoneIndex);
+      await supabaseClient.from("transactions").insert({
+        transaction_hash: tx.transactionHash,
+        agreement_id: submissionAgreementId,
+        event_type: "MilestoneSubmitted",
+        actor_address: account.toLowerCase(),
+        details: {
           milestone_index: submissionMilestoneIndex,
-          progress_notes: notes,
-          proof_url: proofUrl || null,
-          proof_file_name: proofFileName,
-          submitted_by: account.toLowerCase(),
-          transaction_hash: tx.transactionHash,
+          proof_hash: proofHash,
+          description:
+            "Carrier submitted milestone completion; proof SHA-256 recorded on-chain.",
         },
-        { onConflict: "agreement_id,milestone_index" },
+      });
+    } catch (syncError) {
+      console.error(
+        "Milestone confirmed on-chain but Supabase sync failed:",
+        syncError,
+        "transaction hash:",
+        tx.transactionHash,
       );
-    if (evidenceError) throw evidenceError;
+      alert(
+        "Your milestone completion was confirmed on the blockchain " +
+          `(transaction ${tx.transactionHash}), but saving the evidence ` +
+          "details to the database failed: " +
+          (syncError?.message || String(syncError)) +
+          "\n\nDo NOT click Submit again -- the blockchain already has " +
+          "your submission and resubmitting will fail. Refresh this page " +
+          "instead; if the evidence still doesn't appear, contact support " +
+          "with the transaction hash above.",
+      );
+      window.location.reload();
+      return;
+    }
 
-    await supabaseClient
-      .from("milestones")
-      .update({ completed: true, completed_at: new Date().toISOString() })
-      .eq("agreement_id", submissionAgreementId)
-      .eq("milestone_index", submissionMilestoneIndex);
-    await supabaseClient.from("transactions").insert({
-      transaction_hash: tx.transactionHash,
-      agreement_id: submissionAgreementId,
-      event_type: "MilestoneSubmitted",
-      actor_address: account.toLowerCase(),
-      details: {
-        milestone_index: submissionMilestoneIndex,
-        proof_hash: proofHash,
-        description:
-          "Carrier submitted milestone completion; proof SHA-256 recorded on-chain.",
-      },
-    });
     alert(
       "Evidence and milestone completion submitted. The Shipper can now review it.",
     );
     window.location.href = "milestones.html";
   } catch (error) {
-    alert(
-      `Milestone submission failed:\n\n${error?.code === 4001 ? "Transaction was rejected in MetaMask." : error.message || String(error)}`,
-    );
+    alert(`Milestone submission failed:\n\n${error.message || String(error)}`);
     button.disabled = false;
     button.innerHTML =
       '<i class="fa-solid fa-upload"></i> Submit Evidence & Completion';
@@ -560,82 +600,123 @@ async function verifyEvidenceAndRelease() {
 
     const web3 = new Web3(window.ethereum);
     const contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
-    const tx = await contract.methods
-      .verifyMilestone(submissionAgreementId)
-      .send({ from: account });
-    const chainAgreement = await contract.methods
-      .getAgreementBasic(submissionAgreementId)
-      .call();
-    const escrowTotal = Number(submissionAgreement.escrow_amount || 0);
-    const payout = (escrowTotal * Number(submissionMilestone.percentage)) / 100;
-    const now = new Date().toISOString();
 
-    await supabaseClient
-      .from("milestones")
-      .update({
-        completed: true,
-        verified: true,
-        paid: true,
-        verified_at: now,
-        paid_at: now,
-      })
-      .eq("agreement_id", submissionAgreementId)
-      .eq("milestone_index", submissionMilestoneIndex);
-    await supabaseClient
-      .from("agreements")
-      .update({
-        escrow_released:
-          Number(submissionAgreement.escrow_released || 0) + payout,
-        escrow_remaining: Number(
-          Web3.utils.fromWei(String(chainAgreement.escrowRemaining), "ether"),
-        ),
-        current_milestone: Number(chainAgreement.currentMilestone),
-        status:
-          Number(chainAgreement.status) === 2 ? "Completed" : "In Progress",
-        completed_at:
-          Number(chainAgreement.status) === 2
-            ? Math.floor(Date.now() / 1000)
-            : null,
-      })
-      .eq("agreement_id", submissionAgreementId);
-    const transactionRecords = [
-      {
-        transaction_hash: tx.transactionHash,
-        agreement_id: submissionAgreementId,
-        event_type: "MilestoneVerified",
-        actor_address: account.toLowerCase(),
-        details: {
-          milestone_index: submissionMilestoneIndex,
-          amount: payout,
-          description: `${payout.toFixed(3)} ETH released to Carrier.`,
-        },
-      },
-    ];
-
-    // Final verification returns the carrier's separately locked 30% stake.
-    // Record it independently so it is never presented as milestone payroll.
-    if (Number(chainAgreement.status) === 2) {
-      const stakeReturned = escrowTotal * 0.3;
-      transactionRecords.push({
-        transaction_hash: `${tx.transactionHash}:carrier-stake-returned`,
-        agreement_id: submissionAgreementId,
-        event_type: "CarrierStakeReturned",
-        actor_address: account.toLowerCase(),
-        details: {
-          amount: stakeReturned,
-          stake_amount: stakeReturned,
-          blockchain_transaction_hash: tx.transactionHash,
-          description: `${stakeReturned.toFixed(3)} ETH carrier performance stake returned after successful completion.`,
-        },
-      });
+    let tx;
+    try {
+      tx = await contract.methods
+        .verifyMilestone(submissionAgreementId)
+        .send({ from: account });
+    } catch (sendError) {
+      // Nothing on-chain happened -- safe to let the user just try again.
+      if (sendError?.code === 4001) {
+        alert(
+          "Transaction was rejected in MetaMask. The page will refresh so you can try again.",
+        );
+        window.location.reload();
+        return;
+      }
+      throw new Error(sendError.message || String(sendError));
     }
-    await supabaseClient.from("transactions").insert(transactionRecords);
+
+    // Payment has already been released on-chain and cannot be undone or
+    // repeated (the contract rejects verifying an already-verified/paid
+    // milestone). Any failure from here on is a database sync issue, not
+    // a failed verification -- it must never be reported as if the
+    // verification itself failed.
+    try {
+      const chainAgreement = await contract.methods
+        .getAgreementBasic(submissionAgreementId)
+        .call();
+      const escrowTotal = Number(submissionAgreement.escrow_amount || 0);
+      const payout =
+        (escrowTotal * Number(submissionMilestone.percentage)) / 100;
+      const now = new Date().toISOString();
+
+      await supabaseClient
+        .from("milestones")
+        .update({
+          completed: true,
+          verified: true,
+          paid: true,
+          verified_at: now,
+          paid_at: now,
+        })
+        .eq("agreement_id", submissionAgreementId)
+        .eq("milestone_index", submissionMilestoneIndex);
+      await supabaseClient
+        .from("agreements")
+        .update({
+          escrow_released:
+            Number(submissionAgreement.escrow_released || 0) + payout,
+          escrow_remaining: Number(
+            Web3.utils.fromWei(String(chainAgreement.escrowRemaining), "ether"),
+          ),
+          current_milestone: Number(chainAgreement.currentMilestone),
+          status:
+            Number(chainAgreement.status) === 2 ? "Completed" : "In Progress",
+          completed_at:
+            Number(chainAgreement.status) === 2
+              ? Math.floor(Date.now() / 1000)
+              : null,
+        })
+        .eq("agreement_id", submissionAgreementId);
+      const transactionRecords = [
+        {
+          transaction_hash: tx.transactionHash,
+          agreement_id: submissionAgreementId,
+          event_type: "MilestoneVerified",
+          actor_address: account.toLowerCase(),
+          details: {
+            milestone_index: submissionMilestoneIndex,
+            amount: payout,
+            description: `${payout.toFixed(3)} ETH released to Carrier.`,
+          },
+        },
+      ];
+
+      // Final verification returns the carrier's separately locked 30% stake.
+      // Record it independently so it is never presented as milestone payroll.
+      if (Number(chainAgreement.status) === 2) {
+        const stakeReturned = escrowTotal * 0.3;
+        transactionRecords.push({
+          transaction_hash: `${tx.transactionHash}:carrier-stake-returned`,
+          agreement_id: submissionAgreementId,
+          event_type: "CarrierStakeReturned",
+          actor_address: account.toLowerCase(),
+          details: {
+            amount: stakeReturned,
+            stake_amount: stakeReturned,
+            blockchain_transaction_hash: tx.transactionHash,
+            description: `${stakeReturned.toFixed(3)} ETH carrier performance stake returned after successful completion.`,
+          },
+        });
+      }
+      await supabaseClient.from("transactions").insert(transactionRecords);
+    } catch (syncError) {
+      console.error(
+        "Milestone verified/paid on-chain but Supabase sync failed:",
+        syncError,
+        "transaction hash:",
+        tx.transactionHash,
+      );
+      alert(
+        "Payment was released on the blockchain " +
+          `(transaction ${tx.transactionHash}), but saving the update to ` +
+          "the database failed: " +
+          (syncError?.message || String(syncError)) +
+          "\n\nDo NOT click Verify again -- the payment has already been " +
+          "sent and re-verifying will fail. Refresh this page instead; if " +
+          "the status still looks wrong, contact support with the " +
+          "transaction hash above.",
+      );
+      window.location.reload();
+      return;
+    }
+
     alert("Evidence verified and payment released.");
     window.location.href = "milestones.html";
   } catch (error) {
-    alert(
-      `Milestone verification failed:\n\n${error?.code === 4001 ? "Transaction was rejected in MetaMask." : error.message || String(error)}`,
-    );
+    alert(`Milestone verification failed:\n\n${error.message || String(error)}`);
   }
 }
 
@@ -659,39 +740,74 @@ async function rejectEvidenceAndReset() {
     const web3 = new Web3(window.ethereum);
     const contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
 
-    const tx = await contract.methods
-      .rejectMilestone(submissionAgreementId, reason)
-      .send({ from: account });
+    let tx;
+    try {
+      tx = await contract.methods
+        .rejectMilestone(submissionAgreementId, reason)
+        .send({ from: account });
+    } catch (sendError) {
+      // Nothing on-chain happened -- safe to let the user just try again.
+      if (sendError?.code === 4001) {
+        alert(
+          "Transaction was rejected in MetaMask. The page will refresh so you can try again.",
+        );
+        window.location.reload();
+        return;
+      }
+      throw new Error(sendError.message || String(sendError));
+    }
 
-    await supabaseClient
-      .from("milestones")
-      .update({
-        completed: false,
-        completed_at: null,
-      })
-      .eq("agreement_id", submissionAgreementId)
-      .eq("milestone_index", submissionMilestoneIndex);
+    // The rejection is already recorded on-chain and cannot be repeated
+    // (a second rejectMilestone call reverts since the milestone is no
+    // longer marked completed). Any failure from here on is a database
+    // sync issue, not a failed rejection.
+    try {
+      await supabaseClient
+        .from("milestones")
+        .update({
+          completed: false,
+          completed_at: null,
+        })
+        .eq("agreement_id", submissionAgreementId)
+        .eq("milestone_index", submissionMilestoneIndex);
 
-    await supabaseClient.from("transactions").insert({
-      transaction_hash: tx.transactionHash,
-      agreement_id: submissionAgreementId,
-      event_type: "MilestoneRejected",
-      actor_address: account.toLowerCase(),
-      details: {
-        milestone_index: submissionMilestoneIndex,
-        reason: reason,
-        description: `Milestone rejected by Shipper: ${reason}`,
-      },
-    });
+      await supabaseClient.from("transactions").insert({
+        transaction_hash: tx.transactionHash,
+        agreement_id: submissionAgreementId,
+        event_type: "MilestoneRejected",
+        actor_address: account.toLowerCase(),
+        details: {
+          milestone_index: submissionMilestoneIndex,
+          reason: reason,
+          description: `Milestone rejected by Shipper: ${reason}`,
+        },
+      });
+    } catch (syncError) {
+      console.error(
+        "Milestone rejected on-chain but Supabase sync failed:",
+        syncError,
+        "transaction hash:",
+        tx.transactionHash,
+      );
+      alert(
+        "The rejection was recorded on the blockchain " +
+          `(transaction ${tx.transactionHash}), but saving the update to ` +
+          "the database failed: " +
+          (syncError?.message || String(syncError)) +
+          "\n\nRefresh this page instead of rejecting again -- if the " +
+          "status still looks wrong, contact support with the " +
+          "transaction hash above.",
+      );
+      window.location.reload();
+      return;
+    }
 
     alert(
       "Milestone rejected. The carrier has been notified to re-submit evidence.",
     );
     window.location.href = "milestones.html";
   } catch (error) {
-    alert(
-      `Milestone rejection failed:\n\n${error?.code === 4001 ? "Transaction was rejected in MetaMask." : error.message || String(error)}`,
-    );
+    alert(`Milestone rejection failed:\n\n${error.message || String(error)}`);
   }
 }
 

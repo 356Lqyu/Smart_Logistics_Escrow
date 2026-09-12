@@ -429,10 +429,23 @@ async function handleCreateAgreement(event) {
       );
     }
 
-    const tx = await createAgreementMethod.send({
-      ...transactionOptions,
-      gas,
-    });
+    let tx;
+    try {
+      tx = await createAgreementMethod.send({
+        ...transactionOptions,
+        gas,
+      });
+    } catch (sendError) {
+      // Nothing on-chain happened -- safe to let the user just try again.
+      if (sendError?.code === 4001) {
+        alert(
+          "Transaction was rejected in MetaMask. The page will refresh so you can try again.",
+        );
+        window.location.reload();
+        return;
+      }
+      throw new Error(sendError.message || String(sendError));
+    }
 
     console.log("Agreement creation transaction:", tx.transactionHash);
 
