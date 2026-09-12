@@ -71,6 +71,7 @@ function setPriorityEscrowDefault() {
   validateEscrowAmount();
 }
 
+// destination cannot be same ar origin
 function validateDestination() {
   const originInput = document.getElementById("origin");
   const destinationInput = document.getElementById("destination");
@@ -203,8 +204,6 @@ function calculateMilestonePayouts(escrowAmount, percentages) {
   let remainingWei = totalWei;
 
   return percentages.map((percentage, index) => {
-    // The final payout receives any wei left by integer division, matching the
-    // contract and guaranteeing that all three payouts equal the total escrow.
     const payout =
       index === percentages.length - 1
         ? remainingWei
