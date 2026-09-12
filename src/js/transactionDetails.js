@@ -85,6 +85,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 });
 
+// extract trans amount
 function extractTransactionAmount(transaction) {
   const details = transaction.details;
   const eventType = transaction.event_type;
@@ -133,6 +134,7 @@ function extractTransactionAmount(transaction) {
   return "—";
 }
 
+// get status
 function getTransactionStatus(eventType) {
   const type = String(eventType || "").toLowerCase();
   if (type.includes("rejected")) return "Rejected";
@@ -154,6 +156,7 @@ function getTransactionStatus(eventType) {
   return "Recorded";
 }
 
+get class 
 function getStatusClass(status) {
   switch (status) {
     case "Funded":
